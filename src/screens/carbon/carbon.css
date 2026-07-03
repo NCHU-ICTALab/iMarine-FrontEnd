@@ -1,0 +1,118 @@
+/* Carbon screen 樣式 — 自 iMarine-Carbon-Tokenization-POC/ui/index.html <style> 一比一搬入。
+   已刪除與 shell（tokens.css）重複或衝突的區塊：:root / html,body / .bg-fix / .bg-vignette /
+   .guide* / .topbar / .brand*（皆由 shell 提供，或隨 topbar 一併移除）。
+   其餘全部保留，選擇器一律前綴 #s-carbon 定界（router 掛載本頁為 <section id="s-carbon">），避免污染他頁。
+   唯一非機械式改動：.anim 的初始隱藏改綁 #s-carbon .wrap .anim（PoC 內容本就全在 .wrap 內），
+   讓 shell 標題列的 <header class="anim"> 交回 tokens.css 的 .screen.entered .anim 控制進場，
+   否則會被 #s-carbon .anim 的高權重永久壓在 opacity:0。 */
+
+#s-carbon .mono{font-family:"Geist Mono",ui-monospace,SFMono-Regular,monospace;}
+#s-carbon .gold{color:var(--gold);}
+
+/* ── 版心（沿用 PoC 內容容器；shell 以 .swrap 外包做 rail 讓位）── */
+#s-carbon .wrap{position:relative;z-index:10;max-width:72rem;margin:0 auto;padding:104px 24px 56px;}
+
+/* ── 分頁與 stagger 進場 ── */
+#s-carbon [hidden]{display:none!important;}
+#s-carbon .page{display:none;}
+#s-carbon .page.active{display:block;}
+#s-carbon .wrap .anim{opacity:0;transform:translateY(14px);}
+#s-carbon .page.active.entered .anim{opacity:1;transform:none;
+  transition:opacity .7s var(--ease),transform .7s var(--ease);transition-delay:var(--d,0s);}
+@media(prefers-reduced-motion:reduce){#s-carbon .wrap .anim{opacity:1;transform:none;transition:none;}}
+
+/* ── eyebrow 區塊標頭（統一語法）── */
+#s-carbon .eyebrow{display:flex;align-items:center;gap:8px;margin:0 0 14px;}
+#s-carbon .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:#fff;}
+#s-carbon .eyebrow .lbl{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-60);}
+#s-carbon .eyebrow .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--hair);color:var(--ink-50);}
+
+/* ── 髮絲線表格/列表 ── */
+#s-carbon .hairline{width:100%;border-collapse:collapse;font-size:13px;}
+#s-carbon .hairline th{color:var(--ink-40);font-weight:500;text-align:left;padding:8px;border-bottom:1px solid var(--hair);}
+#s-carbon .hairline td{padding:8px;border-bottom:1px solid var(--hair);color:var(--ink-90);}
+#s-carbon .pill{font-size:11px;padding:2px 10px;border-radius:999px;border:1px solid var(--hair);color:var(--ink-60);}
+#s-carbon .pill.listed{color:var(--lg-accent);border-color:var(--lg-accent);}
+#s-carbon .pill.retired{color:var(--ink-40);}
+/* 白色主 CTA */
+#s-carbon .lg-btn--primary{background:rgba(255,255,255,.92);color:#0a0f16;font-weight:600;}
+#s-carbon .lg-btn--primary:hover{background:#fff;}
+#s-carbon .lg-btn[disabled]{opacity:.45;pointer-events:none;}
+/* 健康 chip */
+#s-carbon #health-chip{display:inline-flex;align-items:center;gap:6px;}
+#s-carbon #health-chip .led{width:7px;height:7px;border-radius:50%;background:#e05a5a;}
+#s-carbon #health-chip.ok .led{background:var(--lg-accent);}
+
+/* ── hero（空狀態）── */
+#s-carbon .shiny{background:linear-gradient(90deg,#7a5c1c 0%,#E9BC63 28%,#fff3d0 50%,#E9BC63 72%,#7a5c1c 100%);
+  background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:shiny 6s linear infinite;filter:url(#ime-noise);}
+@keyframes shiny{0%{background-position:200% center}100%{background-position:-200% center}}
+@media(prefers-reduced-motion:reduce){#s-carbon .shiny{animation:none;}}
+/* ── 儀表板格線 ── */
+#s-carbon .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+#s-carbon #stat-band{margin-bottom:20px;}
+#s-carbon .lg-stat__value{letter-spacing:-.03em;}
+@media(max-width:900px){#s-carbon .stats{grid-template-columns:repeat(2,1fr);}}
+
+/* ── 工作台 ── */
+#s-carbon .workbench{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start;}
+#s-carbon .rail{position:sticky;top:104px;display:flex;flex-direction:column;gap:18px;padding:18px;border-radius:16px;}
+#s-carbon .rail-group{display:flex;flex-direction:column;gap:8px;}
+#s-carbon .rail-h{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-40);font-weight:600;}
+#s-carbon .fchip{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--hair);border-radius:10px;
+  background:none;color:var(--ink-60);font-size:13px;cursor:pointer;text-align:left;font-family:inherit;
+  transition:color .25s var(--ease),border-color .25s var(--ease);}
+#s-carbon .fchip:hover{color:var(--ink-90);border-color:rgba(255,255,255,.25);}
+#s-carbon .fchip.is-on{color:var(--lg-accent);border-color:var(--lg-accent);}
+#s-carbon .fchip .n{margin-left:auto;font-size:11px;color:var(--ink-40);}
+#s-carbon .rail select,#s-carbon .wb-toolbar select,#s-carbon .lg-modal__panel select{background:rgba(255,255,255,.06);border:1px solid var(--hair);border-radius:10px;
+  color:var(--ink-90);padding:8px 10px;font-size:13px;font-family:inherit;}
+#s-carbon .rail select:focus,#s-carbon .wb-toolbar select:focus,#s-carbon .lg-modal__panel select:focus{outline:1px solid var(--lg-accent);}
+#s-carbon .lg-modal__panel select{width:100%;}
+#s-carbon .rail select option,#s-carbon .lg-modal__panel select option{background:#0a0f16;}
+#s-carbon #f-count{margin:0;font-size:12px;color:var(--ink-50);}
+#s-carbon .wb-toolbar{display:flex;align-items:center;gap:10px;margin:0 0 14px;}
+#s-carbon .su-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+#s-carbon .su-card{cursor:pointer;}
+#s-carbon .su-card .su-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;}
+#s-carbon .su-card .price,#s-carbon .su-card .tonnes{font-size:22px;letter-spacing:-.02em;font-weight:600;}
+#s-carbon .su-card .su-sub{color:var(--ink-50);font-size:12px;margin-bottom:10px;}
+#s-carbon .su-card .meta-row{display:flex;justify-content:space-between;color:var(--ink-50);font-size:12px;margin:2px 0;}
+#s-carbon .empty-note{color:var(--ink-40);font-size:13px;padding:22px;text-align:center;}
+#s-carbon .genesis{max-width:34rem;margin:8vh auto;text-align:center;padding:36px 30px;}
+@media(max-width:900px){#s-carbon .workbench{grid-template-columns:1fr;}#s-carbon .rail{position:static;}}
+
+/* ── SU 詳情 drawer ── */
+#s-carbon .drawer{position:fixed;inset:0;z-index:55;}
+#s-carbon .drawer__overlay{position:absolute;inset:0;background:rgba(4,8,13,.55);}
+#s-carbon .drawer__panel{position:absolute;top:0;right:0;bottom:0;width:min(420px,92vw);
+  padding:22px;overflow-y:auto;border-left:1px solid var(--hair);
+  background:rgba(10,15,22,.94);display:flex;flex-direction:column;gap:16px;
+  transform:translateX(16px);opacity:0;transition:transform .35s var(--ease),opacity .35s var(--ease);}
+#s-carbon .drawer.is-open .drawer__panel{transform:none;opacity:1;}
+#s-carbon .drawer__head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+#s-carbon #d-info .meta-row{display:flex;justify-content:space-between;align-items:center;
+  color:var(--ink-50);font-size:13px;padding:7px 0;border-bottom:1px solid var(--hair);}
+#s-carbon #d-info .meta-row > :last-child{color:var(--ink-90);}
+#s-carbon .d-actions{display:flex;gap:10px;flex-wrap:wrap;}
+#s-carbon .copy{background:none;border:none;color:var(--ink-90);cursor:pointer;font-size:12.5px;padding:0;}
+#s-carbon .copy:hover{color:var(--lg-accent);}
+@media(prefers-reduced-motion:reduce){#s-carbon .drawer__panel{transition:none;}}
+
+/* ── 稽核 ── */
+#s-carbon .audit{display:flex;flex-direction:column;gap:16px;}
+#s-carbon .scrolly{max-height:48vh;overflow-y:auto;}
+#s-carbon .evchips{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap;}
+#s-carbon .feed{list-style:none;margin:0;padding:0;font-size:12.5px;max-height:64vh;overflow-y:auto;}
+#s-carbon .feed li{padding:8px 4px;border-bottom:1px solid var(--hair);}
+#s-carbon .feed .nm{color:var(--ink-90);font-weight:600;margin-right:6px;}
+#s-carbon .feed .ts{color:var(--ink-40);float:right;}
+#s-carbon .feed .dt{color:var(--ink-50);display:block;margin-top:2px;}
+#s-carbon .hashes{display:flex;flex-direction:column;gap:10px;margin:14px 0;}
+#s-carbon .hashes .row b{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-40);margin-bottom:4px;}
+#s-carbon .hashes .val{font-size:12.5px;word-break:break-all;}
+#s-carbon .verdict{padding:10px 14px;border-radius:12px;font-size:14px;font-weight:600;}
+#s-carbon .verdict.ok{color:var(--lg-accent);border:1px solid var(--lg-accent);}
+#s-carbon .verdict.bad{color:#ff7a7a;border:1px solid #ff7a7a;}
+#s-carbon .hash-ok{color:var(--lg-accent);} #s-carbon .hash-bad{color:#ff7a7a;}

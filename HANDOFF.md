@@ -8,7 +8,7 @@
 
 ## 1. 目前狀態
 
-**Task 6（Hero 畫面，兩段式）完成**，進入 Task 7。
+**Task 7（Carbon screen，自 PoC 一比一搬入）完成**，進入 Task 8。
 - 新增 `src/screens/hero/hero.html`（`?raw` 匯入的靜態 markup，含 `<!--ENTRIES-->`/`<!--STATS-->`/
   `<!--MODULES-->` 與 `__POINTS__`/`__LABELS__` 佔位標記）、`src/screens/hero/ovmap.ts`（`initOvMap(canvas)`
   自基準檔「總覽迷你地圖」JS 搬出，回傳 `{start,stop}`，rAF 迴圈自管，`prefers-reduced-motion` 時
@@ -179,8 +179,8 @@
 6. ~~Task 4：Carbon live provider~~ 完成
 7. ~~Task 5：共用 UI 元件~~ 完成
 8. ~~Task 6：Hero screen（兩段式）~~ 完成
-9. **下一步 → Task 7**：Carbon screen（自 PoC 一比一搬入，版面基準 = 預覽 v3 碳權頁）
-10. Task 8：Twin screen + twin provider（LiDAR iframe 嵌入）
+9. ~~Task 7：Carbon screen（自 PoC 一比一搬入）~~ 完成——拆成 carbon.{html,css,ts}+index.ts 四檔；PoC `<script>` 逐字搬入 `initCarbon`（僅 API→apiBase、查詢改綁 root 的 byId/qs/qsa、`// @ts-nocheck`），操作邏輯零改動；三件套（tabs/health-chip/發行鈕）以原 id 進 shell 標題列。**LIVE 驗證通過**：即時 stat/卡片/稽核、工作台⇄稽核切換、單筆發行→掛單→購買→除役全流程、離線 chip 降級皆與 PoC 一致，主控台零錯誤。
+10. **下一步 → Task 8**：Twin screen + twin provider（LiDAR iframe 嵌入）
 11. Task 9-11：Dispatch / Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
 12. Task 12：Policy screen + 全站驗收
 

@@ -1,0 +1,206 @@
+  <!-- noise filter（shiny 文字用，Task 3） -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="ime-noise">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.3 0"/>
+      <feComposite in2="SourceGraphic" operator="in" result="noise"/>
+      <feBlend in="SourceGraphic" in2="noise" mode="multiply"/>
+    </filter>
+  </svg>
+
+  <main class="wrap">
+    <div class="stats" id="stat-band">
+      <div class="lg lg-stat" data-lg><span class="lg-stat__label">累計發行 SU</span>
+        <div class="lg-stat__row"><span class="lg-stat__value" id="stat-issued" data-lg-value="0"></span></div></div>
+      <div class="lg lg-stat" data-lg><span class="lg-stat__label">總減碳噸數</span>
+        <div class="lg-stat__row"><span class="lg-stat__value gold" id="stat-tonnes" data-lg-value="0" data-lg-suffix=" t"></span></div></div>
+      <div class="lg lg-stat" data-lg><span class="lg-stat__label">已交易</span>
+        <div class="lg-stat__row"><span class="lg-stat__value" id="stat-traded" data-lg-value="0"></span></div></div>
+      <div class="lg lg-stat" data-lg><span class="lg-stat__label">已除役</span>
+        <div class="lg-stat__row"><span class="lg-stat__value" id="stat-retired" data-lg-value="0"></span></div></div>
+    </div>
+    <section class="page active" id="page-workbench">
+      <div id="wb-genesis" class="lg-static lg-card genesis anim" hidden>
+        <h1 style="margin:0 0 12px;font-size:clamp(28px,3.4vw,38px);letter-spacing:-.03em;line-height:1.1">
+          船隊超額減碳 <span class="shiny">414,312 噸</span></h1>
+        <p style="color:var(--ink-60);font-size:14px;line-height:1.7;margin:0 0 22px">
+          108 筆 iMarine 核發請求已完成 GFI 驗證，正待鑄造為可稽核的 Surplus Unit（ERC-721）。</p>
+        <button class="lg lg-btn lg-btn--pill lg-btn--primary" data-lg data-lg-open="#m-issue" data-needs-backend>批次發行上鏈</button>
+      </div>
+      <div class="workbench" id="wb-main" hidden>
+        <aside class="lg-static rail anim">
+          <div class="rail-group"><b class="rail-h">狀態</b>
+            <button class="fchip" data-fs="held">持有中<span class="n" data-n="held"></span></button>
+            <button class="fchip" data-fs="listed">掛單中<span class="n" data-n="listed"></span></button>
+            <button class="fchip" data-fs="retired">已除役<span class="n" data-n="retired"></span></button>
+          </div>
+          <div class="rail-group"><b class="rail-h">持有者</b>
+            <button class="fchip" data-fr="shipping">航商</button>
+            <button class="fchip" data-fr="buyer">買家</button>
+          </div>
+          <div class="rail-group"><b class="rail-h">船舶</b>
+            <select id="f-ship"><option value="">全部船舶</option></select>
+          </div>
+          <button class="lg lg-btn lg-btn--sm" data-lg id="f-clear">清除篩選</button>
+          <p id="f-count" class="mono">顯示 0 / 0 筆</p>
+        </aside>
+        <div>
+          <div class="wb-toolbar anim">
+            <div class="eyebrow" style="margin:0;flex:1"><span class="dot"></span><span class="lbl">SU 資產</span><span class="tag" id="wb-tag">0 筆</span></div>
+            <select id="wb-sort">
+              <option value="id">排序：Token ID</option>
+              <option value="tonnes">排序：噸數</option>
+              <option value="price">排序：價格（掛單優先）</option>
+            </select>
+            <button class="lg lg-btn lg-btn--sm" data-lg data-lg-open="#m-issue-one" data-needs-backend>單筆發行</button>
+          </div>
+          <div class="su-grid" id="su-grid"></div>
+          <div class="empty-note" id="wb-empty" hidden>無符合篩選的 SU——調整左側條件或清除篩選。</div>
+        </div>
+      </div>
+    </section>
+    <section class="page" id="page-audit">
+      <div class="lg lg-chart anim" data-lg style="margin-bottom:16px">
+        <div class="lg-chart__head"><h4 class="lg-chart__title">船舶減碳排行（噸）</h4></div>
+        <svg class="lg-chart__svg" id="chart-ships" data-lg-chart="bar" data-lg-points="0" data-lg-labels="-"></svg>
+      </div>
+      <div class="audit">
+        <div class="lg lg-card anim" data-lg>
+          <div class="eyebrow"><span class="dot"></span><span class="lbl">SU 帳本全表</span><span class="tag" id="audit-tag">0 筆</span></div>
+          <div class="scrolly" data-lg-scroll-edge="both">
+            <table class="hairline"><thead><tr>
+              <th>#</th><th>船舶</th><th>噸</th><th>持有者</th><th>狀態</th><th>用途</th><th></th>
+            </tr></thead><tbody id="su-tbody"></tbody></table>
+          </div>
+        </div>
+        <div class="lg lg-card anim" data-lg>
+          <div class="eyebrow"><span class="dot"></span><span class="lbl">事件表</span><span class="tag" id="ev-tag">0 則</span></div>
+          <div class="evchips" id="ev-chips">
+            <button class="fchip" data-ev="Issued">Issued</button>
+            <button class="fchip" data-ev="Listed">Listed</button>
+            <button class="fchip" data-ev="Sold">Sold</button>
+            <button class="fchip" data-ev="Retired">Retired</button>
+          </div>
+          <div class="scrolly" data-lg-scroll-edge="both">
+            <table class="hairline"><thead><tr>
+              <th>事件</th><th>SU</th><th>明細</th><th>時間</th>
+            </tr></thead><tbody id="ev-tbody"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- SU 詳情 drawer -->
+  <div class="drawer" id="su-drawer" hidden>
+    <div class="drawer__overlay" id="drawer-overlay"></div>
+    <aside class="lg-static drawer__panel" role="dialog" aria-label="SU 詳情">
+      <div class="drawer__head">
+        <div class="eyebrow" style="margin:0"><span class="dot"></span><span class="lbl">SU 詳情</span><span class="tag mono" id="d-token">SU #-</span></div>
+        <button class="lg lg-btn lg-btn--sm" data-lg id="drawer-close">關閉</button>
+      </div>
+      <div id="d-info"></div>
+      <div class="d-actions" id="d-actions"></div>
+      <div class="eyebrow" style="margin:0"><span class="dot"></span><span class="lbl">防竄改驗證</span></div>
+      <div id="d-verify"></div>
+      <div class="eyebrow" style="margin:0"><span class="dot"></span><span class="lbl">事件 Timeline</span></div>
+      <ul class="feed" id="d-timeline" style="max-height:none"></ul>
+    </aside>
+  </div>
+
+  <!-- modals（Task 3–6 追加於此） -->
+  <div id="modals">
+    <div class="lg-modal" id="m-issue">
+      <div class="lg-modal__overlay" data-lg-close></div>
+      <div class="lg-modal__panel lg" data-lg role="dialog" aria-label="批次發行">
+        <div class="eyebrow"><span class="dot"></span><span class="lbl">批次發行</span></div>
+        <p style="color:var(--ink-60);font-size:14px;line-height:1.7">
+          將 <b class="mono">data/out/minting_requests.json</b> 的 <b>108 筆 / <span class="gold">414,312 噸</span></b>
+          核發請求鑄造為 SU（ERC-721），持有者為航商。每筆皆含 dataHash 防竄改指紋。</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+          <button class="lg lg-btn" data-lg data-lg-close>取消</button>
+          <button class="lg lg-btn lg-btn--primary" data-lg id="btn-issue-go">確認發行</button>
+        </div>
+      </div>
+    </div>
+    <div class="lg-modal" id="m-issue-one">
+      <div class="lg-modal__overlay" data-lg-close></div>
+      <div class="lg-modal__panel lg" data-lg role="dialog" aria-label="單筆發行">
+        <div class="eyebrow"><span class="dot"></span><span class="lbl">單筆發行</span><span class="tag">現場驗證數據</span></div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:6px">
+          <div class="lg-field"><div class="lg lg-field__box" data-lg>
+            <input id="one-ship" class="lg-field__input" type="text" placeholder=" ">
+            <label for="one-ship" class="lg-field__label">船舶</label>
+          </div><span class="lg-field__hint">IMO+純數字，例：IMO9000031</span></div>
+          <div class="lg-field"><div class="lg lg-field__box" data-lg>
+            <input id="one-period" class="lg-field__input" type="text" placeholder=" ">
+            <label for="one-period" class="lg-field__label">申報期</label>
+          </div><span class="lg-field__hint">YYYY-MM，例：2029-01；同船同期只能發一次</span></div>
+          <div class="lg-field"><div class="lg lg-field__box" data-lg>
+            <input id="one-gfi" class="lg-field__input" type="number" step="0.01" min="0" placeholder=" ">
+            <label for="one-gfi" class="lg-field__label">實際 GFI</label>
+          </div><span class="lg-field__hint">目標值 89.0；低於目標才有超額可發</span></div>
+          <div class="lg-field"><div class="lg lg-field__box" data-lg>
+            <input id="one-mj" class="lg-field__input" type="number" step="1" min="1" placeholder=" ">
+            <label for="one-mj" class="lg-field__label">能耗（MJ）</label>
+          </div><span class="lg-field__hint">正整數，例：100000000</span></div>
+          <div class="lg-field">
+            <select id="one-fuel">
+              <option>LNG</option><option>Bio-methanol</option><option>Ammonia</option>
+              <option>VLSFO</option><option>MGO</option>
+            </select>
+            <span class="lg-field__hint">燃料類型</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+          <button class="lg lg-btn" data-lg data-lg-close>取消</button>
+          <button class="lg lg-btn lg-btn--primary" data-lg id="btn-issue-one-go">確認發行</button>
+        </div>
+      </div>
+    </div>
+    <div class="lg-modal" id="m-list">
+      <div class="lg-modal__overlay" data-lg-close></div>
+      <div class="lg-modal__panel lg" data-lg role="dialog" aria-label="上架 SU">
+        <div class="eyebrow"><span class="dot"></span><span class="lbl">上架掛單</span><span class="tag">以航商身分</span></div>
+        <p class="mono" id="list-summary" style="color:var(--ink-60);font-size:13px"></p>
+        <div class="lg-field"><div class="lg lg-field__box" data-lg>
+          <input id="list-price" class="lg-field__input" type="number" min="1" step="1" value="300" placeholder=" ">
+          <label for="list-price" class="lg-field__label">售價（mUSD）</label>
+        </div><span class="lg-field__hint">整數 mUSD；上架前後端會自動 approve</span></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+          <button class="lg lg-btn" data-lg data-lg-close>取消</button>
+          <button class="lg lg-btn lg-btn--primary" data-lg id="btn-list-go">確認上架</button>
+        </div>
+      </div>
+    </div>
+    <div class="lg-modal" id="m-buy">
+      <div class="lg-modal__overlay" data-lg-close></div>
+      <div class="lg-modal__panel lg" data-lg role="dialog" aria-label="購買 SU">
+        <div class="eyebrow"><span class="dot"></span><span class="lbl">購買確認</span><span class="tag">以買家身分</span></div>
+        <p class="mono" id="buy-summary" style="color:var(--ink-60);font-size:13px"></p>
+        <p style="font-size:13px;color:var(--ink-50)">將以 mUSD 原子交割（付款 + safeTransferFrom）。此轉讓為該 SU 唯一一次合法轉讓（transfer-once）。</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+          <button class="lg lg-btn" data-lg data-lg-close>取消</button>
+          <button class="lg lg-btn lg-btn--primary" data-lg id="btn-buy-go">確認購買</button>
+        </div>
+      </div>
+    </div>
+    <div class="lg-modal" id="m-retire">
+      <div class="lg-modal__overlay" data-lg-close></div>
+      <div class="lg-modal__panel lg" data-lg role="dialog" aria-label="除役 SU">
+        <div class="eyebrow"><span class="dot"></span><span class="lbl">除役銷毀</span><span class="tag">Retire</span></div>
+        <p class="mono" id="retire-summary" style="color:var(--ink-60);font-size:13px"></p>
+        <div class="lg-radio-group" role="radiogroup" style="display:flex;flex-direction:column;gap:8px;margin:14px 0">
+          <label class="lg-radio"><input type="radio" name="purpose" value="0"><span class="lg-radio__box"></span><span class="lg-radio__label">NZF_REWARD — 淨零基金獎勵</span></label>
+          <label class="lg-radio"><input type="radio" name="purpose" value="1"><span class="lg-radio__box"></span><span class="lg-radio__label">EU_ETS_OFFSET — 歐盟碳交易抵換</span></label>
+          <label class="lg-radio"><input type="radio" name="purpose" value="2"><span class="lg-radio__box"></span><span class="lg-radio__label">PORT_FEE_REBATE — 港埠費率回饋</span></label>
+          <label class="lg-radio"><input type="radio" name="purpose" value="3" checked><span class="lg-radio__box"></span><span class="lg-radio__label">SCOPE3_OFFSET — Scope 3 抵換</span></label>
+        </div>
+        <p style="font-size:12px;color:var(--ink-40)">除役即在鏈上 burn，永久銷毀且不可逆；Retired 事件將留存為稽核紀錄。</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+          <button class="lg lg-btn" data-lg data-lg-close>取消</button>
+          <button class="lg lg-btn lg-btn--primary" data-lg id="btn-retire-go">確認除役</button>
+        </div>
+      </div>
+    </div>
+  </div>
