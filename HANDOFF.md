@@ -8,10 +8,17 @@
 
 ## 1. 目前狀態
 
-**設計完成、待使用者審閱 spec**。repo 內尚無程式碼。
+**Task 1（專案骨架 + Kit + 背景系統）完成**，進入 Task 2。
 - 視覺基準已定案並存檔：`docs/preview/preview-v3.html`（自含 Kit，瀏覽器直接開）與原始碼 `preview-src-v3.html`。
 - 正式設計文件：`docs/superpowers/specs/2026-07-03-frontend-shell-design.md`（含 screen 契約、
-  資料交換層介面、各頁規格、驗收標準）。審閱通過後進入實作計畫（writing-plans）。
+  資料交換層介面、各頁規格、驗收標準）。
+- 實作計畫：`docs/superpowers/plans/2026-07-03-frontend-shell.md`（12 tasks）。
+- **Task 1 骨架+背景 完成**：Vite + vanilla TS 專案骨架（`package.json`/`vite.config.ts`/`tsconfig.json`）、
+  Liquid Glass Kit 兩檔自 `~/Desktop/UI-ToolBox` 複製進 `src/ui/`、`tokens.css` 自預覽基準檔整塊搬入、
+  `src/shell/background.ts` 完成點雲港口背景（build/coast/paint/loop/resize，含 full 模式增亮、
+  泊位編號 108-113、SHIN KUANG 168 標記與 twinOffset 位移）並模組化為 `initBackground()`。
+  已用 Chromium（chrome-devtools MCP）驗證：`npm run dev` 後畫面為深色點雲港口 + 光暈，console 乾淨
+  （僅預期外的瀏覽器預設 favicon.ico 404），切換 `data-mode='full'` 背景增亮並顯示泊位編號。
 
 歷程：
 
@@ -55,14 +62,14 @@
 
 ## 4. 下一步（依序）
 
-1. 使用者審閱 spec（已通過 2026-07-03）
-2. 實作計畫已完成：`docs/superpowers/plans/2026-07-03-frontend-shell.md`（12 tasks，
-   每 task 結尾為檢查點、由使用者 commit）。待使用者選擇執行方式後開工。
-3. 建 Vite 專案骨架 + 複製 Kit 兩檔 + shell（rail/router/背景系統）
-4. Hero 兩段式實作（含孿生背景影片素材錄製）
-5. Carbon PoC 重構搬入（版面基準 = 預覽 v3 碳權頁）
-6. LiDAR iframe 嵌入 + twin provider
-7. 四個 mock 頁面（版面與互動 = 預覽 v3，資料走 mock provider）
+1. ~~使用者審閱 spec（已通過 2026-07-03）~~ 完成
+2. ~~實作計畫：`docs/superpowers/plans/2026-07-03-frontend-shell.md`（12 tasks，每 task 結尾為檢查點、由使用者 commit）~~ 完成
+3. ~~Task 1：建 Vite 專案骨架 + 複製 Kit 兩檔 + 點雲港口背景系統~~ 完成
+4. **下一步 → Task 2**：Registry + Router + Rail + 鍵盤（`0` 總覽、`1-6` 功能頁、`Enter` 封面切換）
+5. Hero 兩段式實作（含孿生背景影片素材錄製）
+6. Carbon PoC 重構搬入（版面基準 = 預覽 v3 碳權頁）
+7. LiDAR iframe 嵌入 + twin provider
+8. 四個 mock 頁面（版面與互動 = 預覽 v3，資料走 mock provider）
 
 ## 5. 已知風險 / 注意
 
