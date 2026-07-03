@@ -1,0 +1,24 @@
+<div class="cols">
+  <div class="stack">
+    <div class="heatbox anim" style="--d:.1s">
+      <canvas id="heat"></canvas>
+      <div class="legend"><span>弱</span><i style="background:#35E0A6"></i><i style="background:#E9BC63"></i><i style="background:#F5A54A"></i><i style="background:#F0648C"></i><span>強</span></div>
+      <span class="cap" style="position:absolute;top:12px;left:14px;font-size:11px;font-family:var(--mono);letter-spacing:.12em;color:var(--ink-40);z-index:3">降雨機率網格 · 港區 500m</span>
+    </div>
+    <div class="panel lg anim" data-lg style="--d:.15s">
+      <div class="lab" style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);color:var(--ink-40);letter-spacing:.1em"><span>預測時間軸</span><span id="dclock">+30 min</span></div>
+      <div class="lg lg-slider" data-lg style="width:100%">
+        <input class="lg-slider__input" id="dispTime" type="range" min="0" max="90" step="10" value="30" aria-label="預測時間軸 0 到 90 分鐘">
+      </div>
+      <div style="font-size:13px;margin-top:6px" class="mut" id="dispRead"></div>
+    </div>
+  </div>
+  <div class="stack">
+    <!--SUGGESTIONS-->
+    <div class="lg lg-chart anim" data-lg style="--d:.4s">
+      <div class="lg-chart__head"><h4 class="lg-chart__title">風速預測 m/s · 0-90 min</h4></div>
+      <svg class="lg-chart__svg" data-lg-chart="line" data-lg-points="__WINDS__"
+           data-lg-labels="0,10,20,30,40,50,60,70,80,90"></svg>
+    </div>
+  </div>
+</div>

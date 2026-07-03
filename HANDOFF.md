@@ -2,11 +2,46 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Task 8 完成
+最後更新：2026-07-04 Task 9 完成
 
 ---
 
 ## 1. 目前狀態
+
+**Task 9（Dispatch screen）完成**，進入 Task 10-11。
+- 新增 `src/screens/dispatch/heat.ts`：`initHeat(canvas) → {draw(t)}`，自基準檔「派工熱區」JS
+  （`drawHeat`/`heatVal`/`heatColor`/`hcoast`）逐字搬出並型別化。`hcoast(gx)` 一詞兩用：畫陸地帶／
+  海岸線／5 座突堤，並用來判斷每格格心是否落在陸地帶內（`gy+0.5 < hcoast(gx+0.5)`）藉此跳過陸地格，
+  確保降雨機率網格只畫在海面。
+- 新增 `src/screens/dispatch/dispatch.html`：自基準檔 `<!-- 派工 -->` 的 `.cols` 區塊搬出（標頭不在
+  此檔內，見下）。四張建議卡與風速圖 `data-lg-points` 皆為動態內容，故只留兩個佔位標記
+  `<!--SUGGESTIONS-->`／`__WINDS__`（對齊 hero.html 的 `<!--ENTRIES-->` 手法），不手刻固定筆數卡片。
+- 重寫 `src/screens/dispatch/index.ts`：標頭改用 `screenHeader`（CSI/POD/FAR 三個 `.pill`
+  `data-lg-tip` 塞進 `actionsHtml`，值來自 `snapshot.metrics.toFixed(2)`）；建議卡 `.sev` 顏色依
+  `level` 對應 `rose`→`var(--rose)`／`amber`→`var(--amber)`／`ok`→`var(--lg-accent)`；滑桿（0-90，
+  step 10）`input` 時呼叫 `heat.draw(t)` + 更新 `+t min` 與讀數列，規則逐字對齊基準檔 `updDisp()`：
+  雨量 ≥70 強降雨／≥50 大雨／否則陣雨，風速 ≥15 rose／≥13 amber／否則 teal（讀數列「12 →」的
+  基準風速改綁 `snapshot.winds[0]`，不沿用基準檔寫死的字面 `12`，避免未來 mock 資料改動時跟文字
+  兜不起來）。
+- **實測發現並修正一個不在 brief 字面內的時序問題**：`router.go()` 是「先 `await mount()`，
+  mount 完成後才同步幫 `<section>` 補上 `.active`」（`.screen{display:none}`／`.screen.active
+  {display:block}`，見 tokens.css），若照 brief 字面在 `mount()` 內同步呼叫 `heat.draw(30)`，當下
+  `.heatbox` 因祖先 `display:none` 量到的 `getBoundingClientRect` 是 0×0，canvas 会被實際設成 0×0、
+  首次進畫面熱區是空的，要等使用者拖一次滑桿才會補回正確尺寸——這與 hero 的 `ovMap` 為何把首次
+  `paint()` 延後到 `show()` 才做是同一個成因。改用 `requestAnimationFrame(() => apply(30))`：
+  `router.go()` 對 `.active` 的同步賦值發生在 `mount()` 的 promise resolve 之後、下一次瀏覽器繪製
+  之前，故 rAF callback 觸發時 `.active` 必已就緒，量到正確尺寸；比起額外加 `show()` 鉤子與模組層
+  狀態更簡單自足。已用 Chromium 兩條路徑分別驗證冷啟動首繪皆正確（見下）。
+- 無新增單元測試（task-9-brief 未要求；純視覺 screen，既有 3 個測試檔 8 tests 不受影響）。已用
+  Chromium（chrome-devtools MCP）驗證：(1) 直接冷啟動 `#/dispatch`：熱區首繪即正確（陸地帶／海岸線／
+  5 座突堤／機率網格僅海面，無需先摸滑桿）、CSI 0.71／POD 0.83／FAR 0.21 三個 pill 與
+  `data-lg-tip` tooltip（`pointerenter` 觸發，顯示「臨界成功指數」）皆正確、四張建議卡嚴重度色
+  （rose/amber/amber/teal）與基準檔一致、風速折線圖正確繪出 10 點波峰。(2) 拖滑桿到 `t=0/60/90`：
+  熱區熱點隨 t 沿海岸線平移、讀數列文字與顏色正確切換（含邊界值驗證：`t=60` 時風速剛好 13 → amber、
+  雨量 48 → teal，門檻判斷為 `>=` 而非 `>` 確認無誤；`t=0` 顯示「現在」而非「未來 0 分鐘」）。
+  (3) 由 hero 封面點「即時派工建議」入口卡走真實 SPA 導覽進入 dispatch（非 URL 冷啟動），確認同一套
+  rAF 首繪修正在正常導覽路徑下同樣正確。全程 console 僅預期內的 favicon 404，無 JS 例外。
+- `npx tsc --noEmit` 0 errors、`npx vitest run` 8/8 PASS（未新增測試，既有 3 個測試檔不受影響）。
 
 **Task 8（Twin screen + twin provider）完成**，進入 Task 9-11。
 - 新增 `src/data/exchange/twin.ts`：`createTwinProvider(url?)` 逐字照 brief 實作，`snapshot()` 讀
@@ -218,8 +253,14 @@
 8. ~~Task 6：Hero screen（兩段式）~~ 完成
 9. ~~Task 7：Carbon screen（自 PoC 一比一搬入）~~ 完成——拆成 carbon.{html,css,ts}+index.ts 四檔；PoC `<script>` 逐字搬入 `initCarbon`（僅 API→apiBase、查詢改綁 root 的 byId/qs/qsa、`// @ts-nocheck`），操作邏輯零改動；三件套（tabs/health-chip/發行鈕）以原 id 進 shell 標題列。**LIVE 驗證通過**：即時 stat/卡片/稽核、工作台⇄稽核切換、單筆發行→掛單→購買→除役全流程、離線 chip 降級皆與 PoC 一致，主控台零錯誤。
 10. ~~Task 8：Twin screen + twin provider（LiDAR iframe 嵌入）~~ 完成——twin provider 讀真實泊位資料（72 筆）、screen 嵌 LiDAR iframe 並修正 onload 不可靠問題（改用 fetch no-cors 探測 + iframe display:none fallback）、24hr 時間軸與情境切換皆可互動。**兩路徑皆驗證**：無 server 時 fallback+背景點雲正確顯示；起 LiDAR dev server 後 iframe 正確顯示真實 3D 場景。
-11. **下一步 → Task 9-11**：Dispatch / Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
-12. Task 12：Policy screen + 全站驗收
+11. ~~Task 9：Dispatch screen（熱區 canvas + 預測時間軸 + 派工建議卡 + 風速圖）~~ 完成——拆成
+    `heat.ts`（`initHeat` 自基準檔熱區 JS 搬出，含海岸線判斷僅海面繪格）+ `dispatch.html`
+    + `index.ts` 三檔；CSI/POD/FAR pill、四張建議卡、風速圖皆綁 `dispatch.snapshot()`；滑桿
+    讀數規則與色彩門檻逐字對齊基準檔。**發現並修正**首次進畫面時 `.screen{display:none}` 導致
+    canvas 量到 0×0 尺寸的時序問題（改用 `requestAnimationFrame` 延後首繪，待 `.active` 補上後
+    才量測），Chromium 兩條導覽路徑（URL 冷啟動／從 hero 點入口卡）皆驗證熱區首繪正確。
+12. **下一步 → Task 10-11**：Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
+13. Task 12：Policy screen + 全站驗收
 
 ## 5. 已知風險 / 注意
 
