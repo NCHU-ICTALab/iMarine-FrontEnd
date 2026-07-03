@@ -66,6 +66,12 @@ export function initRouter(o: {
           window.LiquidGlass.attach(n);
         } catch {}
       });
+      // 同理，.lg-stat/.lg-meter/.lg-gauge/svg[data-lg-chart] 的彈簧數字/sparkline/量表/圖表
+      // 是屬性驅動（data-lg-value 等），只在 init() 開機那次掃過；重新掃描本 section 才會生效，
+      // 否則數值永遠停在初始 0（Kit 對已掃過的節點會自行略過，可安全重入）。
+      try {
+        window.LiquidGlass.behaviors.stats(section);
+      } catch {}
     }
     const active: CacheEntry = entry;
 

@@ -2,11 +2,38 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Task 4 完成
+最後更新：2026-07-04 Task 5 完成
 
 ---
 
 ## 1. 目前狀態
+
+**Task 5（共用 UI 元件）完成**，進入 Task 6。
+- `src/ui/components.ts` 新增三個純模板字串函式：`screenHeader(o)`（輸出 `<header class="anim" style="--d:0s">`，
+  內含 `.eyebrow`〔圓點 `style="--mc:<color>"` + `.lbl`〕與 `.trow`〔`<h1>` + 技術徽章 `.lg-chip` chips +
+  `srcChip()` + `.spacer` + `actionsHtml`〕；`--d:0s` 對齊基準檔每頁 header 皆最先進場，屬不變值故直接寫死）、
+  `statRow(items)`（`.stats4` 格線包 N 張 `.lg.lg-stat` 卡，`data-lg-value`/`-prefix`/`-suffix`/`-decimals`/
+  `-spark` 屬性驅動彈簧動畫與 sparkline，`delta` 為呼叫端字串原樣塞入 `.lg-stat__delta`〔不臆測漲跌樣式〕，
+  `valueClass` 掛在 `.lg-stat__value` 上如 `goldc`）、`srcChip(source, label?)`（mock→灰 `.src` 預設
+  「MOCK 資料」，live→綠 `.src.live` 預設「LIVE」，內含空 `<i>` 圓點）。未實作 `placeholderCard`——本計畫
+  六個功能頁全部會做完，不會有模組維持佔位，brief 授權的範疇縮減（YAGNI）。
+- 驗證時發現既有 gap 並一併修正：`router.ts` 首次 mount 只對新 section 的 `[data-lg]` 逐一 `attach()`
+  處理玻璃折射，但 `.lg-stat`/`.lg-meter`/`.lg-gauge`/`svg[data-lg-chart]` 的屬性驅動彈簧數字/sparkline
+  走另一條路徑（Kit 內部 `initStats`，只在開機 `LiquidGlass.init()` 掃過一次，`refresh()`/`attach()`
+  都不會補掃動態 mount 的新內容），導致任何動態渲染的 `.lg-stat` 數值永遠停在初始 0。Kit 已把這個
+  rescan 掛在既有公開 API `LiquidGlass.behaviors.stats(root)`（未改動 vendored 的 `liquid-glass.js`），
+  因此在 `router.ts` 首掛流程補上 `window.LiquidGlass.behaviors.stats(section)` 一行呼叫，並於 `lg.d.ts`
+  補上對應型別。此修正雖不在本 task 檔案清單，但不修就會讓 Task 6-12 任何用到這幾個儀表元件的頁面
+  數值都是死的 0，故判斷必須一併處理，於本次 commit 一起送出。
+- 無單元測試（純模板字串，由後續頁面驗證）。改以暫時渲染驗證：`src/screens/dispatch/index.ts` 的
+  `mount()` 暫改呼叫 `screenHeader({...}) + statRow([...])`，樣本資料涵蓋全部 8 個欄位
+  （label/value/suffix/prefix/decimals/delta/spark/valueClass）。`npm run dev` 後用 Chromium
+  （chrome-devtools MCP）確認：eyebrow 圓點色與標籤、標題、技術徽章 chip、`srcChip` 的 mock（灰）與
+  live（綠，含自訂 `sourceLabel`）兩種樣式皆正確；四張 `.lg.lg-stat` 玻璃卡的數字彈簧動畫、delta 徽章、
+  sparkline、`goldc` valueClass、prefix/suffix/decimals 組合全數如預期渲染；切到 `#/twin` 再切回
+  `#/dispatch` 確認無重複初始化或 console 錯誤。驗證後已將 `dispatch/index.ts` 還原為原本的
+  「dispatch（開發中）」佔位內容（`git status` 確認該檔無異動）。
+- `npx tsc --noEmit` 0 errors、`npx vitest run` 8/8 PASS（router.ts 改動未影響既有 4 個 router 測試）。
 
 **Task 4（碳權 live provider）完成**，進入 Task 5。
 - `src/data/exchange/carbon.ts` 實作 `createCarbonProvider(base?: string)` 函式：
@@ -115,8 +142,8 @@
 4. ~~Task 2：Registry + Router + Rail + 鍵盤（`0` 總覽、`1-6` 功能頁、`Enter` 封面切換）~~ 完成
 5. ~~Task 3：資料交換層（types + mock providers）~~ 完成
 6. ~~Task 4：Carbon live provider~~ 完成
-7. **下一步 → Task 5**：共用 UI 元件
-8. Task 6：Hero screen（兩段式，含孿生背景影片素材錄製）
+7. ~~Task 5：共用 UI 元件~~ 完成
+8. **下一步 → Task 6**：Hero screen（兩段式，含孿生背景影片素材錄製）
 9. Task 7：Carbon screen（自 PoC 一比一搬入，版面基準 = 預覽 v3 碳權頁）
 10. Task 8：Twin screen + twin provider（LiDAR iframe 嵌入）
 11. Task 9-11：Dispatch / Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
