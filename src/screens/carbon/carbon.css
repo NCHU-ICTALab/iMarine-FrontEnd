@@ -10,7 +10,7 @@
 #s-carbon .gold{color:var(--gold);}
 
 /* ── 版心（沿用 PoC 內容容器；shell 以 .swrap 外包做 rail 讓位）── */
-#s-carbon .wrap{position:relative;z-index:10;max-width:72rem;margin:0 auto;padding:104px 24px 56px;}
+#s-carbon .wrap{position:relative;z-index:10;max-width:72rem;margin:0 auto;padding:24px 24px 56px;}
 
 /* ── 分頁與 stagger 進場 ── */
 #s-carbon [hidden]{display:none!important;}
@@ -23,7 +23,7 @@
 
 /* ── eyebrow 區塊標頭（統一語法）── */
 #s-carbon .eyebrow{display:flex;align-items:center;gap:8px;margin:0 0 14px;}
-#s-carbon .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:#fff;}
+#s-carbon .eyebrow .dot{width:6px;height:6px;border-radius:50%;}
 #s-carbon .eyebrow .lbl{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-60);}
 #s-carbon .eyebrow .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--hair);color:var(--ink-50);}
 

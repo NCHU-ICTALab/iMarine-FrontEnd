@@ -35,6 +35,7 @@ export function initRouter(o: {
     if (!def) return;
     const myToken = ++token;
 
+    const prevId = currentId; // 供下方 load/mount 真正失敗時復原，與 supersede-abort 的處理分開
     const prev = cache.get(currentId);
     prev?.screen.hide?.();
     prev?.section.classList.remove('active', 'entered');
@@ -46,17 +47,25 @@ export function initRouter(o: {
       section.className = 'screen';
       section.id = 's-' + id; // tokens.css / carbon.css 選擇器以此定界
       o.container.appendChild(section); // 不清空 container，保留其餘已快取的 screen
-      const mod = await def.load();
-      if (myToken !== token) {
-        section.remove(); // 被更新的導覽取代：移除這個尚未快取的 section，否則之後 go(id) 會再建一個造成重複 id
-        return;
-      }
-      await mod.default.mount(section, o.ctx);
-      if (myToken !== token) {
+      try {
+        const mod = await def.load();
+        if (myToken !== token) {
+          section.remove(); // 被更新的導覽取代：移除這個尚未快取的 section，否則之後 go(id) 會再建一個造成重複 id
+          return;
+        }
+        await mod.default.mount(section, o.ctx);
+        if (myToken !== token) {
+          section.remove();
+          return;
+        }
+        entry = { section, screen: mod.default };
+      } catch {
+        // 真正失敗（動態 import 被拒絕或 mount() 拋錯）——不同於上面兩個 supersede-abort，
+        // 這裡要收拾孤兒 section、把 currentId 復原成前一頁，讓路由狀態維持一致，不繼續往下 activate。
         section.remove();
+        currentId = prevId;
         return;
       }
-      entry = { section, screen: mod.default };
       cache.set(id, entry);
       // Kit 的 init() 只在開機掃一次 [data-lg]、refresh() 只 update 既有實例，兩者都不會掃到
       // mount() 之後才插入 DOM 的玻璃節點；故首次 mount 後對本 section 的玻璃子樹逐一 attach，
@@ -81,6 +90,7 @@ export function initRouter(o: {
         active.section.classList.add('entered'); // 雙 rAF 重新觸發 stagger 進場
       });
     });
+    // 注意：show() 與 applyMode 必須維持同步（中間不可插入 await）——hero 的 show() 用 queueMicrotask 覆寫模式，依賴此順序
     active.screen.show?.();
     applyMode(def.mode);
     if (location.hash !== '#/' + id) location.hash = '#/' + id;

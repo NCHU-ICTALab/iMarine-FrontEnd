@@ -51,6 +51,9 @@ const router = initRouter({
 const ids = SCREENS.map((d) => d.id);
 
 addEventListener('keydown', (e) => {
+  const t = e.target as HTMLElement | null;
+  if (e.metaKey || e.ctrlKey || e.altKey) return; // 不劫持 Cmd+0 縮放 / Cmd+1.. 等瀏覽器快捷鍵
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; // carbon 表單輸入中不劫持導覽鍵
   if (e.key === 'Enter' && router.current() === 'hero') {
     window.dispatchEvent(new CustomEvent('hero:toggle'));
   }

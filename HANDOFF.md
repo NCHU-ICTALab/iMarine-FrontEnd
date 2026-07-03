@@ -2,11 +2,51 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Task 12 完成 — 12 個 task 全部完成，shell 實作結束、全站驗收通過
+最後更新：2026-07-04 全站複審最終修正波（8 項）完成 — tsc/vitest/build 三者皆綠燈，Chromium 已驗證
 
 ---
 
 ## 1. 目前狀態
+
+**全站複審最終修正波（8 項，接續 Task 12 之後）完成。**
+- Fix 1（重要，真缺陷）：`src/main.ts` 全域 `keydown` 導覽鍵（`0`/`1-6`/`Enter`）先前未檢查
+  `e.target`，在 carbon 的單筆發行/上架等 modal 輸入框（`#one-ship`/`#one-gfi`/`#one-mj`/
+  `#list-price` 等）打數字會誤觸導覽、跳離畫面。修正：handler 開頭加兩道 bail-out——
+  `e.metaKey/ctrlKey/altKey` 直接略過（不劫持瀏覽器快捷鍵）、`e.target` 為 `INPUT`/
+  `TEXTAREA`/`SELECT`/`isContentEditable` 也直接略過，其餘導覽邏輯不動。
+- Fix 2/3（M10/M11）：`src/screens/carbon/carbon.css`——`.wrap` 頂部 padding 由 PoC 舊 topbar
+  時代遺留的 `104px` 改回 `24px`（shell 標題列取代 topbar 後不需再讓出空間），側/底距不動；
+  刪除 `#s-carbon .eyebrow .dot{background:#fff}` 這條蓋掉 shell 金色模組色的洩漏 PoC 樣式，
+  改吃 `tokens.css` 的 `.eyebrow .dot{background:var(--mc)}` + `screenHeader` 給的
+  `--mc:#E9BC63`，header 圓點現正確顯示金色。副作用（非缺陷）：碳權頁內部沒有帶
+  `--mc` 的次要 eyebrow（工作台工具列「SU 資產」、稽核表頭、drawer、各 modal 標頭）原本也被同一條
+  規則強制染白，移除後改吃 shell 預設青綠色 `#35E0A6`，非本次修正範圍、维持現狀。
+- Fix 4（M3）：`src/shell/router.ts` 的 `go()` 首次掛載區塊——`await def.load()` /
+  `await mod.default.mount()` 原本沒有 try/catch，動態 import 失敗或 mount() 拋錯會留下
+  孤兒 `<section>`（未快取、未移除）且 `currentId` 卡在半吊子狀態。修正：兩個 await 包進
+  try/catch，catch 內 `section.remove()` + `currentId` 復原成前一頁 + `return`；與既有的
+  supersede-abort（`myToken !== token`）邏輯並存但語意分開，happy path 不動。
+- Fix 5（M7）：同檔 `show()`/`applyMode` 呼叫處加一行註解，明記兩者必須同步（中間不可插入
+  `await`）——hero 的 `show()` 用 `queueMicrotask` 覆寫模式即依賴此順序，純文件補充、無行為改動。
+- Fix 6（M2）：`index.html` `<head>` 加 `<link rel="icon" href="data:,">`，消除瀏覽器對
+  `/favicon.ico` 的預設請求（先前 Task 12 驗收記錄的「僅預期內的 favicon 404」自此不再出現）。
+- Fix 7（lg.d.ts）：`src/ui/lg.d.ts` 的 `LiquidGlass.behaviors` 型別原本只有 `stats`，補齊
+  Kit 實際存在的 `tabs?`/`slider?`/`switchTension?`/`dock?`（對照 `liquid-glass.js` 第 1561
+  行的 `behaviors` 物件），純型別補充，各 screen 既有的 `as {...}` cast 不受影響。
+- Fix 8（M13）：新增 `tests/twin-provider.test.ts`（仿 `carbon-provider.test.ts` 風格，stub
+  全域 `fetch`）：驗證 `createTwinProvider` 成功時把 `{berths:[{code,lat,lon,angle,nameZh}]}`
+  映射成 `{berths:[{id,name}],trackCount}` 且 `source==='live'`；fetch 拒絕時回退為
+  `{berths:[],trackCount:0}`。`npx vitest run` 由 8 → 10 通過（4 個測試檔）。
+- **驗收**：`npx tsc --noEmit` 0 errors；`npx vitest run` 10/10 通過；`npm run build` 成功
+  （39 modules）。Chromium：(a) carbon 頁開「單筆發行」modal（此次驗證時 PoC 後端剛好在線，
+  108 筆真實 SU），在 `#one-ship`/`#one-gfi` 打 `1`/`2`/`3`/`0`/`5`/`6`，數字正確落入欄位、
+  `location.hash`/`data-mode` 全程未變（未跳頁）；關閉 modal、focus 移到非輸入元素後按 `2`
+  仍正確導覽到 policy、按 `0` 仍正確回到 hero。(b) carbon 頁標題列下無多餘空白、eyebrow 圓點
+  電腦色值為 `rgb(233,188,99)`（即 `#E9BC63` 金色，非白色）。(c) `list_network_requests`
+  全程（含跨頁導覽）38→115 筆請求皆無 `favicon.ico`；`list_console_messages` 全程僅
+  `[vite] connecting/connected` debug 訊息，零錯誤。
+- 本次修正未變更任何 spec 行為範圍以外的程式碼；詳細 file:line 對照與自我審查見
+  `.superpowers/sdd/final-fix-report.md`（scratch 報告，未進版控）。
 
 **Task 12（Policy screen + README + 全站驗收）完成 —— 12 個 task 全部完成。**
 - 新增 `src/screens/policy/policy.html` + 重寫 `src/screens/policy/index.ts`（原為 stub）：標頭改用
