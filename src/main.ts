@@ -7,6 +7,7 @@ import { SCREENS } from './shell/registry';
 import { applyMode, initRouter, parseHash } from './shell/router';
 import { initRail } from './shell/rail';
 import { createMockExchange, mockProvider } from './data/exchange/mock';
+import { createCarbonProvider } from './data/exchange/carbon';
 // lg.d.ts 為 ambient 宣告（tsconfig include 已涵蓋），不需 import
 
 document.documentElement.setAttribute('data-lg-theme', 'dark');
@@ -19,10 +20,7 @@ const env = (import.meta as any).env ?? {};
 const ctx: ScreenCtx = {
   data: {
     ...createMockExchange(),
-    carbon: Object.assign(
-      mockProvider({ ok: false, issued: 0, tonsCirculating: 0, listed: 0, retired: 0 }),
-      { base: env.VITE_CARBON_API ?? 'http://127.0.0.1:8000' },
-    ),
+    carbon: createCarbonProvider(env.VITE_CARBON_API),
     twin: Object.assign(
       mockProvider({ berths: [], trackCount: 0 }),
       { url: env.VITE_TWIN_URL ?? 'http://localhost:5174/examples/kaohsiung-port/index.html' },
