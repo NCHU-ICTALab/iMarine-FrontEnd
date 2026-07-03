@@ -2,11 +2,48 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Task 6 完成
+最後更新：2026-07-04 Task 8 完成
 
 ---
 
 ## 1. 目前狀態
+
+**Task 8（Twin screen + twin provider）完成**，進入 Task 9-11。
+- 新增 `src/data/exchange/twin.ts`：`createTwinProvider(url?)` 逐字照 brief 實作，`snapshot()` 讀
+  `/data/berths-khh.json`（新增 `public/data/berths-khh.json`，自 `~/Desktop/LiDAR/examples/
+  kaohsiung-port/data/` 複製，72 筆泊位，形狀 `{capturedAtMs, berths:[{code,lat,lon,angle,nameZh}]}`）
+  只取 code/nameZh 映射成 `{id,name}`（lat/lon/angle 屬 LiDAR 3D 世界座標，不進本層）；trackCount
+  暫以 berths 長度代替，待 AIS 快照接入再補。`.url` 預設 `http://localhost:5174/examples/
+  kaohsiung-port/index.html`（可用 `VITE_TWIN_URL` 覆寫）。
+- 新增 `src/screens/twin/{index.ts,twin.html}`：自基準檔 `<!--孿生-->` 搬 float-tl 標頭／float-r 四張
+  浮動面板（Pareto 候選方案/KPI/泊位甘特/情境切換）／底部 tline 時間軸——這些選擇器 Task 1 已整批
+  複製進 `tokens.css`，不必另寫版面 CSS，也不用 `screenHeader`（twin 是滿版浮動玻璃頁）。主視覺區
+  改為 `<iframe id="twinFrame">` 嵌 LiDAR kaohsiung-port 範例。時間軸 `input` → `NOW +HH:MM` 標籤 +
+  KPI 兩格 `data-lg-value`（彈簧，公式對齊基準檔 2.7±0.6hr/4390±260t 正弦擺動）+
+  `ctx.background.setTwinOffset(h)`；情境切換 4 顆按鈕 active 互斥 + `ctx.ui.toast`。`#twinTime` 是
+  掛載後才插入 DOM，額外手動補跑一次 `LiquidGlass.behaviors.slider(el)`（否則填色卡在 CSS 預設
+  50%，不會跟著拖曳更新，對齊 carbon/index.ts 對 `.lg-tabs` pill 的同一種補跑手法）。
+- **實測發現並修正一個不在 brief 字面內的問題**：iframe `onload` 對「連線被拒」的失敗導覽一樣會
+  觸發（Chromium 把該次導覽的內建錯誤頁當成一次「載入完成」），光靠 onload 完全無法分辨 LiDAR
+  dev server 是否真的啟動——若照 brief 字面（純 onload 隱藏提示卡）實作，會在 server 未開時整頁
+  被一塊不透明的空白錯誤頁蓋住，提示卡與背景點雲都看不到，直接違反本 task「fallback 卡 + full
+  模式背景要露出」的驗收標準。改用背景 `fetch(url, {mode:'no-cors', cache:'no-store'})` 探測埠是否
+  有人聽（連得上就 resolve，連線被拒/逾時才 reject）作為唯一依據；探測失敗時除了讓提示卡維持可見，
+  還額外把 iframe 本身設 `display:none`（否則那塊不透明錯誤頁仍會蓋住卡片以外的區域）。探測成功則
+  隱藏提示卡，iframe 維持顯示。
+- `src/main.ts`：`twin` 由暫時的 mock stub 換成 `createTwinProvider(env.VITE_TWIN_URL)`；移除不再
+  使用的 `mockProvider` import；改寫已過期的「carbon/twin 暫用 mock stub」註解為「carbon/twin
+  現皆為 live provider」。
+- 無新增單元測試（task-8 brief 未要求；既有 3 個測試檔 8 tests 不受影響）。已用 Chromium
+  （chrome-devtools MCP）雙路徑驗證：(1) 必驗：埠 5174 無服務時，提示卡正確顯示、`data-mode="full"`
+  背景點雲透過（隱藏後的）iframe 露出（含泊位編號、SHIN KUANG 168 標記）、float 面板玻璃折射正常、
+  時間軸拖到 18 時 clock 顯示「NOW +18:00」、KPI 彈簧到 2.1 hr / 4,250 t（驗算 sin 公式相符）、
+  slider 填色隨拖曳更新、情境按鈕互斥切換 + toast「情境已套用／「基準情境」重新推演未來 24 小時」
+  正確跳出，console 僅預期內的 favicon 404 與埠 5174 連線被拒兩則網路訊息，無 JS 例外。(2) 選驗：
+  於 `~/Desktop/LiDAR` 執行 `npm run dev -- --port 5174`（node_modules 已存在，未重跑 npm install）
+  後重整本頁，確認 iframe 內正確顯示真實 3D 港區場景（船點/泊位輪廓/LiDAR 自己的疊加 UI），提示卡
+  自動隱藏，本頁 float 面板仍正確蓋在 iframe 之上。
+- `npx tsc --noEmit` 0 errors、`npx vitest run` 8/8 PASS。
 
 **Task 7（Carbon screen，自 PoC 一比一搬入）完成**，進入 Task 8。
 - 新增 `src/screens/hero/hero.html`（`?raw` 匯入的靜態 markup，含 `<!--ENTRIES-->`/`<!--STATS-->`/
@@ -180,8 +217,8 @@
 7. ~~Task 5：共用 UI 元件~~ 完成
 8. ~~Task 6：Hero screen（兩段式）~~ 完成
 9. ~~Task 7：Carbon screen（自 PoC 一比一搬入）~~ 完成——拆成 carbon.{html,css,ts}+index.ts 四檔；PoC `<script>` 逐字搬入 `initCarbon`（僅 API→apiBase、查詢改綁 root 的 byId/qs/qsa、`// @ts-nocheck`），操作邏輯零改動；三件套（tabs/health-chip/發行鈕）以原 id 進 shell 標題列。**LIVE 驗證通過**：即時 stat/卡片/稽核、工作台⇄稽核切換、單筆發行→掛單→購買→除役全流程、離線 chip 降級皆與 PoC 一致，主控台零錯誤。
-10. **下一步 → Task 8**：Twin screen + twin provider（LiDAR iframe 嵌入）
-11. Task 9-11：Dispatch / Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
+10. ~~Task 8：Twin screen + twin provider（LiDAR iframe 嵌入）~~ 完成——twin provider 讀真實泊位資料（72 筆）、screen 嵌 LiDAR iframe 並修正 onload 不可靠問題（改用 fetch no-cors 探測 + iframe display:none fallback）、24hr 時間軸與情境切換皆可互動。**兩路徑皆驗證**：無 server 時 fallback+背景點雲正確顯示；起 LiDAR dev server 後 iframe 正確顯示真實 3D 場景。
+11. **下一步 → Task 9-11**：Dispatch / Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
 12. Task 12：Policy screen + 全站驗收
 
 ## 5. 已知風險 / 注意

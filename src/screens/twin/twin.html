@@ -1,0 +1,80 @@
+<div class="full">
+  <iframe id="twinFrame" title="高雄港數位孿生" allow="fullscreen"
+          style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#08111c"></iframe>
+
+  <!-- LiDAR dev server 未啟動時的降級提示卡：預設可見，iframe 成功載入後由 index.ts 隱藏
+       （z-index:5，蓋在 iframe 之上；float 面板 z-index:6 恆在最上層，見 tokens.css）。 -->
+  <div class="lg lg-card" data-lg id="twinFallback"
+       style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;max-width:400px;padding:26px 30px;text-align:center">
+    <div class="eyebrow" style="justify-content:center;margin:0 0 12px">
+      <span class="dot" style="--mc:#7FB4FF"></span><span class="lbl">DIGITAL TWIN OFFLINE</span>
+    </div>
+    <p style="margin:0 0 10px;font-size:14.5px;color:var(--ink-90);font-weight:600">尚未偵測到 LiDAR 數位孿生伺服器</p>
+    <p style="margin:0;font-size:12.5px;color:var(--ink-60);line-height:1.8">
+      請於 LiDAR repo 執行 <b class="mono tealc">npm run dev -- --port 5174</b><br>
+      完成後重新整理本頁即可載入 3D 場景；目前顯示背景點雲 <b class="em">full</b> 模式作為替代視覺。
+    </p>
+  </div>
+
+  <div class="float-tl lg" data-lg>
+    <div>
+      <div class="eyebrow" style="margin:0"><span class="dot" style="--mc:#7FB4FF"></span><span class="lbl">港務公司視角 · MODULE 03</span></div>
+      <b>2.5D 數位孿生 · 24hr 沙盤推演</b>
+    </div>
+    <span class="lg-chip">PPO + Pareto Front</span>
+    <span class="src live"><i></i>LIVE · AIS 回放</span>
+  </div>
+
+  <div class="float-r">
+    <div class="panel lg anim" data-lg style="--d:.1s">
+      <h4>Pareto 候選方案</h4>
+      <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px">
+        <div style="display:flex;gap:8px;align-items:center"><span class="pill ok">#2 採納</span><span class="mut">等候 <b class="tealc">-22%</b> · 碳排 <b class="tealc">-9%</b></span></div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="pill">#1</span><span class="mut">收益 <b class="goldc">+11%</b> · 等候 -8%</span></div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="pill">#3</span><span class="mut">安全優先 · 等候 +4%</span></div>
+      </div>
+    </div>
+
+    <div class="panel lg anim" data-lg style="--d:.15s">
+      <h4>KPI · 方案 #2 vs 基準</h4>
+      <div class="stats4" style="grid-template-columns:1fr 1fr;gap:10px;margin:0">
+        <div><span class="mut" style="font-size:11px">平均等候</span>
+          <div><span class="lg-stat__value mono em" id="kpi-wait" style="font-size:17px"
+                     data-lg-value="2.7" data-lg-decimals="1" data-lg-suffix=" hr"></span></div>
+        </div>
+        <div><span class="mut" style="font-size:11px">預估碳排</span>
+          <div><span class="lg-stat__value mono em" id="kpi-co2" style="font-size:17px"
+                     data-lg-value="4390" data-lg-decimals="0" data-lg-suffix=" t"></span></div>
+        </div>
+        <div><span class="mut" style="font-size:11px">服務費收入</span><div class="mono em" style="font-size:17px">NT$ 8.6M</div></div>
+        <div><span class="mut" style="font-size:11px">安全事件</span><div class="mono em tealc" style="font-size:17px">0</div></div>
+      </div>
+    </div>
+
+    <div class="panel lg anim" data-lg style="--d:.2s">
+      <h4>泊位甘特 · 108-115</h4>
+      <div class="gantt">
+        <div class="grow_"><span>108</span><div class="gtrack"><div class="gbar" style="left:4%;width:34%;background:#7FB4FF"></div><div class="gbar" style="left:46%;width:30%;background:#35E0A6"></div></div></div>
+        <div class="grow_"><span>109</span><div class="gtrack"><div class="gbar" style="left:12%;width:42%;background:#E9BC63"></div></div></div>
+        <div class="grow_"><span>110</span><div class="gtrack"><div class="gbar" style="left:0;width:26%;background:#35E0A6"></div><div class="gbar" style="left:58%;width:36%;background:#7FB4FF"></div></div></div>
+        <div class="grow_"><span>111</span><div class="gtrack"><div class="gbar" style="left:30%;width:48%;background:#F0648C"></div></div></div>
+      </div>
+      <div class="gaxis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+    </div>
+
+    <div class="panel lg lg-static anim" style="--d:.25s">
+      <h4>情境切換</h4>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="scn">油價 +10%</button><button class="scn">EUA +20%</button>
+        <button class="scn">颱風偏移 50km</button><button class="scn on">基準情境</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tline lg" data-lg>
+    <div class="lab"><span>沙盤推演 · 未來 24 小時</span><span id="tclock">NOW +09:10</span></div>
+    <div class="lg lg-slider" data-lg style="width:100%">
+      <input class="lg-slider__input" id="twinTime" type="range" min="0" max="24" step="0.5" value="9" aria-label="沙盤推演時間軸">
+    </div>
+  </div>
+</div>
