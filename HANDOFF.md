@@ -2,11 +2,42 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Task 9 完成
+最後更新：2026-07-04 Task 10 完成
 
 ---
 
 ## 1. 目前狀態
+
+**Task 10（Epidemic screen）完成**，進入 Task 11-12。
+- 新增 `src/screens/epidemic/route.ts`：`drawRoute(canvas, ports)`，自基準檔「疫情航跡」JS（原
+  `drawRoute`）逐字搬出並型別化。四港百分比站位（`POS`）與陸地點群散射角（`ANG`）沿用基準檔固定配置，
+  按 `ports` 陣列索引配對；港名／`mark`（`dim`/`rose`/`amber`）顏色改吃 `ports` 參數，不再是基準檔
+  寫死的字串。固定種子（`sd=99`）Park-Miller LCG 產生雜訊點與陸地點群，種子宣告於函式體內，每次呼叫
+  皆重新起跑，故同一份 ports 重繪視覺一致。
+- 新增 `src/screens/epidemic/epidemic.html`：自基準檔 `<!-- 疫情 -->` 的 `.cols` 區塊搬出（標頭不在
+  此檔內）。風險環數字/等級、三因子 meter、停靠序列卡、防護建議、參考案例皆為動態內容，故只留
+  `<!--PORTS-->`/`<!--FACTORS-->`/`<!--ADVICE-->` 三個清單佔位與 `__CAP__`/`__RISK__`/`__LEVEL__`/
+  `__FACTORLBL__`/`__REFERENCE__` 五個單值佔位（對齊 hero.html／dispatch.html 既有手法）。
+- 重寫 `src/screens/epidemic/index.ts`：標頭改用 `screenHeader`；`.tnode` 停靠卡依 `mark` 決定
+  outline／文字色（`dim` 無標記、`rose`→`var(--rose)`/`.rosec`、`amber`→`var(--amber)`/`.amberc`），
+  卡片間 `.tsep` 以 `join` 銜接（最後一張後不留分隔線）；三因子 meter 名稱/數值皆從 `snapshot.factors`
+  映射產生（含風險環下方「靠港天數 × 來源強度 × 距離因子」文字亦由 `factors.map(f=>f.name).join(' × ')`
+  組成，避免與 meter 清單重複寫死同一組名稱）；防護建議清單/參考案例/航跡圖說皆綁對應 snapshot 欄位
+  （圖說船名沿用 `snapshot.ship`，取代基準檔寫死的 `SHIN KUANG 168`）。來源強度三個 pill（WHO/CDC/
+  媒體）為固定文案，`EpidemicSnapshot` 無對應資料欄位，維持基準檔原樣寫死。
+- **航跡 canvas 重繪綁在 `show()`（含首次），非 `mount()`**：手法對齊 Task 9 review 後定案的
+  dispatch 版本——`redraw` 於 `mount()` 內指定（closure 捕捉當次 `snapshot.ports` 與 canvas 參照，
+  不需另立模組層 `ports` 變數，因本頁無互動會改動它，不同於 dispatch 的 `currentT` 滑桿值），
+  `Screen.show()` 呼叫 `redraw?.()`；另加一道「本頁 `.active` 時才生效」的視窗 `resize` 監聽。
+- 無新增單元測試（task-10-brief 未要求；純視覺 screen，既有 3 個測試檔 8 tests 不受影響）。已用
+  Chromium（chrome-devtools MCP）驗證：(1) 冷啟動 `#/epidemic`：航跡圖虛線依序連接馬尼拉→香港→
+  基隆→高雄108、香港與高雄108節點正確疊兩圈警示環、陸地點群與雜訊點正確繪出；四張停靠卡 outline
+  色（無/rose/無/amber）正確；風險環 72／橙級・限制登輪；三因子 meter 64/85/52 填色比例正確；
+  來源強度 pill／防護建議三行／新光輪參考案例皆正確渲染。(2) 切到 hero、視窗縮至 1280×832、未經
+  其他互動直接切回 epidemic：canvas backing store 1364×604（box 682×302，dpr2）與新尺寸精確吻合
+  （ratio=1，非拉伸）。(3) 本頁 active 時再次 resize 至 1600×900：canvas 立即重繪為 1458×604 吻合
+  新尺寸。全程 console 僅預期內的 favicon 404，無 JS 例外。
+- `npx tsc --noEmit` 0 errors、`npx vitest run` 8/8 PASS（未新增測試，既有 3 個測試檔不受影響）。
 
 **Task 9（Dispatch screen）完成**，進入 Task 10-11。
 - 新增 `src/screens/dispatch/heat.ts`：`initHeat(canvas) → {draw(t)}`，自基準檔「派工熱區」JS
@@ -266,8 +297,14 @@
     含首次於 mount 之後）而非 `mount()`，一手涵蓋「首次進入」「切走→resize→切回」「本頁 active 時
     resize」三種尺寸重繪情境（review round 1 修正，對齊 hero 的 ovMap 手法）。Chromium 已驗證冷啟動、
     從 hero 點入口卡、切走→縮視窗→切回三條路徑熱區皆正確銳利。
-12. **下一步 → Task 10-11**：Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
-13. Task 12：Policy screen + 全站驗收
+12. ~~Task 10：Epidemic screen（航跡 canvas + 停靠序列卡 + 風險評分/三因子 meter + 防護建議 +
+    參考案例）~~ 完成——`route.ts` 港點座標/陸地點群沿用基準檔固定配置，港名與 mark 顏色改吃
+    `snapshot.ports`；canvas 重繪比照 Task 9 review 後定案的 `show()`/resize 手法（本頁無互動會
+    改動 ports，故省去 dispatch 的 `currentT` 那層模組變數，直接讓 `redraw` closure 捕捉）。
+    Chromium 已驗證冷啟動渲染、以及「切走→resize→切回」與「本頁 active 時 resize」兩條 canvas
+    重繪路徑皆正確銳利。
+13. **下一步 → Task 11**：Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
+14. Task 12：Policy screen + 全站驗收
 
 ## 5. 已知風險 / 注意
 
