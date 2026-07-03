@@ -5,6 +5,7 @@
     "moduleResolution": "bundler",
     "strict": true,
     "types": ["vite/client"],
+    "skipLibCheck": true,
     "noEmit": true
   },
   "include": ["src", "tests"]

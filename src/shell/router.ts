@@ -47,11 +47,25 @@ export function initRouter(o: {
       section.id = 's-' + id; // tokens.css / carbon.css 選擇器以此定界
       o.container.appendChild(section); // 不清空 container，保留其餘已快取的 screen
       const mod = await def.load();
-      if (myToken !== token) return; // 被更新的導覽取代，中止
+      if (myToken !== token) {
+        section.remove(); // 被更新的導覽取代：移除這個尚未快取的 section，否則之後 go(id) 會再建一個造成重複 id
+        return;
+      }
       await mod.default.mount(section, o.ctx);
-      if (myToken !== token) return;
+      if (myToken !== token) {
+        section.remove();
+        return;
+      }
       entry = { section, screen: mod.default };
       cache.set(id, entry);
+      // Kit 的 init() 只在開機掃一次 [data-lg]、refresh() 只 update 既有實例，兩者都不會掃到
+      // mount() 之後才插入 DOM 的玻璃節點；故首次 mount 後對本 section 的玻璃子樹逐一 attach，
+      // 否則螢幕內的 [data-lg] 元件在真 Chromium 下只是沒有折射的扁平色塊。attach() 冪等，可安全重入。
+      section.querySelectorAll('[data-lg]').forEach((n) => {
+        try {
+          window.LiquidGlass.attach(n);
+        } catch {}
+      });
     }
     const active: CacheEntry = entry;
 
