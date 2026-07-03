@@ -2,11 +2,46 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Task 5 完成
+最後更新：2026-07-04 Task 6 完成
 
 ---
 
 ## 1. 目前狀態
+
+**Task 6（Hero 畫面，兩段式）完成**，進入 Task 7。
+- 新增 `src/screens/hero/hero.html`（`?raw` 匯入的靜態 markup，含 `<!--ENTRIES-->`/`<!--STATS-->`/
+  `<!--MODULES-->` 與 `__POINTS__`/`__LABELS__` 佔位標記）、`src/screens/hero/ovmap.ts`（`initOvMap(canvas)`
+  自基準檔「總覽迷你地圖」JS 搬出，回傳 `{start,stop}`，rAF 迴圈自管，`prefers-reduced-motion` 時
+  `start()` 只畫單幀）、重寫 `src/screens/hero/index.ts`（原「開發中」佔位頁換成完整兩段式 screen）。
+- 封面（COVER）六入口卡與總覽（OVERVIEW）六模組卡皆由 `SCREENS.slice(1)` 動態生成（icon/short/color
+  取自 registry），未手刻六份重複 markup；入口卡另加一組 hero 專屬的英文技術次標對照表（`SU TOKEN`／
+  `LLM + RAG`… 六筆，registry 未定義此欄位，純裝飾用途，未擴充 registry 契約）。OVERVIEW 的四張 KPI 卡
+  用 `statRow()` 綁 `overview.snapshot()`（`kpi.vessels`→今日進出港船舶… delta 文字含 U+2212 minus sign
+  對齊基準檔字面）、六張模組卡摘要值用 `snapshot.modules` 依 id 對應、近 7 日 bar chart 綁
+  `snapshot.weekly`。`mount()` 先 `await` snapshot 再一次性組完整 HTML 字串塞入，無二次載入態。
+- 兩段式切換：CTA（`#toOverview`，單向 cover→ov，對齊基準檔）與 `hero:toggle` 事件（雙向切換，main.ts
+  只在 `current()==='hero'` 時 dispatch，`mount()` 綁一次不解綁）共用 `setHeroState()`：切
+  `body[data-hero]` 屬性、呼叫 `ctx.setMode`、開關 `ovMap.start()`/`stop()`。入口卡／模組卡共用
+  `[data-go]` 委派點擊 → `location.hash`。
+- 修正一個發現的時序問題（不在本 task 檔案清單，但不修會讓「總覽 → 點模組卡切到別的功能頁 → 按 `0`／
+  點 rail 圖示切回 hero」這條路徑每次被重置回封面）：`router.go()` 對每個 screen 都固定「先呼叫
+  `show()`，再呼叫 `applyMode(def.mode)`」，registry 給 hero 的 `mode` 固定是 `'cover'`，`show()` 若同步
+  呼叫 `ctx.setMode` 會被那行立刻蓋掉。改用 `queueMicrotask` 延後寫入（仍在同一輪 event loop、下一次
+  瀏覽器繪製前執行，Chromium 實測無閃爍），讓總覽態能在切出/切回 hero 後正確保留。未改動 `router.ts`。
+- 已知的極小基準差異：模組卡／入口卡標題統一用 `registry.short`（"2.5D 沙盤推演"／"即時派工建議"／
+  "疫情自動追溯"），基準檔 hero 頁本身寫的是較短版本（"沙盤推演"／"即時派工"／"疫情追溯"，與
+  `overview.json` 的 `modules[].label` 一致但與 rail tooltip 用的 `registry.short` 不同）；判斷 registry
+  為單一資料源、不另建平行對照表較穩妥，三個模組各少兩三個字，影響極小。
+- 無新增單元測試（純視覺 screen，task-6-brief 未要求）。已用 Chromium（chrome-devtools MCP）驗證：
+  COVER 態 rail 隱藏、六入口卡 icon/色彩/標籤正確、hover outline 隨 `--mc` 變色（實測 carbon 卡
+  outline-color 變 `rgb(233,188,99)` 且卡片上移）、CTA 與署名行皆在；Enter／CTA → OVERVIEW：rail 滑入、
+  四張 KPI 卡數字彈簧動畫＋sparkline、迷你地圖有陸地/突堤/泊位編號 108-113/航道/錨區/移動船點（實測
+  600ms 間隔兩次 `canvas.toDataURL()` 不同，確認 rAF 真的在動）、六模組卡摘要值正確且可點擊跳頁、近
+  7 日 bar chart 七根柱子渲染；切到 `#/carbon` 後確認 ovMap 的 canvas 停止變化（`hide()`/`stop()` 生效，
+  不浪費背景運算）；按 `0` 從 carbon 切回 hero 確認正確回到 OVERVIEW（而非被重置成封面，驗證前述時序
+  修正）；Enter 再次切回 COVER。全程 console 乾淨無 error/warning。
+- `npx tsc --noEmit` 0 errors、`npx vitest run` 8/8 PASS（未新增測試，既有 3 個測試檔不受影響）、
+  `npm run build` 產出正常（確認 `?raw` 匯入在 Rollup production build 下也能正常內聯）。
 
 **Task 5（共用 UI 元件）完成**，進入 Task 6。
 - `src/ui/components.ts` 新增三個純模板字串函式：`screenHeader(o)`（輸出 `<header class="anim" style="--d:0s">`，
@@ -143,8 +178,8 @@
 5. ~~Task 3：資料交換層（types + mock providers）~~ 完成
 6. ~~Task 4：Carbon live provider~~ 完成
 7. ~~Task 5：共用 UI 元件~~ 完成
-8. **下一步 → Task 6**：Hero screen（兩段式，含孿生背景影片素材錄製）
-9. Task 7：Carbon screen（自 PoC 一比一搬入，版面基準 = 預覽 v3 碳權頁）
+8. ~~Task 6：Hero screen（兩段式）~~ 完成
+9. **下一步 → Task 7**：Carbon screen（自 PoC 一比一搬入，版面基準 = 預覽 v3 碳權頁）
 10. Task 8：Twin screen + twin provider（LiDAR iframe 嵌入）
 11. Task 9-11：Dispatch / Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
 12. Task 12：Policy screen + 全站驗收
