@@ -38,6 +38,14 @@ function suggCard(sugg: Suggestion, i: number): string {
   );
 }
 
+// mount() 只跑一次（router 快取式，見 router.ts），但每次切入本頁 router 都會在補上 .active 後呼叫
+// show()。熱區 canvas 的尺寸取自容器當下的 getBoundingClientRect，故「重繪」這件事必須綁在 show()
+// 而非 mount()：否則使用者切到別頁時調整視窗大小、再切回本頁（未動滑桿）canvas 會維持舊尺寸而被拉伸
+// 變形。以下兩個模組層變數讓 show() 能在 mount() 之外取得「以目前滑桿值重繪」的能力（單一 dispatch
+// 實例，無多實例風險，手法對齊 hero/index.ts 的 ovMap/ctxRef）。
+let currentT = 30; // 目前滑桿值；slider input 時更新，show()/resize 用它重繪
+let redraw: (() => void) | null = null; // = () => apply(currentT)，於 mount() 內指定
+
 const s: Screen = {
   async mount(el, ctx) {
     const snap = await ctx.data.dispatch.snapshot();
@@ -65,6 +73,7 @@ const s: Screen = {
     // 讀數規則逐字對齊基準檔 updDisp()：雨量 >=70 強降雨／>=50 大雨／否則陣雨；
     // 風速 >=15 rose／>=13 amber／否則 teal（雨量沿用同一組門檻決定文字等級與顏色）。
     function apply(t: number): void {
+      currentT = t; // 記住目前值，供 show()/resize 於 mount() 之外重繪
       heat.draw(t);
       const i = Math.floor(t / 10);
       const wind = snap.winds[i];
@@ -83,13 +92,18 @@ const s: Screen = {
 
     slider?.addEventListener('input', () => apply(Number(slider.value)));
 
-    // mount() 執行當下這個 <section> 尚未加上 .active（router.go 先 await mount() 才補 class，
-    // 見 router.ts），此時 .heatbox 的祖先鏈仍是 .screen{display:none}，量到的
-    // getBoundingClientRect 是 0×0——若在這裡同步呼叫 apply(30) 會把 canvas 實際畫成 0×0（等同
-    // hero 的 ovMap 為何把首次 paint() 延後到 show() 才做的同一個問題）。router.go() 在
-    // mount() 的 promise resolve 後、下一次瀏覽器繪製前就會同步補上 .active，故用一個 rAF 把
-    // 首次 apply 排到「下一幀」執行，屆時 section 必已是 .active，量到正確尺寸。
-    requestAnimationFrame(() => apply(30));
+    // 供 show() 呼叫的重繪入口：以目前滑桿值重畫熱區 + 讀數列。首繪不在 mount() 做——mount() 執行當下
+    // 這個 <section> 尚未加上 .active（router.go 先 await mount() 才補 class，見 router.ts），此時
+    // .heatbox 的祖先鏈仍是 .screen{display:none}，量到的 getBoundingClientRect 是 0×0。router 在補上
+    // .active 之後才呼叫 show()（含首次進入），屆時 section 已可見、canvas 量得到正確尺寸——首繪與每次
+    // 重新進入都交給 show() 一手包辦，語意單一、不需 rAF。
+    redraw = () => apply(currentT);
+
+    // 使用者正在本頁時調整視窗大小才需即時重排；切到別頁後的 resize 由回頁時的 show() 補繪即可，
+    // 故加一道 .active 守門避免對背景頁做多餘運算。
+    addEventListener('resize', () => {
+      if (el.classList.contains('active')) apply(currentT);
+    });
 
     // #dispTime 是掛載後才插入 DOM，錯過 Kit 開機那次掃描，--lg-fill 填色會卡在 CSS 預設 50%、
     // 不會隨拖曳更新，需手動補跑一次 behaviors.slider（對齊 carbon 對 .lg-tabs、twin 對
@@ -101,6 +115,14 @@ const s: Screen = {
         /* Kit 缺 behaviors.slider 時降級：原生 range input 仍可拖曳，只是沒有液滴填色動畫 */
       }
     }
+  },
+
+  // router 每次切入本頁（含首次，於 mount() 之後）都會在補上 .active 後呼叫 show()，此時 section
+  // 已可見、熱區 canvas 量得到正確尺寸；以目前滑桿值重繪，一併涵蓋「首次進入」與「切走時 resize 過、
+  // 再切回」兩種情境（見上方 redraw 註解）。mount() 尚未跑完前 redraw 為 null（不會發生：router 先
+  // await mount() 才呼叫 show()），仍以可選鏈保險。
+  show() {
+    redraw?.();
   },
 };
 

@@ -6,7 +6,8 @@
      2) 判斷每個網格 (gx,gy) 的格心是否在陸地帶內（gy+0.5 < hcoast(gx+0.5)），是則整格跳過不繪，
         確保降雨機率格僅畫在海面。
    draw(t) 每次呼叫都重新量測畫布容器（.heatbox）目前尺寸並整幅重繪，不做增量繪製、不自帶
-   resize 監聽——呼叫端（screen 的 slider input / show()）各自決定何時觸發重繪。 */
+   resize 監聽——由呼叫端（index.ts）決定何時觸發重繪：slider input（拖曳）、show()（每次切入本頁，
+   含首次；因 router 快取式故尺寸相關重繪必須綁 show 而非 mount）、以及本頁 active 時的視窗 resize。 */
 
 const GX = 26;
 const GY = 15;

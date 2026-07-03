@@ -23,15 +23,18 @@
   雨量 ≥70 強降雨／≥50 大雨／否則陣雨，風速 ≥15 rose／≥13 amber／否則 teal（讀數列「12 →」的
   基準風速改綁 `snapshot.winds[0]`，不沿用基準檔寫死的字面 `12`，避免未來 mock 資料改動時跟文字
   兜不起來）。
-- **實測發現並修正一個不在 brief 字面內的時序問題**：`router.go()` 是「先 `await mount()`，
-  mount 完成後才同步幫 `<section>` 補上 `.active`」（`.screen{display:none}`／`.screen.active
-  {display:block}`，見 tokens.css），若照 brief 字面在 `mount()` 內同步呼叫 `heat.draw(30)`，當下
-  `.heatbox` 因祖先 `display:none` 量到的 `getBoundingClientRect` 是 0×0，canvas 会被實際設成 0×0、
-  首次進畫面熱區是空的，要等使用者拖一次滑桿才會補回正確尺寸——這與 hero 的 `ovMap` 為何把首次
-  `paint()` 延後到 `show()` 才做是同一個成因。改用 `requestAnimationFrame(() => apply(30))`：
-  `router.go()` 對 `.active` 的同步賦值發生在 `mount()` 的 promise resolve 之後、下一次瀏覽器繪製
-  之前，故 rAF callback 觸發時 `.active` 必已就緒，量到正確尺寸；比起額外加 `show()` 鉤子與模組層
-  狀態更簡單自足。已用 Chromium 兩條路徑分別驗證冷啟動首繪皆正確（見下）。
+- **熱區重繪綁在 `show()`（含首次），非 `mount()`**：`router.go()` 是「先 `await mount()`，mount
+  完成後才同步幫 `<section>` 補上 `.active`」（`.screen{display:none}`／`.screen.active{display:block}`，
+  見 tokens.css），且 router 為快取式——每個 screen 只 `mount()` 一次，之後每次切入只重加 `.active`
+  並呼叫 `show?.()`（router.ts:84）。因此 canvas 這種「尺寸取自容器當下 `getBoundingClientRect`」的重繪
+  必須綁 `show()`：(a) `mount()` 當下祖先仍 `display:none`，同步 `heat.draw` 會量到 0×0；(b) 若只在
+  首次 `mount` 畫一次，使用者切到別頁時調整視窗大小、再切回本頁（未動滑桿）canvas 會維持舊尺寸被
+  CSS 拉伸變形。做法對齊 `hero/index.ts` 的 `ovMap`：模組層 `currentT`（初始 30，slider input 時更新）
+  + `redraw = () => apply(currentT)`；`Screen.show()` 呼叫 `redraw?.()`——router 補上 `.active` 之後才
+  呼叫 `show()`，section 已可見、canvas 量得到正確尺寸，一手包辦「首次進入」與「每次重新進入」，不需
+  rAF。另加一道「本頁 `.active` 時才生效」的視窗 `resize` 監聽，讓正在看本頁時調整視窗能即時重排熱區。
+  （初版曾用 `requestAnimationFrame(() => apply(30))` 只在 `mount()` 內首繪，review round 1 指出這條
+  路徑無法覆蓋「切走→resize→切回」的重繪，已改為上述 `show()` 版本。）
 - 無新增單元測試（task-9-brief 未要求；純視覺 screen，既有 3 個測試檔 8 tests 不受影響）。已用
   Chromium（chrome-devtools MCP）驗證：(1) 直接冷啟動 `#/dispatch`：熱區首繪即正確（陸地帶／海岸線／
   5 座突堤／機率網格僅海面，無需先摸滑桿）、CSI 0.71／POD 0.83／FAR 0.21 三個 pill 與
@@ -39,8 +42,11 @@
   （rose/amber/amber/teal）與基準檔一致、風速折線圖正確繪出 10 點波峰。(2) 拖滑桿到 `t=0/60/90`：
   熱區熱點隨 t 沿海岸線平移、讀數列文字與顏色正確切換（含邊界值驗證：`t=60` 時風速剛好 13 → amber、
   雨量 48 → teal，門檻判斷為 `>=` 而非 `>` 確認無誤；`t=0` 顯示「現在」而非「未來 0 分鐘」）。
-  (3) 由 hero 封面點「即時派工建議」入口卡走真實 SPA 導覽進入 dispatch（非 URL 冷啟動），確認同一套
-  rAF 首繪修正在正常導覽路徑下同樣正確。全程 console 僅預期內的 favicon 404，無 JS 例外。
+  (3) 由 hero 封面點「即時派工建議」入口卡走真實 SPA 導覽進入 dispatch（非 URL 冷啟動）首繪正確。
+  (4) review round 1 重驗「切走→resize→切回」：1600px 時 canvas backing store 1458（box 729×dpr2），
+  切到 hero、視窗縮到 1100px（本頁非 active，resize 監聽正確未觸發）、未動滑桿切回 dispatch，canvas
+  backing store 重繪為 1145（box 573×dpr2）與新尺寸吻合、畫面銳利無拉伸，讀數列正確顯示 t=30 內容；
+  切回後拖滑桿仍正常移動熱區與變色。全程 console 僅預期內的 favicon 404 與 Vite HMR 訊息，無 JS 例外。
 - `npx tsc --noEmit` 0 errors、`npx vitest run` 8/8 PASS（未新增測試，既有 3 個測試檔不受影響）。
 
 **Task 8（Twin screen + twin provider）完成**，進入 Task 9-11。
@@ -256,9 +262,10 @@
 11. ~~Task 9：Dispatch screen（熱區 canvas + 預測時間軸 + 派工建議卡 + 風速圖）~~ 完成——拆成
     `heat.ts`（`initHeat` 自基準檔熱區 JS 搬出，含海岸線判斷僅海面繪格）+ `dispatch.html`
     + `index.ts` 三檔；CSI/POD/FAR pill、四張建議卡、風速圖皆綁 `dispatch.snapshot()`；滑桿
-    讀數規則與色彩門檻逐字對齊基準檔。**發現並修正**首次進畫面時 `.screen{display:none}` 導致
-    canvas 量到 0×0 尺寸的時序問題（改用 `requestAnimationFrame` 延後首繪，待 `.active` 補上後
-    才量測），Chromium 兩條導覽路徑（URL 冷啟動／從 hero 點入口卡）皆驗證熱區首繪正確。
+    讀數規則與色彩門檻逐字對齊基準檔。熱區重繪綁在 `Screen.show()`（快取式 router 每次切入都呼叫，
+    含首次於 mount 之後）而非 `mount()`，一手涵蓋「首次進入」「切走→resize→切回」「本頁 active 時
+    resize」三種尺寸重繪情境（review round 1 修正，對齊 hero 的 ovMap 手法）。Chromium 已驗證冷啟動、
+    從 hero 點入口卡、切走→縮視窗→切回三條路徑熱區皆正確銳利。
 12. **下一步 → Task 10-11**：Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
 13. Task 12：Policy screen + 全站驗收
 
