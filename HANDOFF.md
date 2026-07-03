@@ -2,11 +2,22 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Task 10 完成
+最後更新：2026-07-04 Task 11 完成
 
 ---
 
 ## 1. 目前狀態
+
+**Task 11（Alert screen）完成**，進入 Task 12。
+- 新增 `src/screens/alert/alert.html` + 重寫 `src/screens/alert/index.ts`（原為 stub）：標頭改用
+  `screenHeader`（模擬推播鈕塞進 `actionsHtml`）；四張 KPI 卡由 `statRow()` 產生；篩選 chips
+  （全部/疫情/氣象/解除）與推播規則三顆 switch 為固定markup（`AlertSnapshot` 無對應欄位，非資料
+  驅動）；feed 六列（含嚴重度色條 `sev`→`rose`/`amber`/`flame`/`ok` 四色查表）與手機 sms 泡泡改由
+  `snapshot` 動態產生。篩選邏輯與「模擬推播」（toast + `.buzz` + 插入 `.sms.pop`、上限 3 則）逐字
+  對齊基準檔。另補一手 `behaviors.switchTension`：`.lg-switch` 的 goo 液滴裝飾只在開機 boot() 掃
+  一次，本頁三顆 switch 掛載較晚會錯過，比照 carbon/dispatch 手動補跑一次的既有手法。Chromium 已
+  驗證：四卡動畫、四種篩選、六列色條、手機 mock、模擬推播（toast/buzz/插入/上限 3）、三顆 switch
+  皆正確，主控台零錯誤。
 
 **Task 10（Epidemic screen）完成**，進入 Task 11-12。
 - 新增 `src/screens/epidemic/route.ts`：`drawRoute(canvas, ports)`，自基準檔「疫情航跡」JS（原
@@ -303,8 +314,10 @@
     改動 ports，故省去 dispatch 的 `currentT` 那層模組變數，直接讓 `redraw` closure 捕捉）。
     Chromium 已驗證冷啟動渲染、以及「切走→resize→切回」與「本頁 active 時 resize」兩條 canvas
     重繪路徑皆正確銳利。
-13. **下一步 → Task 11**：Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
-14. Task 12：Policy screen + 全站驗收
+13. ~~Task 11：Alert screen（KPI 統計列 + 分類篩選 feed + 手機 mock 模擬推播 + 推播規則開關）~~
+    完成——篩選 chips 與模擬推播（toast/buzz/插入 sms/上限 3 則）逐字對齊基準檔；feed 六列嚴重度
+    色條吃 `sev` 色彩關鍵字四色查表；`.lg-switch` 補跑 `behaviors.switchTension` 取得 goo 液滴動畫。
+14. **下一步 → Task 12**：Policy screen + 全站驗收
 
 ## 5. 已知風險 / 注意
 
