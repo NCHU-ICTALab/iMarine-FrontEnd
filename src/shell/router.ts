@@ -63,6 +63,13 @@ export function initRouter(o: {
         // 真正失敗（動態 import 被拒絕或 mount() 拋錯）——不同於上面兩個 supersede-abort，
         // 這裡要收拾孤兒 section、把 currentId 復原成前一頁，讓路由狀態維持一致，不繼續往下 activate。
         section.remove();
+        // 復原前一頁的視覺狀態：go() 開頭已對它 hide() 並剝掉 .active/.entered，若只回滾 currentId
+        // 而不重新顯示，畫面會空白，且再點同一顆 rail 會被開頭的 id===currentId 早退卡住。prev 可能為
+        // undefined（開機首次導覽時 currentId 為空字串、cache 尚無前一頁），故加 if 防護。
+        if (prev) {
+          prev.section.classList.add('active', 'entered');
+          prev.screen.show?.();
+        }
         currentId = prevId;
         return;
       }
