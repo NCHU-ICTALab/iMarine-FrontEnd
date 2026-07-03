@@ -2,11 +2,28 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-03
+最後更新：2026-07-04
 
 ---
 
 ## 1. 目前狀態
+
+**Task 3（資料交換層：types + mock providers）完成**，進入 Task 4。
+- `src/data/types.ts` 由 Task 2 的最小 stub 換成完整版：`Provider<T>`、五個 mock screen 的
+  Snapshot 型別（Overview/Policy/Dispatch/Epidemic/Alert）+ `CarbonSummary`/`TwinSnapshot`、
+  `DataExchange`。新增 `src/data/exchange/mock.ts`（`mockProvider` source:'mock' +
+  `structuredClone` 深拷貝、`createMockExchange` 組裝五個 provider）與 `src/data/mock/*.json`
+  五檔，數值逐一自 `docs/preview/preview-src-v3.html` 抄出（overview KPI 128/47-62/3.4/4820、
+  policy 五段 html+5 來源+grounding 93、dispatch WINDS/RAINS+4 建議卡+CSI/POD/FAR、epidemic
+  SHIN KUANG 168/72 橙級+三因子+四港序列+新光輪案例、alert 4 KPI+6 feed+2 sms）。`main.ts` 的
+  `ctx.data` 接上 `createMockExchange()`，carbon/twin 暫用 `mockProvider` stub 佔位
+  （`base`/`url` 讀 `import.meta.env`，Task 4/8 換 live）。`tsconfig.json` 加
+  `resolveJsonModule: true`。
+- TDD：`tests/mock.test.ts`（深拷貝 + dispatch 10 timesteps 兩案例）先跑過 RED 才實作，之後
+  `npx vitest run` 6/6 PASS（含 Task 2 router 測試）、`npx tsc --noEmit` 0 errors。
+- 已用 Chromium（chrome-devtools MCP）驗證：`npm run dev` console 乾淨，瀏覽器內動態 import
+  `mock.ts` 執行 `createMockExchange()` 確認五個 provider 皆 `source:'mock'` 且欄位數值與基準檔
+  一致；切到 `#/twin` 佔位頁確認未受 main.ts 改動影響。
 
 **Task 2（Registry + Router + Rail + 鍵盤）完成**，進入 Task 3。
 - 新增 `src/screens/types.ts`（Mode/ToastOpts/ScreenCtx/Screen 契約）、`src/shell/registry.ts`（7 筆
@@ -84,11 +101,14 @@
 2. ~~實作計畫：`docs/superpowers/plans/2026-07-03-frontend-shell.md`（12 tasks，每 task 結尾為檢查點、由使用者 commit）~~ 完成
 3. ~~Task 1：建 Vite 專案骨架 + 複製 Kit 兩檔 + 點雲港口背景系統~~ 完成
 4. ~~Task 2：Registry + Router + Rail + 鍵盤（`0` 總覽、`1-6` 功能頁、`Enter` 封面切換）~~ 完成
-5. **下一步 → Task 3**：資料交換層（types + mock providers）
-6. Hero 兩段式實作（含孿生背景影片素材錄製）
-7. Carbon PoC 重構搬入（版面基準 = 預覽 v3 碳權頁）
-8. LiDAR iframe 嵌入 + twin provider
-9. 四個 mock 頁面（版面與互動 = 預覽 v3，資料走 mock provider）
+5. ~~Task 3：資料交換層（types + mock providers）~~ 完成
+6. **下一步 → Task 4**：Carbon live provider
+7. Task 5：共用 UI 元件
+8. Task 6：Hero screen（兩段式，含孿生背景影片素材錄製）
+9. Task 7：Carbon screen（自 PoC 一比一搬入，版面基準 = 預覽 v3 碳權頁）
+10. Task 8：Twin screen + twin provider（LiDAR iframe 嵌入）
+11. Task 9-11：Dispatch / Epidemic / Alert screen（mock provider 資料，版面與互動 = 預覽 v3）
+12. Task 12：Policy screen + 全站驗收
 
 ## 5. 已知風險 / 注意
 

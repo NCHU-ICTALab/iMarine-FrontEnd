@@ -1,0 +1,19 @@
+{
+  "topic": "IMO NZF 通過後之港埠費減免政策評估",
+  "grounding": 93,
+  "groundingNote": "28 / 30 個量化數字具可追溯來源",
+  "sections": [
+    { "heading": "一、背景", "html": "IMO 淨零框架（NZF）預計對 5000GT 以上船舶徵收溫室氣體排放費<span class=\"cite\" data-src=\"1\">1</span>，歐盟 ETS 自 2026 年起要求航運全額繳納排放配額<span class=\"cite\" data-src=\"2\">2</span>，單艘貨櫃船年均履約成本估計自 €54 萬升至 €94.5 萬<span class=\"cite\" data-src=\"2\">2</span>。" },
+    { "heading": "二、國際案例", "html": "新加坡 MPA 自 2025 年起對零排放燃料船舶港埠費全額減免、低碳燃料減免 30%<span class=\"cite\" data-src=\"3\">3</span>；長灘港依 ESI 分數每航次最高獎勵 $9,000<span class=\"cite\" data-src=\"4\">4</span>。" },
+    { "heading": "三、量化參考", "html": "以高雄港 2025 年靠港結構推估，分級減免方案年成本約 NT$ 2.1 億，可帶動綠色燃料靠港占比自 6.8% 提升至 11-14%<span class=\"cite\" data-src=\"5\">5</span>。" },
+    { "heading": "四、政策選項", "html": "方案 A：對接 NZF Surplus Units 的港埠費折抵（建議）；方案 B：固定分級費率；方案 C：維持現行、觀望 MEPC 84 決議。" },
+    { "heading": "五、建議草稿", "html": "建議於 NZF 生效前完成港埠費折抵法制預告，先以高雄港為示範港試行一年，並以本平台碳權代幣化模組之 SU 流通紀錄<span class=\"cite\" data-src=\"5\">5</span>作為折抵稽核依據。" }
+  ],
+  "sources": [
+    { "no": 1, "name": "IMO MEPC 83 決議摘要", "grade": "官方", "date": "2026-04" },
+    { "no": 2, "name": "EU ETS Maritime 指令", "grade": "官方", "date": "2026-01" },
+    { "no": 3, "name": "MPA Green Port Circular", "grade": "官方", "date": "2025-12" },
+    { "no": 4, "name": "Port of Long Beach ESI Program", "grade": "官方", "date": "2026-03" },
+    { "no": 5, "name": "iMarine 台灣數據統計", "grade": "港務內部", "date": "2026-06" }
+  ]
+}

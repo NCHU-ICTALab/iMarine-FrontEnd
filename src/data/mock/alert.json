@@ -1,0 +1,15 @@
+{
+  "kpi": { "today": 3, "reached": 210, "avgSec": 4.2, "pending": 12 },
+  "feed": [
+    { "cat": "epi", "sev": "rose", "title": "疫情橙級 · SHIN KUANG 168 泊位 108", "body": "細胞簡訊已推播港區西側作業人員 210 人", "time": "19:36" },
+    { "cat": "wx", "sev": "amber", "title": "強降雨預警 · 未來 30 分鐘", "body": "降雨機率 80%，橋式吊掛建議暫緩", "time": "19:12" },
+    { "cat": "wx", "sev": "amber", "title": "強風預警 · 港區平均風速 18 m/s", "body": "Beaufort 7 · 高空作業停止", "time": "18:47" },
+    { "cat": "wx", "sev": "flame", "title": "雷擊警戒 · 雷雨胞接近港區西南 8km", "body": "油品裝卸區進入戒備，加油作業暫停", "time": "16:58" },
+    { "cat": "ok", "sev": "ok", "title": "解除 · 雷擊警戒", "body": "雷雨胞移出港區 10km 範圍", "time": "17:05" },
+    { "cat": "ok", "sev": "ok", "title": "解除 · 疫情黃級 · EVER LUCENT", "body": "WHO 通報下修，恢復一般登輪程序", "time": "15:40" }
+  ],
+  "sms": [
+    { "text": "[港區作業警報]泊位108靠泊船舶疫情風險橙級，即刻起限制非必要登輪，作業人員配戴N95。詳情洽港勤中心。", "old": false },
+    { "text": "[港區氣象警報]未來30分鐘強降雨機率80%，橋式吊掛作業暫緩，倉儲區預防性排水。", "old": true }
+  ]
+}
