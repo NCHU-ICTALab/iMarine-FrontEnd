@@ -2,11 +2,54 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Task 11 完成
+最後更新：2026-07-04 Task 12 完成 — 12 個 task 全部完成，shell 實作結束、全站驗收通過
 
 ---
 
 ## 1. 目前狀態
+
+**Task 12（Policy screen + README + 全站驗收）完成 —— 12 個 task 全部完成。**
+- 新增 `src/screens/policy/policy.html` + 重寫 `src/screens/policy/index.ts`（原為 stub）：標頭改用
+  `screenHeader`；議題列（`.topic`，含「重新生成」鈕）、報告五段（`<h3>`+`<p>`，`html` 內含 cite span
+  原樣塞入不逃逸）、Grounding 環形儀表（`data-lg-value` 吃 `snapshot.grounding`）與引用來源清單
+  （`.srcrow` + `data-no`）皆由 `ctx.data.policy.snapshot()` 動態產生；`policy.html` 只留 `__TOPIC__`/
+  `<!--SECTIONS-->`/`__GROUNDING__`/`__GNOTE__`/`__SRCCOUNT__`/`<!--SOURCES-->` 六個佔位標記（對齊
+  dispatch/epidemic 既有手法）。互動逐字對齊基準檔 `/* 政策：生成動畫 + 引用連動 */`：「重新生成」
+  點擊 → `#reportBody.skl`（blur 1.4s，含重入防護與按鈕文字「生成中…」）→ 還原 + `ctx.ui.toast`
+  （訊息組字串 `${groundingNote} · Grounding ${grounding}%`，因 mock 無「量化數字總數」欄位，改用
+  snapshot 既有兩個 grounding 欄位重組語意相近的句子，非臆造新數字）；`.cite` hover → 對應
+  `.srcrow[data-no]` 加 `.hl`（mouseleave 移除）。Grounding 儀表由 router 首掛後既有的
+  `behaviors.stats(section)` 掃描接手，無需本檔另呼叫 Kit API。
+- 新增 `README.md`：專案簡介、安裝/啟動、`.env` 設定（複製 `.env.example`）、兩個 live demo 前置
+  （carbon：PoC repo `make chain`+`make deploy`+`make api`；twin：`~/Desktop/LiDAR` 執行
+  `npm run dev -- --port 5174`）、鍵盤快捷（`0`/`1-6`/`Enter`）、Chromium 瀏覽器需求。全文無 emoji。
+- **全站驗收（對照 spec 第 10 節，逐項見下）全數通過**：
+  1. `npx tsc --noEmit` 0 errors；`npx vitest run` 8/8 PASS（未新增測試，policy 為純視覺+互動
+     screen）；`npm run build` 成功、無警告（39 modules transformed）。
+  2. Chromium 冷啟動 → 封面 COVER →`Enter`→ 總覽 OVERVIEW → 按鍵 `1`-`6` 依序到達
+     碳權/政策/孿生/派工/疫情/警報 → `0` 返回總覽（非重置回封面，Task 6 時序修正仍正確）→
+     `Enter` 回封面：每一步 console 皆乾淨（僅預期內的 favicon.ico 404，全程零 JS 錯誤）。
+  3. 四個 mock 頁互動逐一實測：政策「重新生成」（`skl` 動畫 + toast，以頁面內同步 JS 驗證
+     immediate/after 兩個時間點的 class/文字狀態，避免 MCP 工具呼叫間延遲誤判）與 `.cite` hover
+     （src=1、src=5 皆正確連動對應來源列）；派工滑桿拖到 90 分鐘讀數與熱區正確更新；警報分類篩選
+     與模擬推播（buzz + 插入新泡泡 + 上限 3 則）皆正確；疫情頁純視覺渲染確認無誤。政策頁另與
+     `docs/preview/preview-v3.html` 開分頁直接比對——內容/版面逐字一致，唯一差異：Grounding 說明文字
+     基準檔用 `<br>` 強制分兩行，本頁 `groundingNote` 是純字串未含標記，故走文字自然流動（本次視窗寬度
+     下顯示為一行）——刻意判斷不主動插入基準檔寫死位置的 `<br>`，避免對資料欄位做字面猜測式分割，
+     純視覺差異、非行為或資料錯誤。
+  4. 意外之喜：碳權 PoC 後端（埠 8000）與 LiDAR twin server（埠 5174）在驗收當下剛好都在執行中
+     （非本 task 啟動，狀態延續自先前 session），故碳權頁與孿生頁這次直接看到真實 LIVE 資料
+     （碳權：108 筆 SU、真實 dataHash；孿生：真實 3D 港區場景），而非降級模式；兩者的完整互動
+     （碳權發行/掛單/購買/除役全流程、孿生時間軸拖曳與情境切換）在 Task 7/Task 8 已個別詳盡驗證過，
+     本次不重跑，僅確認頁面可正常到達且渲染真實資料、console 無新增錯誤。
+  5. `prefers-reduced-motion: reduce` 模擬（chrome-devtools MCP 的 `emulate` 工具未提供此參數，
+     改用 Playwright MCP 的 `browser_run_code_unsafe` 呼叫真正的 `page.emulateMedia()`，確認
+     `matchMedia(...).matches===true` 且 `.anim` 的 computed style 確實變成
+     `opacity:1;transition:none`）：封面/總覽/碳權/政策/孿生/派工/疫情/警報全部八個畫面完整渲染，
+     canvas（熱區/航跡）與儀表數字皆非卡在初始 0 或空白，整場 console 僅一則 favicon 404、無新增錯誤。
+- 殘留事項（見第 5 節）：hero 背景素材仍是 canvas 點雲假資料（spec 4.2 註記「實作版可換」，未在
+  12 個 task 範圍內，屬後續美化項）；本機累積了數個先前 task session 留下的背景 `npm run dev`
+  進程（埠 5173/5175/5176，連同本次 5177）未關閉，demo 前建議清一次埠。
 
 **Task 11（Alert screen）完成**，進入 Task 12。
 - 新增 `src/screens/alert/alert.html` + 重寫 `src/screens/alert/index.ts`（原為 stub）：標頭改用
@@ -317,7 +360,11 @@
 13. ~~Task 11：Alert screen（KPI 統計列 + 分類篩選 feed + 手機 mock 模擬推播 + 推播規則開關）~~
     完成——篩選 chips 與模擬推播（toast/buzz/插入 sms/上限 3 則）逐字對齊基準檔；feed 六列嚴重度
     色條吃 `sev` 色彩關鍵字四色查表；`.lg-switch` 補跑 `behaviors.switchTension` 取得 goo 液滴動畫。
-14. **下一步 → Task 12**：Policy screen + 全站驗收
+14. ~~Task 12：Policy screen（議題列 + 報告五段 + Grounding 儀表 + 引用來源，含生成動畫與引用連動
+    互動）+ README.md + 全站驗收（對照 spec 第 10 節）~~ 完成——**12 個 task 全部完成**。驗收詳情見
+    第 1 節 Task 12 條目；`tsc`/`vitest`/`build` 三者皆綠燈，Chromium 全站導覽（封面→總覽→六功能頁
+    →返回）console 全程乾淨，四個 mock 頁互動與 `prefers-reduced-motion` 降級皆驗證通過。
+    shell 骨架至此無下一個排定 task；殘留的美化/清理項見第 5 節。
 
 ## 5. 已知風險 / 注意
 
@@ -329,3 +376,18 @@
   `node_modules` 內 vite/vitest/rollup 的型別檔報錯（缺 Node 環境型別），Task 2 加入第一個
   import `vitest` 的測試檔後才浮現；不影響 `vitest run`/`vite dev`/`vite build`，之後測試檔變多
   會持續出現，建議之後補 `skipLibCheck: true`（一行小改動，但屬既有檔案，先問過再動）。
+  **（2026-07 更新：commit `90f8512`已補上 `skipLibCheck: true`，本項風險已解除，`npx tsc --noEmit`
+  現況為 0 errors；段落保留作歷史紀錄，不再需要處理。）**
+- **殘留事項（Task 12 收尾時盤點，非阻斷性，屬後續美化/環境整理）**：
+  - hero 封面/總覽的主視覺仍是 `#harbor` canvas 點雲假資料（陸地/突堤/移動船點皆程式繪製），
+    spec 4.2 原註記「實作版可換成孿生錄製影片或降級靜態圖」——12 個 task 皆未排入此素材製作，
+    維持 canvas 版本作為展示已足夠使用，但若簡報前想換更擬真的背景，這是唯一還沒做的視覺項目。
+  - 本機累積了數個先前 task session（Task 6/7/9/11 等）啟動後未關閉的背景 `npm run dev`
+    進程（實測埠 5173/5175/5176 皆仍在回應，連同 Task 12 本次新起的 5177 共 4 個），皆為同一份
+    原始碼、行為一致，不影響驗收結果，但正式 demo 前建議 `killall node`（或找出對應 PID）清一輪，
+    避免上台時開錯分頁看到舊埠。
+  - carbon 的「發行→掛單→購買→除役」全流程與 twin 的時間軸/情境切換互動，本次驗收時因為
+    PoC 後端（埠 8000）與 LiDAR server（埠 5174）恰好仍在執行而確認了「能看到真實 LIVE 資料、
+    console 無新增錯誤」，但完整的逐步操作流程未在 Task 12 重跑一次（Task 7/Task 8 當時已個別
+    詳盡驗證過，判斷不需要每個 task 都重跑一次全流程）；demo 前仍建議照 README 的前置步驟親自
+    跑一次完整流程作最終確認。
