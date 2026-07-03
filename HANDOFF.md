@@ -2,11 +2,23 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04
+最後更新：2026-07-04 Task 4 完成
 
 ---
 
 ## 1. 目前狀態
+
+**Task 4（碳權 live provider）完成**，進入 Task 5。
+- `src/data/exchange/carbon.ts` 實作 `createCarbonProvider(base?: string)` 函式：
+  (1) 並列呼叫 `fetch(base + '/health')` 與 `fetch(base + '/state')`；
+  (2) 從 `/state` 的 `sus` 陣列衍生 `CarbonSummary`（issued = 總數、tonsCirculating = status!=='retired' 的 amount 加總、listed/retired = 狀態計數）；
+  (3) 任何 fetch 失敗時返回 `ok:false` 的預設值。`source: 'live'`，`base` 屬性可讀（簽約 `Provider<T> & { base: string }`）。
+- TDD：`tests/carbon-provider.test.ts` 全域 mock fetch（vi.stubGlobal）驗證 2 案例（正常回應 + 後端當機），
+  紅燈 → 綠燈。`npx vitest run` 全 8 tests PASS（碳權 2 + 路由 4 + mock 2）。`npx tsc --noEmit` 0 errors。
+- `src/main.ts` 碳權佔位 stub 換成真實 provider 呼叫 `createCarbonProvider(env.VITE_CARBON_API)`，
+  保留 `twin` 佔位（Task 8）。孿生 mock 仍保留 `mockProvider`。
+- 已用 Chromium（chrome-devtools MCP）驗證：`npm run dev` 後頁面正常加載（hero 開發中屏幕），
+  console 僅 Vite 連線訊息無 error。
 
 **Task 3（資料交換層：types + mock providers）完成**，進入 Task 4。
 - `src/data/types.ts` 由 Task 2 的最小 stub 換成完整版：`Provider<T>`、五個 mock screen 的
@@ -102,8 +114,8 @@
 3. ~~Task 1：建 Vite 專案骨架 + 複製 Kit 兩檔 + 點雲港口背景系統~~ 完成
 4. ~~Task 2：Registry + Router + Rail + 鍵盤（`0` 總覽、`1-6` 功能頁、`Enter` 封面切換）~~ 完成
 5. ~~Task 3：資料交換層（types + mock providers）~~ 完成
-6. **下一步 → Task 4**：Carbon live provider
-7. Task 5：共用 UI 元件
+6. ~~Task 4：Carbon live provider~~ 完成
+7. **下一步 → Task 5**：共用 UI 元件
 8. Task 6：Hero screen（兩段式，含孿生背景影片素材錄製）
 9. Task 7：Carbon screen（自 PoC 一比一搬入，版面基準 = 預覽 v3 碳權頁）
 10. Task 8：Twin screen + twin provider（LiDAR iframe 嵌入）
