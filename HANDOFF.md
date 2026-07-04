@@ -2,27 +2,73 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Twin 頁原生化改版 spec 定案（等使用者複審後進實作計畫）
+最後更新：2026-07-04 Twin 頁原生化改版 10 個 task 全部完成 + 全站驗收通過（Task 10 收尾）
 
 ---
 
 ## 1. 目前狀態
 
-**Twin 頁原生化改版：brainstorm + 調研 + 互動 mockup 完成，spec 已寫出待使用者複審。**
-- 動機：現行 iframe 嵌 LiDAR 有兩個根本問題——demo 要多起一個 server（埠 5174）、
+**Twin 頁原生化改版：10 個 task 全部完成，全站驗收通過。**
+- 動機：原本 iframe 嵌 LiDAR 有兩個根本問題——demo 要多起一個 server（埠 5174）、
   LiDAR 自帶戰情室 UI 與本 repo 四張沙盤浮動面板堆疊打架。
 - 定案方向（全部經使用者逐項確認）：LiDAR 引擎+場景+資料**整包搬進本 repo 原生化**
   （方案 A，比照 Carbon 搬入先例，上游唯讀）；UI 重做為**雙分頁戰情室**（即時回放＝
   過去 24hr 真實 AIS 回放／未來推演＝沙盤 mock），**只有右 rail**（無左 rail、無標頭）、
   一條底部時間軸（語意隨分頁切換）、船型篩選兩分頁共用；納入案例調研三功能：航跡密度
-  圖層（學 MPA 熱圖）、點船資訊 chip（學 Corpus Christi OPTICS）、視角預設運鏡（同前）。
+  圖層（學 MPA 熱圖）、點船資訊 chip（學 Corpus Christi OPTICS）、視角預設運鏡。
 - 資料盤點：LiDAR 的 423MB `models/` 是離線管線素材**不搬**；runtime 只需 ~8.5MB
   （4.6MB 單日航跡 443 艘×24.2hr + 2.1MB 航照底圖 + 1.3MB 船模點雲 + 零頭）。
 - 產出：spec `docs/superpowers/specs/2026-07-04-twin-native-redesign-design.md`（含檔案
   結構、資料清單、分頁行為表、三功能規格、生命週期、驗收標準）；互動 mockup
   `docs/preview/preview-twin-redesign.html`（自含 Kit，v4，兩分頁/篩選/密度/點船/視角
-  全部可操作，headless Chromium 驗證 console 乾淨）。
-- 下一步：使用者複審 spec → writing-plans 拆實作 task → 動工。
+  全部可操作，headless Chromium 驗證 console 乾淨）；分支 `twin-native-redesign`
+  （baseline commit `6355e90`）。
+- **Task 1-9（實作）逐一完成並通過 review**（commits `0aa9ffc`..`c3d2c12`）：
+  - Task 1：`npm install three`/`three-mesh-bvh`/`troika-three-text` 三件套 + `@types/three`；
+    `tsconfig.json` 補 `lib`/`esModuleInterop`；`cp -R ~/Desktop/LiDAR/src src/twin-engine`
+    （23 檔，`diff -rq` 確認逐位元組相同的唯讀 vendored 副本）。
+  - Task 2：場景/geo/time/data/palette 等模組 + `berths.ts`（執行時發現的傳遞依賴，補入
+    複製清單）+ ~8.5MB runtime 資料搬進 `src/screens/twin/data/`。
+  - Task 3：`scene-init.ts` 忠實改包上游 `main.ts`（404 行邏輯），新增
+    `flyTo`/`setDensity`/`pickShipAt`/`inPortAt`/`categoryCounts` 等握把 API，TDD 補 6 個
+    單元測試。
+  - Task 4：新版面骨架 `twin.html`/`twin.css`（`#s-twin` scope，無手寫 backdrop-filter）+
+    `index.ts` 重寫生命週期（mount/show/hide）+ viewbar（視角預設運鏡）+ tabsbar（雙分頁）；
+    舊 iframe／連線探測／`OFFLINE` fallback／`setTwinOffset` 全數刪除。
+  - Task 5：右 rail 篩選（10 列船型）／密度圖層開關／在港趨勢 SVG（`panels.ts`）。
+  - Task 6：底部時間軸 `timeline.ts`（回放 scrub、未來推演 NOW+分鐘、播放/倍速，分頁語意
+    切換 + 凍結時停用 rAF）。
+  - Task 7：未來推演右 rail 面板——情境切換（4 顆按鈕 + toast）、泊位甘特（資料驅動選窗，
+    本快照選中最忙連續 8 泊位 63-70）、KPI 在港船數彈簧動畫；Task 7 review 後一次修正
+    `#gantt{position:relative}`（commit `6527e0a`，現在線對齊問題）。
+  - Task 8：點船資訊 chip——`pickShipAt` 點擊命中 → 固定骨架 `innerHTML` + 動態欄位改
+    `textContent`（XSS 安全），四種收起觸發（空點/scrub/切分頁/切視角）齊全。
+  - Task 9：twin provider 改寫為原生資料版（`source:'live'`，讀 vendored JSON，無 `url`
+    欄位、無任何 HTTP 呼叫；4.6MB 航跡資料只在 `snapshot()` 內動態 `import()`，build chunk
+    驗證證實懶載入不進 58KB 開機 entry）；連帶清理 `types.ts`/`screens/types.ts` 過期的
+    iframe/`url` 字眼、`.env.example` 移除 `VITE_TWIN_URL`。
+  - 三項案例調研功能全數落地並個別驗證：航跡密度圖層（Task 5）、點船資訊 chip（Task 8）、
+    視角預設運鏡（Task 3+4）。全程 `npx tsc --noEmit` 0 errors、`npx vitest run` 由 10/10
+    累加到 16/16、`npm run build` 皆成功；每個 task 皆有獨立 code review（Approved 或
+    Needs-fixes→已修正 Approved），Minor 級發現彙整於 `.superpowers/sdd/progress.md`
+    留給下一輪 whole-branch review。
+- **Task 10（樣式殘留清理 + 文件更新 + 全站驗收）完成**：
+  - `src/ui/tokens.css` 移除孿生區段已死的 `.float-tl`/`.float-r` 規則（含窄螢幕 media query
+    內的 `.float-r{display:none;}`）——twin.css 現已有自己 scope 過的版面選擇器，這兩組舊
+    浮動面板選擇器（iframe 時代遺留）確認全站無其他引用。
+  - `README.md` 全文掃描：`.env` 現只剩一個變數（`VITE_CARBON_API`）、刪除
+    `VITE_TWIN_URL`/iframe 表列與說明、「Live Demo 前置作業」改為僅 carbon 需要，twin
+    明確標示原生內建、`npm run dev` 即可、無需任何前置服務。
+  - `CLAUDE.md` §2 相鄰工作區表格：數位孿生列註明引擎+場景已 vendored 進
+    `src/twin-engine/` 與 `src/screens/twin/`，上游 LiDAR repo 僅供資產再生成；§3 twin 列
+    狀態改為「live/native（自繪，無外部依賴）」，取代舊的「待嵌入」。
+  - 全站驗收（對照 spec §13）：`tsc`/`vitest`/`build` 三綠燈；埠 5174 確認無需求（twin 不
+    再發出任何對外連線）；Chromium headless 驗證 twin 頁 3D 直繪 + 右 rail + 時間軸，以及
+    全七頁（hero/carbon/policy/twin/dispatch/epidemic/alert）逐一到達、console 零錯誤。
+  - 完整報告：`.superpowers/sdd/task-1-report.md` ~ `task-10-report.md`（scratch，未進版控）；
+    `.superpowers/sdd/progress.md` 有逐 task review 摘要。
+- 下一步：本 SDD run 至此結束，接續為一輪獨立的 whole-branch review（彙整各 task 的 Minor
+  級發現，非阻斷性）。twin 頁原生化改版無其他排定 task。
 
 **（以下為既有進度記錄）**
 
@@ -444,8 +490,10 @@
     進程（實測埠 5173/5175/5176 皆仍在回應，連同 Task 12 本次新起的 5177 共 4 個），皆為同一份
     原始碼、行為一致，不影響驗收結果，但正式 demo 前建議 `killall node`（或找出對應 PID）清一輪，
     避免上台時開錯分頁看到舊埠。
-  - carbon 的「發行→掛單→購買→除役」全流程與 twin 的時間軸/情境切換互動，本次驗收時因為
-    PoC 後端（埠 8000）與 LiDAR server（埠 5174）恰好仍在執行而確認了「能看到真實 LIVE 資料、
-    console 無新增錯誤」，但完整的逐步操作流程未在 Task 12 重跑一次（Task 7/Task 8 當時已個別
-    詳盡驗證過，判斷不需要每個 task 都重跑一次全流程）；demo 前仍建議照 README 的前置步驟親自
-    跑一次完整流程作最終確認。
+  - carbon 的「發行→掛單→購買→除役」全流程，Task 12 驗收時因為 PoC 後端（埠 8000）恰好仍在
+    執行而確認了「能看到真實 LIVE 資料、console 無新增錯誤」，但完整的逐步操作流程未在
+    Task 12 重跑一次（Task 7 當時已詳盡驗證過，判斷不需要每個 task 都重跑一次全流程）；demo
+    前仍建議照 README 的前置步驟親自跑一次完整流程作最終確認。
+    **（2026-07 更新：twin 頁已於「Twin 頁原生化改版」10 個 task 內完成原生化，不再是 iframe
+    嵌入、不再需要另起 LiDAR server（埠 5174）或任何前置服務，上述 twin 相關部分已隨之作廢；
+    demo checklist 現僅剩 carbon 這一項前置作業。）**

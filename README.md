@@ -34,24 +34,24 @@ npm run dev
 cp .env.example .env
 ```
 
-`.env` 內兩個變數：
+`.env` 內只有一個變數：
 
 | 變數 | 說明 | 預設值 |
 |---|---|---|
 | `VITE_CARBON_API` | 碳權代幣化交易 PoC 後端（FastAPI）位址 | `http://127.0.0.1:8000` |
-| `VITE_TWIN_URL` | 數位孿生 LiDAR 範例頁位址（供 `twin` 頁 iframe 嵌入） | `http://localhost:5174/examples/kaohsiung-port/index.html` |
 
-兩個服務若未啟動，對應頁面會自動降級（碳權頁連線 chip 轉紅並提示；孿生頁顯示提示卡、
-背景點雲場景仍可見），不會讓整個 shell 崩潰。
+此服務若未啟動，碳權頁連線 chip 會轉紅並提示，不會讓整個 shell 崩潰；twin 頁不依賴任何
+環境變數（詳見下方「Live Demo 前置作業」）。
 
 ## Live Demo 前置作業
 
-以下兩個模組要看到「真實資料」而非降級畫面，需要先啟動對應的上游服務。這兩個 repo 皆為本專案
-之外的獨立專案，本專案僅呼叫（carbon）或嵌入（twin），不修改其原始碼。
+六個功能頁中，只有 **碳權代幣化交易（carbon）** 需要先啟動上游服務才能看到「真實資料」而非
+降級畫面；twin 模組已原生內建，無需任何前置作業（見下）。
 
 ### 碳權代幣化交易（carbon）
 
-在 **iMarine-Carbon-Tokenization-POC** repo 依序執行：
+carbon 呼叫的 **iMarine-Carbon-Tokenization-POC** 是本專案之外的獨立 repo，本專案僅呼叫其
+API，不修改其原始碼。依序執行：
 
 ```
 make chain

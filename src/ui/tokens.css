@@ -166,13 +166,6 @@ body[data-hero="ov"] .overview{opacity:1;transform:none;pointer-events:auto;}
 
 /* ═══ 孿生 ═══ */
 #s-twin .full{position:absolute;inset:0;}
-.float-tl{position:absolute;top:22px;left:104px;padding:10px 18px;border-radius:16px;
-  display:flex;gap:14px;align-items:center;z-index:6;}
-.float-tl b{font-size:14.5px;}
-.float-r{position:absolute;right:22px;top:22px;bottom:96px;width:300px;display:flex;
-  flex-direction:column;gap:12px;z-index:6;overflow-y:auto;scrollbar-width:none;}
-.float-r::-webkit-scrollbar{display:none;}
-.float-r > .lg{flex:none;}
 .tline{position:absolute;left:104px;bottom:22px;right:346px;padding:12px 18px 10px;border-radius:16px;z-index:6;}
 .tline .lab{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);
   letter-spacing:.1em;color:var(--ink-40);margin-bottom:2px;}
@@ -287,6 +280,5 @@ button:focus-visible{outline:2px solid var(--lg-accent);outline-offset:2px;}
 @media(max-width:900px){
   .swrap{padding-left:84px;}
   .cols,.stats4,.modrow{grid-template-columns:1fr;}
-  .float-r{display:none;}
   .tline{right:22px;}
 }

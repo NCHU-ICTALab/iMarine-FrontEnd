@@ -90,7 +90,8 @@ Expected: 既有 10 tests 全 PASS（本 task 未動任何被測程式碼）
 ### Task 2: 場景模組與 runtime 資料搬入
 
 **Files:**
-- Create: `src/screens/twin/palette.ts`、`src/screens/twin/troika.d.ts`
+- Create: `src/screens/twin/palette.ts`、`src/screens/twin/troika.d.ts`、`src/screens/twin/berths.ts`
+  （berths.ts 為 `scene/portPoints.ts` 的傳遞依賴，執行時補入——原清單漏列，僅依賴已複製的 `data/osm`）
 - Create: `src/screens/twin/geo/{projection.ts,tiles.ts}`
 - Create: `src/screens/twin/scene/{portPoints,shipModels,layers,textLabels,orient,portZones,meshSampling,meshTriangles,viewCarving,landmarks,landmarkModels}.ts`
 - Create: `src/screens/twin/time/{ais-replay.ts,occupancy.ts,playback.ts}`
@@ -112,7 +113,7 @@ Expected: 既有 10 tests 全 PASS（本 task 未動任何被測程式碼）
 ```bash
 SRC=~/Desktop/LiDAR/examples/kaohsiung-port
 DST="/Users/charles88/Desktop/2026航港大數據創意應用競賽/iMarine-FrontEnd/src/screens/twin"
-cp "$SRC/palette.ts" "$SRC/troika.d.ts" "$DST/"
+cp "$SRC/palette.ts" "$SRC/troika.d.ts" "$SRC/berths.ts" "$DST/"
 cp -R "$SRC/geo" "$SRC/scene" "$SRC/time" "$DST/"
 mkdir -p "$DST/data"
 cp "$SRC/data/ais.ts" "$SRC/data/twport.ts" "$SRC/data/join.ts" "$SRC/data/osm.ts" "$SRC/data/berthGeometry.ts" "$DST/data/"

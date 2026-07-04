@@ -36,11 +36,13 @@
 UI (本 repo)                    Hero + 6 screens + 左側 rail
   ↓ 資料交換層 (src/data/)       每模組一個 provider，live 或 mock
 碳權 PoC   ../iMarine-Carbon-Tokenization-POC   已完成，FastAPI + Hardhat 後端
-數位孿生    ~/Desktop/LiDAR                       lidar-engine + kaohsiung-port 範例
+數位孿生    ~/Desktop/LiDAR                       引擎+場景已 vendored 進 src/twin-engine/ 與
+                                                 src/screens/twin/（原生直繪，無外部依賴）；
+                                                 上游 repo 仍唯讀，僅供資產再生成
 UI 元件庫   ~/Desktop/UI-ToolBox                  Liquid Glass Kit（liquid-glass.css/js）
 ```
 
-**三個上游資產是唯讀的**：本 repo 只複製（Kit 兩檔）或呼叫（PoC 後端 API）或嵌入（LiDAR 範例），不修改上游 repo 的檔案。上游要改，去該 repo 改。
+**三個上游資產是唯讀的**：本 repo 只複製（Kit 兩檔、LiDAR 引擎+場景+資料）或呼叫（PoC 後端 API），不修改上游 repo 的檔案。上游要改，去該 repo 改。
 
 - 舊的 `介面/port-eco-dashboard`（React 原型）**已棄用**，僅供版面參考，不要從那裡搬程式碼。
 
@@ -51,7 +53,7 @@ UI 元件庫   ~/Desktop/UI-ToolBox                  Liquid Glass Kit（liquid-g
 | - | `hero` | 封面（PPT 開場）+ 戰情總覽，兩段式切換 | mock | 版面已定 |
 | 1 | `carbon` | 碳權代幣化交易（自 PoC 重構進來） | **live** | 待重構搬入 |
 | 2 | `policy` | LLM + RAG 政策報告 | mock | 佔位頁 |
-| 3 | `twin` | 2.5D 數位孿生 24hr 沙盤推演（嵌 LiDAR） | **live** | 待嵌入 |
+| 3 | `twin` | 2.5D 數位孿生 24hr 沙盤推演（原生直繪，LiDAR 引擎已 vendored） | **live** | live/native（自繪，無外部依賴） |
 | 4 | `dispatch` | 短時微氣候 + 即時派工建議 | mock | 佔位頁 |
 | 5 | `epidemic` | 疫情自動追溯 | mock | 佔位頁 |
 | 6 | `alert` | 自動警報推播（細胞簡訊） | mock | 佔位頁 |
