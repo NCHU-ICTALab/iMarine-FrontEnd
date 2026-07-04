@@ -2,7 +2,7 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Twin 頁原生化改版 10 個 task 全部完成 + 全站驗收通過（Task 10 收尾）
+最後更新：2026-07-04 Twin 頁原生化改版完成 + whole-branch review 通過 + 已合併 main + 畫面展示入 README + push 到 remote
 
 ---
 
@@ -67,8 +67,20 @@
     全七頁（hero/carbon/policy/twin/dispatch/epidemic/alert）逐一到達、console 零錯誤。
   - 完整報告：`.superpowers/sdd/task-1-report.md` ~ `task-10-report.md`（scratch，未進版控）；
     `.superpowers/sdd/progress.md` 有逐 task review 摘要。
-- 下一步：本 SDD run 至此結束，接續為一輪獨立的 whole-branch review（彙整各 task 的 Minor
-  級發現，非阻斷性）。twin 頁原生化改版無其他排定 task。
+- **最終 whole-branch review（opus）完成：Ready to merge**——零 Critical/Important 跨 task
+  缺陷；承載性接縫（modeApi/timeline/panels/chip 接線順序、共用 filter 兩分頁傳播、凍結
+  語意、`engine.start()` 冪等、懶載入邊界、WebGL throw 由 router 錯誤路徑復原）全數確認
+  正確。累積 Minor 全部判 defer-acceptable，詳見 `.superpowers/sdd/progress.md` 末段。
+- **已合併回 `main`（fast-forward 到 `ce19963`，12 個 commit）並 push 到 origin**
+  （`github.com/NCHU-ICTALab/iMarine-FrontEnd`）；feature 分支 `twin-native-redesign` 已刪除；
+  合併結果 `tsc` 0 / `vitest` 16/16 綠燈；使用者實機驗收通過。
+- **畫面展示入 README**：`docs/screens/twin.png`（原生 3D 數位孿生，SwiftShader 實拍）+
+  `docs/screens/carbon.png`（carbon LIVE 真實資料，PoC 後端 8000 在跑時擷取），README
+  新增「畫面展示」段引用。
+- 殘留（非阻斷，見第 5 節）：opus 建議的一行 polish（`panels.ts`/`timeline.ts` 的
+  `Math.round(min%60)` 快速播放可能閃「HH:60」，改 `Math.floor`）尚未動，待使用者指示；
+  互動路徑（點船/拖曳/分頁轉場/運鏡/reduced-motion）demo 前建議真 Chrome 人工 click-through。
+- twin 頁原生化改版至此全部完成，無其他排定 task。
 
 **（以下為既有進度記錄）**
 
