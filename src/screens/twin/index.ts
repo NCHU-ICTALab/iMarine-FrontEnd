@@ -10,6 +10,7 @@ import './twin.css';
 import { initTwinScene, nowMs, type TwinScene, type ViewPreset } from './scene-init';
 import { initPanels, initFuturePanels } from './panels';
 import { initTimeline } from './timeline';
+import { SHIP_CATEGORY_COLORS } from './palette';
 
 type TabMode = 'replay' | 'future';
 
@@ -42,6 +43,32 @@ const s: Screen = {
     panels.onFilterChange(() => panels.renderTrend(timeline.currentReplayMs()));
 
     initFuturePanels(el, ctx, panels, timeline);
+
+    // 點船資訊 chip（學 OPTICS click-to-inspect；輕量、點空白或 scrub 即收）。
+    // 骨架用固定 innerHTML，動態文字（含 AIS 船名）一律 textContent 塞入。
+    const chip = el.querySelector<HTMLElement>('#shipchip')!;
+    chip.innerHTML = '<b></b><span class="row"><i></i><span class="c-cat"></span><span>·</span><span class="c-st"></span><span>·</span><span class="c-kn"></span></span>';
+    const chipName = chip.querySelector('b')!;
+    const chipDot = chip.querySelector<HTMLElement>('.row i')!;
+    const chipCat = chip.querySelector('.c-cat')!;
+    const chipSt = chip.querySelector('.c-st')!;
+    const chipKn = chip.querySelector('.c-kn')!;
+    const hideChip = () => { chip.hidden = true; };
+    canvas.addEventListener('click', (e) => {
+      const info = scene!.pickShipAt(e.clientX, e.clientY);
+      if (!info) { hideChip(); return; }
+      const c = SHIP_CATEGORY_COLORS[info.catIndex];
+      chipName.textContent = info.name;
+      chipDot.style.background = `rgb(${c.join(',')})`;
+      chipCat.textContent = info.category;
+      chipSt.textContent = info.state;
+      chipKn.textContent = `${info.speedKn.toFixed(1)} kn`;
+      chip.style.left = `${e.clientX}px`; chip.style.top = `${e.clientY}px`;
+      chip.hidden = false;
+    });
+    timeline.onScrub(hideChip);
+    modeApi.onChange(hideChip);
+    el.querySelectorAll('.vbtn').forEach((b) => b.addEventListener('click', hideChip));
 
     // 視角預設
     el.querySelectorAll<HTMLButtonElement>('.vbtn').forEach((btn) => {
