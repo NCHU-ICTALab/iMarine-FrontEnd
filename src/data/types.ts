@@ -16,10 +16,53 @@ export interface OverviewSnapshot {
   modules: { id: string; label: string; value: string }[];
 }
 
+/* Policy 頁（政策情報中心）契約 — 2026-07-04 spec 改版。
+   briefs = 收件匣情報（新→舊）；inflow = 模擬偵測流入池（依序流入，不在初始收件匣）；
+   globalQa = 綜合對話（知識庫模式）預錄劇本，回答內含 {{c:來源名稱}} 引用佔位，
+   由 UI 在送出當下對照當前來源聯集解析成 cite span。 */
+export interface PolicySource {
+  no: number; name: string;
+  cat: string;            // iMarine 五類之一：全球航運指數/台灣數據統計/海運焦點新聞/航港法令/替代能源專區
+  date: string;
+  checked: boolean;       // 參與生成（右欄勾選初始值）
+}
+export interface PolicyQA {
+  q: string;              // 建議追問（chip 文字 = 使用者氣泡）
+  a: string;              // 回答 html，含 <span class="cite" data-src="n">（globalQa 則含 {{c:名稱}} 佔位）
+}
+interface PolicyBriefBase {
+  id: string;
+  title: string;          // 收件匣列 + 報告標題
+  time: string;           // 顯示字串，如「今日 14:02」
+  grounding: number;      // 中欄 Grounding bar
+  groundingNote: string;
+  retrieved: number;      // 生成步驟動畫「檢索 N 筆」
+  sources: PolicySource[];
+  qa: PolicyQA[];         // 追問劇本
+}
+export interface IncidentBrief extends PolicyBriefBase {
+  type: 'incident';
+  severity: 'high' | 'medium';
+  confidence: number;     // 信心度 %
+  summary: string;        // html，含 cite span
+  cases: { title: string; duration: string; action: string; outcome: string; cite: number }[];
+  impact: string | null;  // html；簡短條目可為 null（版型跳過該段）
+  actions: string[];
+}
+export interface PolicyDocBrief extends PolicyBriefBase {
+  type: 'policy';
+  sections: { heading: string; html: string }[];
+}
+export interface DailyBrief extends PolicyBriefBase {
+  type: 'daily';
+  items: { text: string; cite: number }[];
+  watch: { text: string; goto?: string };
+}
+export type PolicyBrief = IncidentBrief | PolicyDocBrief | DailyBrief;
 export interface PolicySnapshot {
-  topic: string; grounding: number; groundingNote: string;
-  sections: { heading: string; html: string }[];        // html 內含 <span class="cite" data-src="n">
-  sources: { no: number; name: string; grade: string; date: string }[];
+  briefs: PolicyBrief[];
+  inflow: PolicyBrief[];
+  globalQa: PolicyQA[];
 }
 
 export interface DispatchSnapshot {

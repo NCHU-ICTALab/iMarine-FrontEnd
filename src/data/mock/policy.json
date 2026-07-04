@@ -1,19 +1,208 @@
 {
-  "topic": "IMO NZF 通過後之港埠費減免政策評估",
-  "grounding": 93,
-  "groundingNote": "28 / 30 個量化數字具可追溯來源",
-  "sections": [
-    { "heading": "一、背景", "html": "IMO 淨零框架（NZF）預計對 5000GT 以上船舶徵收溫室氣體排放費<span class=\"cite\" data-src=\"1\">1</span>，歐盟 ETS 自 2026 年起要求航運全額繳納排放配額<span class=\"cite\" data-src=\"2\">2</span>，單艘貨櫃船年均履約成本估計自 €54 萬升至 €94.5 萬<span class=\"cite\" data-src=\"2\">2</span>。" },
-    { "heading": "二、國際案例", "html": "新加坡 MPA 自 2025 年起對零排放燃料船舶港埠費全額減免、低碳燃料減免 30%<span class=\"cite\" data-src=\"3\">3</span>；長灘港依 ESI 分數每航次最高獎勵 $9,000<span class=\"cite\" data-src=\"4\">4</span>。" },
-    { "heading": "三、量化參考", "html": "以高雄港 2025 年靠港結構推估，分級減免方案年成本約 NT$ 2.1 億，可帶動綠色燃料靠港占比自 6.8% 提升至 11-14%<span class=\"cite\" data-src=\"5\">5</span>。" },
-    { "heading": "四、政策選項", "html": "方案 A：對接 NZF Surplus Units 的港埠費折抵（建議）；方案 B：固定分級費率；方案 C：維持現行、觀望 MEPC 84 決議。" },
-    { "heading": "五、建議草稿", "html": "建議於 NZF 生效前完成港埠費折抵法制預告，先以高雄港為示範港試行一年，並以本平台碳權代幣化模組之 SU 流通紀錄<span class=\"cite\" data-src=\"5\">5</span>作為折抵稽核依據。" }
+  "briefs": [
+    {
+      "id": "inc-redsea", "type": "incident", "title": "紅海航線中斷升級", "time": "今日 14:02",
+      "severity": "high", "confidence": 87, "grounding": 87, "groundingNote": "26 / 30 個量化數字具可追溯來源", "retrieved": 24,
+      "summary": "紅海南段商船遇襲頻率一週內上升 3 倍，兩大航運聯盟宣布即日起暫停蘇伊士航線、改道好望角<span class=\"cite\" data-src=\"1\">1</span>，歐亞主幹線單程航程增加 10-14 天，即期運價指數單週上漲 12.4%<span class=\"cite\" data-src=\"2\">2</span>。本事件由情報彙整於今日 14:02 自動偵測，信心度 87%，嚴重度評為高。",
+      "cases": [
+        { "title": "2021 蘇伊士擱淺", "duration": "堵塞 6 天", "action": "亞洲主要港啟動彈性泊位調度、加開夜航時窗", "outcome": "滯留船隊 3 週內消化完畢", "cite": 3 },
+        { "title": "2024 紅海危機", "duration": "持續 14 個月", "action": "航商徵收繞航附加費，港口提供綠色航線費率誘因", "outcome": "高雄港轉運量維持 92% 水準", "cite": 4 }
+      ],
+      "impact": "歐亞線靠港船隊改道好望角後，單航次燃油消耗與碳排放增加約 18%<span class=\"cite\" data-src=\"5\">5</span>，NZF 生效後履約成本將同步上升；短期內東亞—美西航線班次重排，高雄港轉運需求估增 6-8%<span class=\"cite\" data-src=\"2\">2</span>，船席與拖船能量須預先盤點。",
+      "actions": [
+        "參照 2021 蘇伊士處置，啟動彈性泊位調度預案並預留緩衝船席",
+        "評估繞航船舶的綠色航線費率誘因，銜接碳權模組 SU 折抵機制",
+        "密切追蹤 IMO 航行安全通告與 MEPC 84 應對決議時程"
+      ],
+      "qa": [
+        { "q": "三個建議行動的優先順序？",
+          "a": "建議優先啟動彈性泊位調度預案——2021 蘇伊士事件顯示前置作業約需 72 小時<span class=\"cite\" data-src=\"3\">3</span>，時效最緊；費率誘因需經費率委員會程序，可並行預告<span class=\"cite\" data-src=\"4\">4</span>；MEPC 84 追蹤屬持續性工作，不佔用應變資源。" },
+        { "q": "對碳權模組有什麼連動影響？",
+          "a": "繞道使單航次碳排增加約 18%<span class=\"cite\" data-src=\"5\">5</span>，NZF 履約缺口擴大、SU 需求上升；建議以碳權代幣化模組的 SU 流通紀錄預估折抵需求變化，作為港埠費誘因的試算基礎。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "航線中斷事件彙整", "cat": "海運焦點新聞", "date": "2026-07-04", "checked": true },
+        { "no": 2, "name": "全球航運指數 07-04", "cat": "全球航運指數", "date": "2026-07-04", "checked": true },
+        { "no": 3, "name": "蘇伊士事件檔案", "cat": "海運焦點新聞", "date": "2021-03", "checked": true },
+        { "no": 4, "name": "紅海危機處置紀錄", "cat": "海運焦點新聞", "date": "2024-12", "checked": true },
+        { "no": 5, "name": "台灣港群碳排統計", "cat": "台灣數據統計", "date": "2026-06", "checked": true },
+        { "no": 6, "name": "替代能源專區月報", "cat": "替代能源專區", "date": "2026-06", "checked": false },
+        { "no": 7, "name": "航港法令檢索：港埠費", "cat": "航港法令", "date": "2026-05", "checked": false }
+      ]
+    },
+    {
+      "id": "pol-nzf", "type": "policy", "title": "IMO NZF 通過後之港埠費減免政策評估", "time": "今日 09:30",
+      "grounding": 93, "groundingNote": "28 / 30 個量化數字具可追溯來源", "retrieved": 31,
+      "sections": [
+        { "heading": "一、背景", "html": "IMO 淨零框架（NZF）預計對 5000GT 以上船舶徵收溫室氣體排放費<span class=\"cite\" data-src=\"1\">1</span>，歐盟 ETS 自 2026 年起要求航運全額繳納排放配額<span class=\"cite\" data-src=\"2\">2</span>，單艘貨櫃船年均履約成本估計自 €54 萬升至 €94.5 萬<span class=\"cite\" data-src=\"2\">2</span>。" },
+        { "heading": "二、國際案例", "html": "新加坡 MPA 自 2025 年起對零排放燃料船舶港埠費全額減免、低碳燃料減免 30%<span class=\"cite\" data-src=\"3\">3</span>；長灘港依 ESI 分數每航次最高獎勵 $9,000<span class=\"cite\" data-src=\"4\">4</span>。" },
+        { "heading": "三、量化參考", "html": "以高雄港 2025 年靠港結構推估，分級減免方案年成本約 NT$ 2.1 億，可帶動綠色燃料靠港占比自 6.8% 提升至 11-14%<span class=\"cite\" data-src=\"5\">5</span>。" },
+        { "heading": "四、政策選項", "html": "方案 A：對接 NZF Surplus Units 的港埠費折抵（建議）；方案 B：固定分級費率；方案 C：維持現行、觀望 MEPC 84 決議。" },
+        { "heading": "五、建議草稿", "html": "建議於 NZF 生效前完成港埠費折抵法制預告，先以高雄港為示範港試行一年，並以本平台碳權代幣化模組之 SU 流通紀錄<span class=\"cite\" data-src=\"5\">5</span>作為折抵稽核依據。" }
+      ],
+      "qa": [
+        { "q": "方案 A 與方案 B 的成本差異？",
+          "a": "方案 A（SU 折抵）年成本估 NT$ 2.1 億，且隨綠色燃料靠港占比提升而動態增加<span class=\"cite\" data-src=\"5\">5</span>，但可直接對接 NZF 獎勵申請；方案 B 固定分級費率初期成本較低、易編列預算，惟無法隨國際機制滾動，NZF 生效後恐需二次修法。" },
+        { "q": "新加坡模式可以直接移植嗎？",
+          "a": "不建議直接移植——MPA 全額減免以其全球轉運樞紐規模與燃料加註生態為前提<span class=\"cite\" data-src=\"3\">3</span>；台灣港群靠港結構以近洋線與散雜貨占比較高，建議採分級減免並以高雄港先行試點。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "IMO MEPC 83 決議摘要", "cat": "航港法令", "date": "2026-04", "checked": true },
+        { "no": 2, "name": "EU ETS Maritime 指令", "cat": "航港法令", "date": "2026-01", "checked": true },
+        { "no": 3, "name": "MPA Green Port Circular", "cat": "海運焦點新聞", "date": "2025-12", "checked": true },
+        { "no": 4, "name": "Port of Long Beach ESI Program", "cat": "海運焦點新聞", "date": "2026-03", "checked": true },
+        { "no": 5, "name": "iMarine 台灣數據統計", "cat": "台灣數據統計", "date": "2026-06", "checked": true }
+      ]
+    },
+    {
+      "id": "day-0704", "type": "daily", "title": "07-04 海運晨報", "time": "今日 07:00",
+      "grounding": 91, "groundingNote": "10 / 11 個量化數字具可追溯來源", "retrieved": 18,
+      "items": [
+        { "text": "紅海情勢升溫，兩大聯盟評估暫停蘇伊士航線，歐亞線即期運價 +3.2%", "cite": 1 },
+        { "text": "IMO NZF 進入表決週，港埠費減免對接方案成為各國關注焦點", "cite": 2 },
+        { "text": "高雄港上半年貨櫃吞吐量年增 4.1%，轉運占比回升", "cite": 3 },
+        { "text": "綠色甲醇船用加註需求上升，亞太供應鏈布局加速", "cite": 4 }
+      ],
+      "watch": { "text": "NZF 表決結果對港埠費減免政策的影響", "goto": "pol-nzf" },
+      "qa": [
+        { "q": "今天最需要向上級摘報的一條？",
+          "a": "紅海情勢<span class=\"cite\" data-src=\"1\">1</span>——若聯盟正式暫停蘇伊士航線，高雄港轉運需求估增 6-8%，建議同步確認泊位調度預案整備度；完整分析見收件匣「紅海航線中斷升級」決策報告。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "全球航運指數 07-04", "cat": "全球航運指數", "date": "2026-07-04", "checked": true },
+        { "no": 2, "name": "IMO 動態彙整", "cat": "海運焦點新聞", "date": "2026-07-03", "checked": true },
+        { "no": 3, "name": "台灣港群營運統計", "cat": "台灣數據統計", "date": "2026-06", "checked": true },
+        { "no": 4, "name": "替代能源專區月報", "cat": "替代能源專區", "date": "2026-06", "checked": true }
+      ]
+    },
+    {
+      "id": "inc-sg", "type": "incident", "title": "新加坡港壅塞外溢", "time": "昨日 18:20",
+      "severity": "medium", "confidence": 74, "grounding": 82, "groundingNote": "14 / 17 個量化數字具可追溯來源", "retrieved": 15,
+      "summary": "新加坡港貨櫃船平均等泊時間升至 3.8 天、一週內增加 42%<span class=\"cite\" data-src=\"1\">1</span>，部分航商評估改靠區域替代樞紐。本事件由情報彙整於昨日 18:20 自動偵測，信心度 74%，嚴重度評為中。",
+      "cases": [
+        { "title": "2021 洛杉磯／長灘壅塞", "duration": "高峰排隊 109 艘", "action": "實施 24 小時作業與預約閘口制度", "outcome": "排隊船數 4 個月內降至 10 艘以下", "cite": 2 }
+      ],
+      "impact": null,
+      "actions": [
+        "盤點高雄港週轉船席與拖船能量，預備承接改靠需求",
+        "與航商協調加靠班次的優先泊位時窗"
+      ],
+      "qa": [
+        { "q": "高雄港可承接多少改靠量？",
+          "a": "以近四週船席週轉率推估<span class=\"cite\" data-src=\"3\">3</span>，短期可承接約 5-7% 額外靠港量而不影響既有班期；若壅塞持續逾一個月，建議參照 LA/LB 經驗評估延長作業時窗<span class=\"cite\" data-src=\"2\">2</span>。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "港口壅塞監測彙整", "cat": "海運焦點新聞", "date": "2026-07-03", "checked": true },
+        { "no": 2, "name": "LA/LB 壅塞處置檔案", "cat": "海運焦點新聞", "date": "2021-10", "checked": true },
+        { "no": 3, "name": "全球航運指數 07-03", "cat": "全球航運指數", "date": "2026-07-03", "checked": true }
+      ]
+    },
+    {
+      "id": "pol-ets", "type": "policy", "title": "EU ETS 配額修正案影響評估", "time": "昨日 11:00",
+      "grounding": 89, "groundingNote": "18 / 20 個量化數字具可追溯來源", "retrieved": 22,
+      "sections": [
+        { "heading": "一、背景", "html": "歐盟議會通過 ETS 海運配額修正案，2027 年起免費配額全面退場<span class=\"cite\" data-src=\"1\">1</span>，碳價中樞預估上移至 €95-105 區間<span class=\"cite\" data-src=\"2\">2</span>。" },
+        { "heading": "二、對台影響", "html": "掛靠歐盟港口的本國船隊年履約成本估增 11-15%<span class=\"cite\" data-src=\"3\">3</span>，中小型航商承壓最大，歐線艙位成本轉嫁壓力升高。" },
+        { "heading": "三、初步建議", "html": "建議聯動碳權代幣化模組試算 SU 折抵空間，並於下次港埠費檢討納入歐線船舶過渡期減免。" }
+      ],
+      "qa": [
+        { "q": "港埠費檢討的時程建議？",
+          "a": "修正案 2027 年生效<span class=\"cite\" data-src=\"1\">1</span>，建議 2026 Q4 前完成歐線船舶過渡期減免的法制預告，預留一季公告期，與 NZF 折抵方案共用同一次費率檢討程序以減少行政成本。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "EU ETS 修正案條文", "cat": "航港法令", "date": "2026-07-01", "checked": true },
+        { "no": 2, "name": "歐盟碳價走勢", "cat": "全球航運指數", "date": "2026-07", "checked": true },
+        { "no": 3, "name": "台灣船商履約成本推估", "cat": "台灣數據統計", "date": "2026-06", "checked": true }
+      ]
+    },
+    {
+      "id": "day-0703", "type": "daily", "title": "07-03 海運晨報", "time": "昨日 07:00",
+      "grounding": 90, "groundingNote": "9 / 10 個量化數字具可追溯來源", "retrieved": 16,
+      "items": [
+        { "text": "新加坡港等泊時間攀升，區域轉運鏈醞釀重排", "cite": 1 },
+        { "text": "波羅的海乾散運價指數週線翻紅，煤炭與鐵礦石需求回溫", "cite": 2 },
+        { "text": "台灣港群 6 月船舶進出港艘次年增 2.3%", "cite": 3 }
+      ],
+      "watch": { "text": "新加坡等泊變化對高雄轉運的外溢效應" },
+      "qa": [
+        { "q": "乾散回溫對高雄港的意義？",
+          "a": "波羅的海指數週線翻紅<span class=\"cite\" data-src=\"2\">2</span>反映煤炭與鐵礦石需求回溫，散裝靠港艘次可望回升；建議調度端預留散雜貨泊位彈性，避免與貨櫃改靠需求疊加時發生排擠。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "港口壅塞監測彙整", "cat": "海運焦點新聞", "date": "2026-07-03", "checked": true },
+        { "no": 2, "name": "全球航運指數 07-03", "cat": "全球航運指數", "date": "2026-07-03", "checked": true },
+        { "no": 3, "name": "台灣港群營運統計", "cat": "台灣數據統計", "date": "2026-06", "checked": true }
+      ]
+    },
+    {
+      "id": "pol-fuel", "type": "policy", "title": "替代燃料補貼草案初評", "time": "07-02 14:00",
+      "grounding": 86, "groundingNote": "15 / 18 個量化數字具可追溯來源", "retrieved": 19,
+      "sections": [
+        { "heading": "一、背景", "html": "交通部預告航運業替代燃料補貼草案，綠色甲醇與氨燃料加註設施納入補助範圍<span class=\"cite\" data-src=\"1\">1</span>。" },
+        { "heading": "二、國際對照", "html": "新加坡、鹿特丹皆以「補貼＋港埠費減免」雙軌推動替代燃料加註樞紐<span class=\"cite\" data-src=\"2\">2</span>，先行者已出現供應鏈群聚效應。" },
+        { "heading": "三、初步建議", "html": "建議高雄港同步盤點加註設施用地與安全規範，並以替代能源專區供應鏈資料<span class=\"cite\" data-src=\"3\">3</span>追蹤產能落地進度。" }
+      ],
+      "qa": [
+        { "q": "加註設施的先期障礙是什麼？",
+          "a": "主要是港區用地取得與氨燃料安全規範尚未定案<span class=\"cite\" data-src=\"1\">1</span>；國際經驗顯示安全規範先行可縮短後續建置期<span class=\"cite\" data-src=\"2\">2</span>，建議先啟動規範研議與用地盤點兩條前置線。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "航港法令檢索：補貼草案", "cat": "航港法令", "date": "2026-07-02", "checked": true },
+        { "no": 2, "name": "綠色燃料樞紐動態", "cat": "海運焦點新聞", "date": "2026-06", "checked": true },
+        { "no": 3, "name": "替代能源專區月報", "cat": "替代能源專區", "date": "2026-06", "checked": true }
+      ]
+    }
   ],
-  "sources": [
-    { "no": 1, "name": "IMO MEPC 83 決議摘要", "grade": "官方", "date": "2026-04" },
-    { "no": 2, "name": "EU ETS Maritime 指令", "grade": "官方", "date": "2026-01" },
-    { "no": 3, "name": "MPA Green Port Circular", "grade": "官方", "date": "2025-12" },
-    { "no": 4, "name": "Port of Long Beach ESI Program", "grade": "官方", "date": "2026-03" },
-    { "no": 5, "name": "iMarine 台灣數據統計", "grade": "港務內部", "date": "2026-06" }
+  "inflow": [
+    {
+      "id": "inc-panama", "type": "incident", "title": "巴拿馬運河通行配額再削減", "time": "剛剛",
+      "severity": "high", "confidence": 81, "grounding": 84, "groundingNote": "19 / 23 個量化數字具可追溯來源", "retrieved": 21,
+      "summary": "巴拿馬運河管理局宣布因集水區水位持續偏低，日通行配額自 32 艘再削減至 27 艘<span class=\"cite\" data-src=\"1\">1</span>，亞洲—美東航線預估延誤 4-6 天。本事件由情報彙整於剛剛自動偵測，信心度 81%，嚴重度評為高；與紅海情勢疊加，兩大節點同時受限。",
+      "cases": [
+        { "title": "2023-24 巴拿馬乾旱限航", "duration": "配額縮減 11 個月", "action": "航商競標通行權、部分改道蘇伊士或美西陸橋", "outcome": "美東線運價高峰上漲 38%", "cite": 3 }
+      ],
+      "impact": "亞洲—美東經巴拿馬班期延誤，疊加紅海繞道後蘇伊士替代路徑同樣受限<span class=\"cite\" data-src=\"2\">2</span>，雙節點約束下美東線運價與美西陸橋轉運需求看漲，高雄港作為跨太平洋轉運節點的船席需求可能提前反映。",
+      "actions": [
+        "追蹤兩大節點聯合影響下的班表重排，預估跨太平洋線加靠需求",
+        "與貨主端確認美西陸橋替代方案的轉運艙位彈性"
+      ],
+      "qa": [
+        { "q": "和紅海事件疊加會怎樣？",
+          "a": "兩大節點同時受限是 2021 年以來首見——蘇伊士替代巴拿馬的迴旋空間消失<span class=\"cite\" data-src=\"2\">2</span>，美東線運價上行壓力高於單一事件；參照 2023-24 乾旱期經驗<span class=\"cite\" data-src=\"3\">3</span>，美西陸橋與跨太平洋轉運將吸收主要溢出量，建議將兩事件合併為單一情境監測。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "巴拿馬運河公告彙整", "cat": "海運焦點新聞", "date": "2026-07-05", "checked": true },
+        { "no": 2, "name": "全球航運指數 07-04", "cat": "全球航運指數", "date": "2026-07-04", "checked": true },
+        { "no": 3, "name": "2023 乾旱限航檔案", "cat": "海運焦點新聞", "date": "2024-02", "checked": true }
+      ]
+    },
+    {
+      "id": "inc-malacca", "type": "incident", "title": "馬六甲海峽碰撞單向管制", "time": "剛剛",
+      "severity": "medium", "confidence": 78, "grounding": 80, "groundingNote": "11 / 14 個量化數字具可追溯來源", "retrieved": 13,
+      "summary": "馬六甲海峽南口兩貨輪碰撞，海峽當局實施單向航行管制、預計持續 48 小時<span class=\"cite\" data-src=\"1\">1</span>，過境船速下降約 30%。本事件由情報彙整於剛剛自動偵測，信心度 78%，嚴重度評為中。",
+      "cases": [
+        { "title": "2017 馬六甲商船碰撞", "duration": "管制 3 天", "action": "過境船舶分批排程、鄰近港提供臨時錨位", "outcome": "未形成長期壅塞，一週內恢復", "cite": 2 }
+      ],
+      "impact": null,
+      "actions": [
+        "確認高雄港進出口船期受影響清單，提前調整引水與拖船排班",
+        "對過境延誤船舶提供彈性靠泊時窗"
+      ],
+      "qa": [
+        { "q": "需要升級為高嚴重度嗎？",
+          "a": "暫不需要——單向管制屬短期擾動，2017 年同型事件一週內恢復<span class=\"cite\" data-src=\"2\">2</span>；建議設 48 小時觀察點，若管制延長或疊加區域壅塞<span class=\"cite\" data-src=\"3\">3</span>再升級。" }
+      ],
+      "sources": [
+        { "no": 1, "name": "馬六甲海峽當局公告", "cat": "海運焦點新聞", "date": "2026-07-05", "checked": true },
+        { "no": 2, "name": "2017 碰撞事件檔案", "cat": "海運焦點新聞", "date": "2017-08", "checked": true },
+        { "no": 3, "name": "港口壅塞監測彙整", "cat": "海運焦點新聞", "date": "2026-07-03", "checked": true }
+      ]
+    }
+  ],
+  "globalQa": [
+    { "q": "本週所有情報中，最需要優先行動的是哪一件？",
+      "a": "綜合目前全部情報評估，紅海航線中斷的時效壓力最高{{c:航線中斷事件彙整}}——彈性泊位調度預案需 72 小時前置{{c:蘇伊士事件檔案}}；政策面 IMO NZF 進入表決週{{c:IMO MEPC 83 決議摘要}}，建議應變行動與法制預告兩線並行。" },
+    { "q": "港埠費政策該如何回應近期情勢？",
+      "a": "短期以綠色航線費率誘因回應繞航成本上升{{c:紅海危機處置紀錄}}；中期對接 NZF Surplus Units 折抵、參照新加坡分級減免模式{{c:MPA Green Port Circular}}，成本推估以台灣港群靠港結構與碳排統計為基礎{{c:iMarine 台灣數據統計}}{{c:台灣港群碳排統計}}。" }
   ]
 }
