@@ -9,6 +9,7 @@ import template from './twin.html?raw';
 import './twin.css';
 import { initTwinScene, nowMs, type TwinScene, type ViewPreset } from './scene-init';
 import { initPanels } from './panels';
+import { initTimeline } from './timeline';
 
 type TabMode = 'replay' | 'future';
 
@@ -35,7 +36,10 @@ const s: Screen = {
 
     const panels = initPanels(el, ctx, scene);
     panels.renderTrend(nowMs);
-    panels.onFilterChange(() => panels.renderTrend(nowMs)); // Task 6 把 nowMs 換成 timeline.currentReplayMs()
+
+    const timeline = initTimeline(el, scene, panels, modeApi);
+    stopPlayback = timeline.stop;
+    panels.onFilterChange(() => panels.renderTrend(timeline.currentReplayMs()));
 
     // 視角預設
     el.querySelectorAll<HTMLButtonElement>('.vbtn').forEach((btn) => {
