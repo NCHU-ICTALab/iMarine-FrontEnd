@@ -29,6 +29,21 @@ function st(id: string): BriefState {
 }
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const ANSMS = { local: [900, 1100], cloud: [500, 700] } as const;
+let answering = false;
+let generating = false; // Task 6 重新生成使用；與追問互斥
+let activeTimeline: TimelineHandle | null = null;
+
+function cancelTimers(): void {
+  activeTimeline?.cancel();
+  activeTimeline = null;
+  answering = false;
+  generating = false;
+  const btn = sectionEl?.querySelector<HTMLButtonElement>('#genBtn');
+  if (btn) btn.textContent = '重新生成';
+}
+
 const $ = <T extends HTMLElement>(sel: string) => sectionEl.querySelector(sel) as T;
 function briefById(id: string): PolicyBrief | undefined {
   return briefs.find((b) => b.id === id);
@@ -144,7 +159,7 @@ function bindCites(root: HTMLElement): void {
   });
 }
 
-/* ── 對話串（本 task 只放產出卡；chips/提問見 Task 5） ── */
+/* ── 對話串（產出卡 + 追問 chips/輸入列） ── */
 function renderThread(b: PolicyBrief): void {
   const thread = $('#thread');
   thread.innerHTML =
@@ -154,11 +169,78 @@ function renderThread(b: PolicyBrief): void {
   thread.querySelector<HTMLButtonElement>('.wlink')?.addEventListener('click', function () {
     select(this.getAttribute('data-goto')!);
   });
+  renderChips(b.qa, b.id);
   ($('#qinput') as HTMLInputElement).value = '';
+}
+
+/* ── 追問（chips 走預錄劇本；自由輸入回覆誠實示範說明） ── */
+function renderChips(qa: PolicyQA[], usedKey: string): void {
+  $('#qchips').innerHTML = qa
+    .map((p, i) => (st(usedKey).used.has(i) ? '' : `<button class="qchip" data-qi="${i}">${p.q}</button>`))
+    .join('');
+}
+function scrollThread(): void {
+  const t = $('#thread');
+  t.scrollTop = t.scrollHeight;
+}
+function ask(pair: PolicyQA, qi: number | null): void {
+  if (answering || generating) return;
+  const model = MODEL[llm];
+  answering = true;
+  const thread = $('#thread');
+  const uq = document.createElement('div');
+  uq.className = 'msg user';
+  uq.textContent = pair.q; // 使用者輸入一律 textContent（XSS 安全）
+  thread.appendChild(uq);
+  if (qi !== null) { st(curId).used.add(qi); renderChips(currentQa(), curId); }
+
+  const citeSet = new Set<string>();
+  for (const m of pair.a.matchAll(/data-src="(\d+)"/g)) citeSet.add(m[1]);
+
+  const finish = () => {
+    answering = false;
+    activeTimeline = null;
+    thread.querySelector('.msg.thinking')?.remove();
+    const am = document.createElement('div');
+    am.className = 'msg ai';
+    am.innerHTML = `<p>${pair.a}</p><div class="mfoot">${model} · ${nowStr()}` +
+      (citeSet.size ? ` · 引用 ${citeSet.size} 筆` : '') + '</div>';
+    thread.appendChild(am);
+    bindCites(am);
+    scrollThread();
+  };
+
+  if (reduced()) { finish(); return; } // reduced-motion：跳過思考氣泡直通回答
+
+  const think = document.createElement('div');
+  think.className = 'msg ai thinking';
+  think.innerHTML = '<i class="sdot"></i><span>檢索 iMarine 資料庫…</span>';
+  thread.appendChild(think);
+  scrollThread();
+  const ms = ANSMS[llm];
+  activeTimeline = runTimeline(
+    [{ at: ms[0], run: () => { const sp = think.querySelector('span'); if (sp) sp.textContent = '綜合回答與 Grounding 驗證…'; } }],
+    ms[0] + ms[1],
+    finish,
+  );
+}
+function currentQa(): PolicyQA[] {
+  return briefById(curId)?.qa ?? []; // Task 7 擴充 global 分支
+}
+function sendFree(): void {
+  const input = $('#qinput') as HTMLInputElement;
+  const t = input.value.trim();
+  if (!t || answering || generating) return;
+  input.value = '';
+  ask({
+    q: t,
+    a: '此為示範環境，自由輸入的問題將由正式版 LLM + RAG 依 iMarine 五類資料庫即時回答並附引用；您可先點選下方建議追問體驗完整流程。',
+  }, null);
 }
 
 /* ── 條目切換 ── */
 function select(id: string): void {
+  cancelTimers(); // 切條目取消進行中的回答/生成
   const b = briefById(id);
   if (!b) return; // global 分支 Task 7 補
   curId = id;
@@ -216,7 +298,19 @@ const s: Screen = {
       if (btn) select(btn.getAttribute('data-id')!);
     });
 
+    $('#qchips').addEventListener('click', (e) => {
+      const c = (e.target as HTMLElement).closest('.qchip');
+      if (!c) return;
+      const qi = Number(c.getAttribute('data-qi'));
+      ask(currentQa()[qi], qi);
+    });
+    $('#qsend').addEventListener('click', sendFree);
+    ($('#qinput') as HTMLInputElement).addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendFree();
+    });
+
     select(briefs[0].id);
   },
+  hide() { cancelTimers(); },
 };
 export default s;

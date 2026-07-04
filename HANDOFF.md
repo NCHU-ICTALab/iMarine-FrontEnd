@@ -2,7 +2,7 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Policy 頁改版 Task 4（三欄骨架+收件匣+三類版型+Grounding bar）實作完成，分支 policy-redesign
+最後更新：2026-07-05 Policy 頁改版 Task 5（對話串——追問 chips/輸入列/思考氣泡/回答氣泡）實作完成，分支 policy-redesign
 
 ---
 
@@ -72,8 +72,18 @@
   playwright）皆回報 profile 被鎖（多個並行 session 佔用），改用獨立 headless Chrome
   （`--remote-debugging-port` + 專屬 user-data-dir）自寫 CDP 腳本跑完 brief 驗收清單
   1-6 全數逐項驗證含互動（切換條目/勾選來源/cite hover-click/LLM 切換 toast），
-  console 全程乾淨。Task 5（對話串 chips/提問）待下一輪。
-  待使用者選擇執行方式（subagent-driven / inline）後開工。
+  console 全程乾淨。
+- **Task 5 完成**（分支 `policy-redesign`）：`index.ts` 接上追問互動——`renderChips`/
+  `scrollThread`/`ask`/`currentQa`/`sendFree` + `cancelTimers()`/`answering`/`generating`
+  狀態；chip 點擊/自由輸入 → 使用者氣泡 → 兩拍思考氣泡（檢索…→綜合回答與 Grounding
+  驗證…）→ 回答氣泡（cite 連動右欄、footer 模型/時間/引用數）；chip 用掉即消失並依
+  brief id 記憶（切條目重置對話串但保留記憶）；回答/生成互斥不可重入；切條目或切頁
+  `cancelTimers()` 取消進行中 timeline（不洩漏回答到別條）；reduced-motion 跳過思考氣泡。
+  僅動 `index.ts`；`npx tsc --noEmit` 0 錯、`npx vitest run` 21 PASS、`npm run build` 成功；
+  MCP 內建瀏覽器（chrome-devtools/playwright）profile 仍被鎖，沿用 Task 4 手法改用獨立
+  headless Chrome（`--remote-debugging-port` + 專屬 user-data-dir）+ 自寫 CDP 腳本（Node
+  + `ws`）以真實時間流逝逐項驗證 brief 驗收清單 1-5 全數通過（含不可重入、切條目取消、
+  reduced-motion 分支），console 全程乾淨。Task 6（生成動畫+情報流入）待下一輪。
 
 **（以下為已完成的前一輪工作）**
 
