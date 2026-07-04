@@ -78,6 +78,33 @@ function renderInbox(): void {
   briefs.forEach((b) => { st(b.id).fresh = false; }); // 滑入動畫只播一次
 }
 
+/* ── 模擬情報流入：池內依序流入；池用畢下一次點擊重置並重新流入（demo 可循環） ── */
+let flowIdx = 0;
+let autoFlowArmed = false;
+function flowIn(): void {
+  if (flowIdx >= inflowPool.length) {
+    // 重置：移除已流入條目；若正選中其一則退回第一條
+    const removedCur = inflowPool.some((p) => p.id === curId);
+    briefs = briefs.filter((b) => !inflowPool.includes(b));
+    flowIdx = 0;
+    if (removedCur) select(briefs[0].id);
+  }
+  const nb = inflowPool[flowIdx++];
+  const s = st(nb.id);
+  s.used = new Set(); // 重新流入時追問劇本重置
+  s.unread = true;
+  s.fresh = !reduced();
+  briefs.unshift(nb);
+  renderInbox();
+  updateAfterInflow(); // Task 7 前為 no-op，Task 7 接 global 聯集同步
+  sCtx.ui.toast({
+    title: '偵測到新事件',
+    message: `${nb.title} · 信心度 ${nb.type === 'incident' ? nb.confidence : '--'}% · 已自動生成決策建議`,
+    duration: 4200,
+  });
+}
+function updateAfterInflow(): void { /* Task 7 實作（global 模式同步右欄與 gbar） */ }
+
 /* ── 三類版型（產出卡內文） ── */
 function bodyHtml(b: PolicyBrief): string {
   if (b.type === 'incident') {
@@ -238,6 +265,77 @@ function sendFree(): void {
   }, null);
 }
 
+const STEPMS = { local: [800, 1300, 2400, 1000], cloud: [500, 800, 1500, 700] } as const;
+
+/* ── 重新生成：四步驟動畫在產出卡內原位播放，完成後段落 stagger 進場 ── */
+function stepHtml(texts: string[], stage: number): string {
+  return '<div id="steps">' + texts.map((t, i) => {
+    const cls = i < stage ? 'done' : i === stage ? 'run' : '';
+    return `<div class="step ${cls}"><i class="sdot"></i><span>${t}</span></div>`;
+  }).join('') + '</div>';
+}
+function regenerate(): void {
+  if (generating || answering || curId === 'global') return;
+  const b = briefById(curId);
+  if (!b) return;
+  const model = MODEL[llm]; // 捕捉觸發當下的接口
+  const checked = b.sources.filter((s) => s.checked);
+  const body = () => sectionEl.querySelector<HTMLElement>('#reportBody');
+  const genBtn = $('#genBtn') as HTMLButtonElement;
+
+  const finish = () => {
+    generating = false;
+    activeTimeline = null;
+    genBtn.textContent = '重新生成';
+    const el = body();
+    if (!el) return;
+    el.innerHTML = bodyHtml(b);
+    if (!reduced()) {
+      Array.from(el.children).forEach((kid, i) => {
+        kid.classList.add('genin');
+        (kid as HTMLElement).style.setProperty('--gd', `${(i * 0.09).toFixed(2)}s`);
+      });
+    }
+    bindCites($('#thread'));
+    $('#thread').querySelector<HTMLButtonElement>('.wlink')?.addEventListener('click', function () {
+      select(this.getAttribute('data-goto')!);
+    });
+    sCtx.ui.toast({
+      title: '報告已生成',
+      message: `${b.groundingNote} · Grounding ${b.grounding}%（${model}）`,
+      duration: 3600,
+    });
+  };
+
+  if (reduced()) { finish(); return; } // reduced-motion：直通結果
+
+  generating = true;
+  genBtn.textContent = '生成中…';
+  const texts = [
+    `解讀議題：${b.title}`,
+    `檢索 iMarine 資料庫 · 命中 ${b.retrieved} 筆`,
+    `閱讀來源（0/${checked.length}）`,
+    '綜合草稿與 Grounding 驗證',
+  ];
+  const ms = STEPMS[llm];
+  const redraw = (stage: number) => { const el = body(); if (el) el.innerHTML = stepHtml(texts, stage); };
+  redraw(0);
+
+  const events: { at: number; run: () => void }[] = [];
+  let t = ms[0];
+  events.push({ at: t, run: () => redraw(1) });
+  t += ms[1];
+  events.push({ at: t, run: () => redraw(2) });
+  const per = ms[2] / Math.max(checked.length, 1);
+  checked.forEach((src, i) => {
+    events.push({ at: t + per * i, run: () => { texts[2] = `閱讀來源：${src.name}（${i + 1}/${checked.length}）`; redraw(2); } });
+  });
+  t += ms[2];
+  events.push({ at: t, run: () => { texts[2] = `閱讀來源 ${checked.length} 筆完成`; redraw(3); } });
+  t += ms[3];
+  activeTimeline = runTimeline(events, t, finish);
+}
+
 /* ── 條目切換 ── */
 function select(id: string): void {
   cancelTimers(); // 切條目取消進行中的回答/生成
@@ -309,7 +407,17 @@ const s: Screen = {
       if (e.key === 'Enter') sendFree();
     });
 
+    $('#genBtn').addEventListener('click', regenerate);
+    $('#simBtn').addEventListener('click', flowIn);
+
     select(briefs[0].id);
+  },
+  show() {
+    if (autoFlowArmed) return;
+    autoFlowArmed = true;
+    setTimeout(() => {
+      if (flowIdx === 0 && sectionEl.classList.contains('active')) flowIn();
+    }, 9000);
   },
   hide() { cancelTimers(); },
 };

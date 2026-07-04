@@ -2,7 +2,7 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Policy 頁改版 Task 5（對話串——追問 chips/輸入列/思考氣泡/回答氣泡）實作完成，分支 policy-redesign
+最後更新：2026-07-05 Policy 頁改版 Task 6（重新生成步驟動畫 + 模擬情報流入）實作完成，分支 policy-redesign
 
 ---
 
@@ -84,6 +84,21 @@
   headless Chrome（`--remote-debugging-port` + 專屬 user-data-dir）+ 自寫 CDP 腳本（Node
   + `ws`）以真實時間流逝逐項驗證 brief 驗收清單 1-5 全數通過（含不可重入、切條目取消、
   reduced-motion 分支），console 全程乾淨。Task 6（生成動畫+情報流入）待下一輪。
+- **Task 6 完成**（分支 `policy-redesign`）：`index.ts` 接上「重新生成」四步驟動畫與「模擬
+  偵測」情報流入——`STEPMS`/`stepHtml`/`regenerate()` 在 `#reportBody` 內原位播放（解讀議題
+  →檢索→閱讀來源逐一輪播勾選來源名→綜合驗證），完成後段落 `--gd` stagger 進場 + toast，
+  reduced-motion 直通結果；受 `generating||answering||curId==='global'` 互斥保護，`model`
+  捕捉觸發當下的 LLM 接口。`flowIn()`/`flowIdx`/`autoFlowArmed` 讓流入池（巴拿馬→馬六甲）
+  依序滑入收件匣頂部、標未讀+一次性滑入動畫，不搶目前選中；池用畢下一擊重置並重新流入
+  （若移除項含目前選中則退回第一條）；`updateAfterInflow()` 本 task 為 no-op，留給 Task 7
+  接 global 聯集同步。`Screen.show()` 武裝 9 秒自動流入，僅在 `flowIdx===0` 且本頁 `.active`
+  時觸發（離開頁面/被搶先手動觸發皆不誤跳 toast）。僅動 `index.ts`；`npx tsc --noEmit` 0 錯、
+  `npx vitest run` 21 PASS、`npm run build` 成功；MCP 瀏覽器 profile 仍被鎖，沿用獨立 headless
+  Chrome（`--remote-debugging-port` + 專屬 user-data-dir，SwiftShader flags 供截圖）+ 自寫
+  CDP 腳本以真實時間流逝跑完 brief 驗收清單 1-7（含地端/雲端計時、取消勾選來源後計數變化、
+  生成中切條目/切頁的取消語意、模擬偵測三次循環、9 秒自動流入與「先手動觸發則不自動」互斥、
+  停在 hero 頁不跳 policy toast），console 全程乾淨；三張截圖存證（步驟動畫中/完成 stagger+
+  toast/模擬流入雙 toast + 未讀點）。
 
 **（以下為已完成的前一輪工作）**
 
