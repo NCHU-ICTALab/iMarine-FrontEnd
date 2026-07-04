@@ -2,11 +2,68 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Twin 頁原生化改版完成 + whole-branch review 通過 + 已合併 main + 畫面展示入 README + push 到 remote
+最後更新：2026-07-04 Policy 頁改版 brainstorming 完成——spec 定案 + 互動示範介面產出並驗證，待使用者驗收後進 writing-plans
 
 ---
 
 ## 1. 目前狀態
+
+**Policy 頁改版（進行中）：設計定案，示範介面待使用者驗收。**
+- 方向（全部經使用者逐項確認）：政策情報中心＝ NotebookLM 三欄骨架 × Perplexity「看得見 AI
+  在工作」生成過程。三種情境進同一個收件匣敘事：突發事件決策建議（主秀：紅海航線中斷升級）、
+  新政策分析（現有 IMO NZF 五段報告原樣沿用）、routine 日報（07:00 自動生成晨報）；LLM 接口
+  切換（抽象命名「地端部署／雲端 API」，只影響下一次生成）。**純 mock**，不接真 LLM。
+- Layout 經視覺 companion 三輪迭代：初版三欄被使用者評「太繁雜」→ 減負（無過濾 chips、meta
+  單行、來源勾選框 hover 才浮現、突發不做獨立嚴重度橫幅）→ 定案「三欄・極簡左欄」：左欄純收
+  件匣（色點＋標題）、中欄報告（三類專屬版型 + 生成步驟動畫）、右欄 Grounding 儀表＋來源清單
+  （勾選與引用合一，iMarine 五類徽章對齊報告書 v6）。
+- spec：`docs/superpowers/specs/2026-07-04-policy-redesign-design.md`（決策紀錄表、互動規格、
+  PolicyBrief discriminated union 資料契約、7 條 mock briefs 清單、檔案結構、驗收標準）。
+- 互動示範：`docs/preview/preview-policy-redesign.html`（自含 Kit，比照 twin preview 前例組裝；
+  headless Chromium 驗證 console 零錯誤 + 自動互動斷言全 PASS：條目切換、日報建議關注
+  goto、LLM 切換、來源取消勾選後統計遞減、生成動畫完成/取消路徑）。
+- **mockup 驗收輪修訂（使用者回饋後定案）**：(1) 中欄改為 NotebookLM 純血對話串——報告變成
+  串中第一張「結構化產出卡」，下方建議追問 chips（每條 brief 帶 qa 預錄劇本）+ 輸入列；追問
+  → 思考氣泡兩拍 → 回答氣泡（cite 連動右欄、footer 帶模型/引用數）；自由輸入回覆誠實示範
+  說明；重新生成的四步驟動畫改在產出卡內原位播放、Q&A 氣泡保留。(2) 移除標題列技術徽章
+  `.lg-chip` 與 mockup 專用 `.mocknote` 浮籤。spec 已同步（§2 決策表/§3 版面/§4.6/§6 qa 契約/
+  §10 驗收）。v2 斷言 19 項全 PASS；headless 截圖驗證需 SwiftShader flags（`--use-gl=angle
+  --use-angle=swiftshader --run-all-compositor-stages-before-draw`，否則玻璃層合成不出來——
+  純 DOM 斷言不受影響）。
+- **v3 修訂（使用者回饋第二輪）**：(1) 標題列 MOCK 資料源 chip 也移除——本頁不顯示 srcChip
+  （使用者定案的頁面特例），標題列只剩 eyebrow/標題/LLM 切換器。(2) 新增「模擬情報流入」：
+  進頁 ~9 秒自動插入第 8 條突發情報（巴拿馬運河配額削減，與紅海構成雙節點受限敘事）——頂部
+  滑入 + 未讀圓點脈動 + toast「偵測到新事件」，不搶走目前選中，點開未讀消失；收件匣「怎麼來」
+  的口徑（突發=異常偵測自動立項/政策=法規公告監測/日報=07:00 排程）寫入 spec §4.7。
+  v3 斷言 11 項全 PASS、console 乾淨；spec 已同步（§2/§3/§4.7/§6 表加第 0 條/§10）。
+- **v4 修訂（使用者回饋第三輪）**：(1) 收件匣標題列加「模擬偵測」按鈕——流入池兩條（巴拿馬
+  → 馬六甲碰撞管制）依序流入、池用畢再點擊即重置循環，demo 可無限重複；~9 秒自動流入僅在
+  未手動觸發過時執行。(2) 新增 NotebookLM 式「綜合對話」：收件匣頂部固定入口（漸層點 +
+  分隔線）→ 知識庫模式——meta 顯示情報/來源/勾選統計、總覽卡（五類分佈）、右欄變全情報
+  來源聯集（名稱去重重編號、勾選跨切換保留、流入自動擴充且不重置對話串）、Grounding 儀表
+  顯全情報平均；綜合提問劇本 2 組，引用以 {{c:名稱}} 佔位、送出當下解析成聯集編號。
+  「重新生成」於知識庫模式隱藏。v4 斷言 21 項全 PASS、console 乾淨；spec 已同步（§2/§4.7
+  改寫/§4.8 新增/§6 流入池/§10）。
+- **v5 修訂（使用者回饋第四輪：綜合對話來源平面清單太長難找）**：來源聯集改依 iMarine
+  五類**分組摺疊**——群組標頭（三態群組勾選框 + 展開箭頭 + 類名 + 勾選數/總數）預設全部
+  收合（24 筆 → 5 列）、頂部搜尋框（過濾即自動展開命中群組）、cite 點擊自動展開目標群組
+  再捲動、hover 收合中來源改高亮群組標頭；一般條目模式（3-7 筆）維持平面清單。v5 斷言
+  14 項全 PASS、console 乾淨；spec §4.8/§10 已同步。
+- **v6 修訂（使用者回饋第五輪：Grounding 環形儀表太搶眼）**：移除右欄 `.lg-gauge` 儀表卡，
+  改為中欄 meta 行下方的**窄橫向 bar**（GROUNDING 小標 + 180px 漸層細軌 + % + note，切換
+  條目 0→值 過場、reduced-motion 直設）；meta 行去掉重複的「Grounding g%」字段；右欄整欄
+  讓給來源清單。綜合對話模式 bar 顯全情報平均。v6 斷言全 PASS、console 乾淨；spec
+  （§3 版面圖/§4.1/§4.8/§6 註解）已同步。
+- **v7 修訂（使用者定案）**：移除中欄 meta 統計行（模型/時間/檢索/閱讀/引用那串字）——標頭
+  只剩標題 + 重新生成鈕 + Grounding bar；模型/引用資訊只在回答 footer、toast 與生成步驟
+  計數出現。斷言全 PASS、console 乾淨；spec 全文同步（決策表/版面圖/§4.2-4.4/§4.8/§10）。
+- **mockup 迭代至 v7 使用者驗收通過。**
+- **實作計畫已寫好**：`docs/superpowers/plans/2026-07-05-policy-redesign.md`（8 tasks：
+  generate.ts TDD → 契約+mock JSON TDD → components.ts source optional → 三欄骨架+版型 →
+  對話串 → 生成動畫+情報流入 → 綜合對話 → 全站驗收；每 task 檢查點由使用者 commit）。
+  待使用者選擇執行方式（subagent-driven / inline）後開工。
+
+**（以下為已完成的前一輪工作）**
 
 **Twin 頁原生化改版：10 個 task 全部完成，全站驗收通過。**
 - 動機：原本 iframe 嵌 LiDAR 有兩個根本問題——demo 要多起一個 server（埠 5174）、

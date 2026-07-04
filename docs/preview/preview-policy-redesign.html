@@ -1,0 +1,4007 @@
+<title>AI 政策輔助報告 · Policy 頁改版範例</title>
+<style>
+/*!
+ * Liquid Glass Kit v0.1 — 樣式層
+ * 設計 tokens / 玻璃材質 / 元件 / 降級 / 無障礙
+ *
+ * 兩種渲染模式(由 liquid-glass.js 在 <html> 上標記):
+ *   html.lg-full      Chromium:JS 以 backdrop-filter:url(#filter) 注入折射
+ *   html.lg-fallback  其他瀏覽器:CSS 磨砂玻璃 (blur + saturate)
+ */
+
+/* ==================================================================== *
+ * 1. 設計 Tokens
+ * ==================================================================== */
+:root {
+  /* 材質 */
+  --lg-tint: rgba(255, 255, 255, 0.10);
+  --lg-tint-strong: rgba(255, 255, 255, 0.34);
+  --lg-stroke: rgba(255, 255, 255, 0.50);
+  --lg-stroke-soft: rgba(255, 255, 255, 0.22);
+  --lg-blur-fallback: 22px;
+  --lg-saturate-fallback: 1.7;
+
+  /* 鏡面高光(rim light,光源在左上) */
+  --lg-rim-hi: rgba(255, 255, 255, 0.90);
+  --lg-rim-lo: rgba(255, 255, 255, 0.38);
+  --lg-sheen: rgba(255, 255, 255, 0.45);
+
+  /* 陰影:玻璃浮在內容之上的深度 */
+  --lg-shadow:
+    0 18px 44px rgba(22, 32, 52, 0.28),
+    0 3px 10px rgba(22, 32, 52, 0.14);
+  --lg-shadow-soft:
+    0 8px 22px rgba(22, 32, 52, 0.20),
+    0 1px 4px rgba(22, 32, 52, 0.10);
+
+  /* 文字 */
+  --lg-text: #1c2536;
+  --lg-text-dim: rgba(28, 37, 54, 0.64);
+  --lg-text-invert: #f4f7fc;
+
+  /* 強調色(預設取自莫內畫中的珊瑚紅胸花,可整體替換) */
+  --lg-accent: #cf6045;
+  --lg-accent-soft: rgba(207, 96, 69, 0.16);
+  --lg-on-accent: #fff8f3;
+
+  /* 漲跌(儀表板 delta) */
+  --lg-up: #1f9e63;
+  --lg-up-soft: rgba(31, 158, 99, 0.16);
+  --lg-down: #d2503e;
+  --lg-down-soft: rgba(210, 80, 62, 0.16);
+
+  /* 圓角 */
+  --lg-radius-xs: 14px;
+  --lg-radius-s: 12px;
+  --lg-radius-m: 20px;
+  --lg-radius-l: 28px;
+  --lg-radius-pill: 999px;
+
+  /* 動態:液態回彈 */
+  --lg-speed: 0.34s;
+  --lg-ease: cubic-bezier(0.34, 1.3, 0.4, 1);
+  --lg-ease-out: cubic-bezier(0.22, 0.8, 0.3, 1);
+
+  /* 字體 */
+  --lg-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+
+/* 暗色:手動 data-lg-theme="dark",或跟隨系統 */
+[data-lg-theme="dark"] {
+  --lg-tint: rgba(16, 21, 32, 0.32);
+  --lg-tint-strong: rgba(16, 21, 32, 0.55);
+  --lg-stroke: rgba(255, 255, 255, 0.28);
+  --lg-stroke-soft: rgba(255, 255, 255, 0.12);
+  --lg-rim-hi: rgba(255, 255, 255, 0.55);
+  --lg-rim-lo: rgba(255, 255, 255, 0.18);
+  --lg-sheen: rgba(255, 255, 255, 0.22);
+  --lg-text: #eef2f9;
+  --lg-text-dim: rgba(238, 242, 249, 0.62);
+  --lg-up: #46c98a;
+  --lg-up-soft: rgba(70, 201, 138, 0.18);
+  --lg-down: #f08374;
+  --lg-down-soft: rgba(240, 131, 116, 0.18);
+  --lg-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.50),
+    0 3px 10px rgba(0, 0, 0, 0.30);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-lg-theme]) {
+    --lg-tint: rgba(16, 21, 32, 0.32);
+    --lg-tint-strong: rgba(16, 21, 32, 0.55);
+    --lg-stroke: rgba(255, 255, 255, 0.28);
+    --lg-stroke-soft: rgba(255, 255, 255, 0.12);
+    --lg-rim-hi: rgba(255, 255, 255, 0.55);
+    --lg-rim-lo: rgba(255, 255, 255, 0.18);
+    --lg-sheen: rgba(255, 255, 255, 0.22);
+    --lg-text: #eef2f9;
+    --lg-text-dim: rgba(238, 242, 249, 0.62);
+    --lg-up: #46c98a;
+    --lg-up-soft: rgba(70, 201, 138, 0.18);
+    --lg-down: #f08374;
+    --lg-down-soft: rgba(240, 131, 116, 0.18);
+  }
+}
+
+/* ==================================================================== *
+ * 2. 玻璃基底  .lg
+ *    結構:tint 底色 + ::before 鏡面 rim light + ::after 動態光澤
+ *    折射(lg-full)由 JS 對加了 data-lg 的元素注入 backdrop-filter
+ * ==================================================================== */
+.lg {
+  position: relative;
+  border-radius: var(--lg-radius-m);
+  background: var(--lg-tint);
+  box-shadow: var(--lg-shadow);
+  color: var(--lg-text);
+  isolation: isolate;
+}
+
+/* 降級模式,以及刻意不折射的輕量玻璃 .lg-static */
+html.lg-fallback .lg,
+.lg-static {
+  -webkit-backdrop-filter: blur(var(--lg-blur-fallback)) saturate(var(--lg-saturate-fallback));
+  backdrop-filter: blur(var(--lg-blur-fallback)) saturate(var(--lg-saturate-fallback));
+}
+
+/* 降級模式下 regular 材質加重磨砂(特異度 0,3,0 > 上方 0,2,1,穩勝) */
+html.lg-fallback .lg--regular,
+html.lg-fallback .lg.lg--regular {
+  -webkit-backdrop-filter: blur(calc(var(--lg-blur-fallback) * 1.7)) saturate(1.2);
+  backdrop-filter: blur(calc(var(--lg-blur-fallback) * 1.7)) saturate(1.2);
+}
+
+/* 鏡面高光:左上亮、右下暗的 rim light + 內緣柔光 */
+.lg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    inset 1.4px 1.4px 0.6px -1px var(--lg-rim-hi),
+    inset -1.2px -1.2px 0.6px -1px var(--lg-rim-lo),
+    inset 0 0 0 1px var(--lg-stroke-soft),
+    inset 0 0 18px rgba(255, 255, 255, 0.08);
+}
+
+/* 動態光澤:跟隨指標的柔光(JS 寫入 --lg-px / --lg-py) */
+.lg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.5s var(--lg-ease-out);
+  background: radial-gradient(
+    140px circle at var(--lg-px, 50%) var(--lg-py, 0%),
+    var(--lg-sheen),
+    transparent 70%
+  );
+}
+.lg:hover::after { opacity: 0.55; }
+
+/* 玻璃內容須墊在高光層之上 */
+.lg > * { position: relative; z-index: 2; }
+
+/* 拖曳中:微放大、加深陰影 */
+.lg-dragging {
+  cursor: grabbing !important;
+  box-shadow:
+    0 28px 64px rgba(22, 32, 52, 0.38),
+    0 6px 16px rgba(22, 32, 52, 0.18);
+  transition: box-shadow 0.2s var(--lg-ease-out);
+}
+
+/* ==================================================================== *
+ * 3. 發光背景  .lg-glow
+ *    任意背景(圖片/顏色)之上,兩層緩慢漂移的光暈
+ * ==================================================================== */
+.lg-glow {
+  position: relative;
+  overflow: hidden;
+  background: var(--lg-glow-base, #6e84a3);
+}
+.lg-glow__image {
+  position: absolute;
+  inset: 0;
+  background-image: var(--lg-bg-image);
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+.lg-glow::before,
+.lg-glow::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+}
+.lg-glow::before {
+  background:
+    radial-gradient(42% 36% at 24% 28%, rgba(255, 244, 214, 0.85), transparent 70%),
+    radial-gradient(36% 30% at 78% 64%, rgba(190, 215, 255, 0.7), transparent 70%);
+  animation: lg-glow-drift-a 26s ease-in-out infinite alternate;
+}
+.lg-glow::after {
+  background:
+    radial-gradient(30% 26% at 64% 22%, rgba(255, 226, 200, 0.7), transparent 70%),
+    radial-gradient(26% 24% at 30% 76%, rgba(214, 240, 220, 0.6), transparent 70%);
+  animation: lg-glow-drift-b 34s ease-in-out infinite alternate;
+}
+@keyframes lg-glow-drift-a {
+  from { transform: translate3d(-3%, -2%, 0) scale(1); }
+  to   { transform: translate3d(4%, 3%, 0) scale(1.08); }
+}
+@keyframes lg-glow-drift-b {
+  from { transform: translate3d(3%, 2%, 0) scale(1.05); opacity: 0.9; }
+  to   { transform: translate3d(-4%, -3%, 0) scale(1); opacity: 0.65; }
+}
+
+/* ==================================================================== *
+ * 4. 按鈕  .lg-btn / .lg-btn--pill / .lg-btn--accent / .lg-btn--icon
+ * ==================================================================== */
+.lg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border: 0;
+  font: 600 15px/1 var(--lg-font);
+  letter-spacing: 0.01em;
+  color: var(--lg-text);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--lg-speed) var(--lg-ease),
+    box-shadow var(--lg-speed) var(--lg-ease-out);
+}
+.lg-btn { scale: var(--lg-sq, 1); }
+.lg-btn:hover { transform: translateY(-2px) scale(1.02); }
+@media (prefers-reduced-motion: reduce) {
+  .lg-btn:active { transform: scale(0.96); }
+}
+.lg-btn--pill { border-radius: var(--lg-radius-pill); }
+.lg-btn--accent {
+  background: linear-gradient(140deg, var(--lg-accent), color-mix(in srgb, var(--lg-accent) 78%, #803020));
+  color: var(--lg-on-accent);
+}
+.lg-btn--accent::before {
+  box-shadow:
+    inset 1.4px 1.4px 0.6px -1px rgba(255, 255, 255, 0.7),
+    inset -1.2px -1.2px 0.6px -1px rgba(255, 255, 255, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.lg-btn--icon {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: var(--lg-radius-pill);
+}
+.lg-btn--lg { padding: 15px 30px; font-size: 16px; }
+.lg-btn--sm { padding: 8px 16px; font-size: 13px; }
+
+/* ==================================================================== *
+ * 5. 卡片 / 面板  .lg-card
+ * ==================================================================== */
+.lg-card {
+  border-radius: var(--lg-radius-l);
+  padding: 22px;
+}
+.lg-card__title { margin: 0 0 4px; font: 700 17px/1.3 var(--lg-font); }
+.lg-card__meta { margin: 0; font: 400 13px/1.5 var(--lg-font); color: var(--lg-text-dim); }
+
+/* ==================================================================== *
+ * 6. 導航列  .lg-navbar
+ * ==================================================================== */
+.lg-navbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--lg-radius-pill);
+}
+.lg-navbar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font: 700 15px/1 var(--lg-font);
+  white-space: nowrap;
+}
+.lg-navbar__link {
+  border: 0;
+  background: transparent;
+  padding: 9px 14px;
+  border-radius: var(--lg-radius-pill);
+  font: 500 14px/1 var(--lg-font);
+  color: var(--lg-text-dim);
+  cursor: pointer;
+  transition: background var(--lg-speed) var(--lg-ease-out), color var(--lg-speed) var(--lg-ease-out);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lg-navbar__link:hover,
+.lg-navbar__link.is-active {
+  background: var(--lg-tint-strong);
+  color: var(--lg-text);
+}
+.lg-navbar__spacer { flex: 1; }
+
+/* ==================================================================== *
+ * 7. 搜尋框  .lg-search
+ * ==================================================================== */
+.lg-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  height: 50px;
+  border-radius: var(--lg-radius-pill);
+}
+.lg-search svg { flex: none; color: var(--lg-text-dim); }
+.lg-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: 400 15px/1 var(--lg-font);
+  color: var(--lg-text);
+}
+.lg-search input::placeholder { color: var(--lg-text-dim); }
+.lg-search kbd {
+  font: 500 11px/1 var(--lg-font);
+  color: var(--lg-text-dim);
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: var(--lg-tint-strong);
+  border: 1px solid var(--lg-stroke-soft);
+}
+
+/* ==================================================================== *
+ * 7b. 文字輸入  .lg-field(浮動標籤;玻璃只在 __box,label/hint 為實心內容)
+ * ==================================================================== */
+.lg-field { display: flex; flex-direction: column; gap: 6px; }
+.lg-field__box {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 58px;
+  padding: 0 14px;
+  /* 邊框/陰影/圓角沿用 .lg 基底:.lg 已給 border-radius:var(--lg-radius-m)
+     + box-shadow:var(--lg-shadow);.lg::before 已給 inset 1px stroke 與 rim。
+     此處只加 transition 供 focus/error ring 動畫;hover 回饋由 .lg:hover::after 既有 sheen 負責。 */
+  transition: box-shadow var(--lg-speed) var(--lg-ease-out);
+}
+.lg-field__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: 400 15px/1.2 var(--lg-font);
+  color: var(--lg-text);
+  padding: 24px 0 6px;
+}
+.lg-field__label {
+  position: absolute;
+  left: 14px;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font: 400 15px/1 var(--lg-font);
+  color: var(--lg-text-dim);
+  pointer-events: none;
+  transform-origin: left center;
+  transition: transform var(--lg-speed) var(--lg-ease-out), color var(--lg-speed) var(--lg-ease-out);
+}
+.lg-field__input:focus + .lg-field__label,
+.lg-field__input:not(:placeholder-shown) + .lg-field__label {
+  transform: translateY(-16px) scale(.78);
+  color: var(--lg-accent);
+}
+.lg-field__box:focus-within {
+  box-shadow: var(--lg-shadow), 0 0 0 2px var(--lg-accent);
+}
+.lg-field__clear {
+  flex: none;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 8px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--lg-text-dim);
+  cursor: pointer;
+  transition: color var(--lg-speed) var(--lg-ease-out), background var(--lg-speed) var(--lg-ease-out);
+}
+.lg-field__clear svg { width: 15px; height: 15px; fill: currentColor; }
+.lg-field__clear:hover { color: var(--lg-text); background: var(--lg-tint); }
+.lg-field__input:placeholder-shown ~ .lg-field__clear { display: none; }
+.lg-field__hint { font: 400 12.5px/1.3 var(--lg-font); color: var(--lg-text-dim); padding: 0 4px; }
+.lg-field--error .lg-field__box,
+.lg-field--error .lg-field__box:focus-within {
+  box-shadow: var(--lg-shadow), 0 0 0 2px var(--lg-down);
+}
+.lg-field--error .lg-field__input + .lg-field__label { color: var(--lg-down); }
+.lg-field--error .lg-field__hint { color: var(--lg-down); }
+.lg-field--disabled .lg-field__box { opacity: .5; }
+.lg-field--disabled .lg-field__input { cursor: not-allowed; }
+.lg-field__input:read-only { color: var(--lg-text-dim); }
+
+/* Textarea 變體:多行,複用 __box + 浮動標籤;label 貼頂、可垂直 resize、無清除鈕 */
+.lg-field--area .lg-field__input {
+  resize: vertical;
+  min-height: 96px;
+  padding: 22px 0 10px;
+  line-height: 1.45;
+}
+/* 隱藏原生方形 resizer 抓柄:它落在圓角玻璃框的圓弧角旁、又被 box 內距往內推,
+   位置不協調。仍保留 resize:vertical(底緣可拖、游標仍是 ns-resize) */
+.lg-field--area .lg-field__input::-webkit-resizer { display: none; }
+.lg-field--area .lg-field__label {
+  top: 22px;
+  height: auto;
+  transform-origin: left top;
+}
+
+/* ==================================================================== *
+ * 8. 開關  .lg-switch(純 CSS,checkbox)
+ * ==================================================================== */
+.lg-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font: 500 14px/1 var(--lg-font);
+  color: var(--lg-text);
+  user-select: none;
+}
+.lg-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.lg-switch__track {
+  position: relative;
+  width: 56px;
+  height: 32px;
+  border-radius: var(--lg-radius-pill);
+  background: var(--lg-tint);
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px var(--lg-stroke-soft);
+  transition: background var(--lg-speed) var(--lg-ease-out);
+  flex: none;
+}
+html.lg-fallback .lg-switch__track,
+.lg-switch__track {
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.6);
+}
+.lg-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.98), rgba(235, 240, 248, 0.92));
+  box-shadow:
+    0 2px 6px rgba(22, 32, 52, 0.3),
+    inset 1px 1px 0.5px -0.5px rgba(255, 255, 255, 1);
+  transform: translateX(var(--lg-tx, 0px));
+  scale: var(--lg-thx, 1) var(--lg-thy, 1);
+  transition: transform var(--lg-speed) var(--lg-ease), width var(--lg-speed) var(--lg-ease);
+}
+.lg-switch input:checked + .lg-switch__track { background: var(--lg-accent); }
+.lg-switch input:checked + .lg-switch__track .lg-switch__thumb { --lg-tx: 24px; }
+.lg-switch:active .lg-switch__thumb { width: 32px; } /* 液態拉伸 */
+.lg-switch input:checked + .lg-switch__track:active .lg-switch__thumb,
+.lg-switch:active input:checked + .lg-switch__track .lg-switch__thumb { --lg-tx: 18px; }
+.lg-switch input:focus-visible + .lg-switch__track {
+  outline: 2px solid var(--lg-accent);
+  outline-offset: 3px;
+}
+
+/* ==================================================================== *
+ * 8b. 核取方塊  .lg-check(純 CSS,checkbox;box 磨砂,勾為實心內容)
+ * ==================================================================== */
+.lg-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+  font: 500 14px/1 var(--lg-font);
+  color: var(--lg-text);
+  user-select: none;
+}
+.lg-check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.lg-check__box {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--lg-radius-s);
+  background: var(--lg-tint);
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px var(--lg-stroke-soft);
+  transition: background var(--lg-speed) var(--lg-ease-out),
+              box-shadow var(--lg-speed) var(--lg-ease-out),
+              scale var(--lg-speed) var(--lg-ease);
+}
+html.lg-fallback .lg-check__box,
+.lg-check__box {
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.6);
+}
+.lg-check__mark {
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  color: #fff;
+  fill: currentColor;
+  scale: 0;
+  transition: scale var(--lg-speed) cubic-bezier(.34, 1.56, .64, 1);
+}
+.lg-check:hover .lg-check__box {
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px var(--lg-stroke);
+  scale: 1.04;
+}
+.lg-check:active .lg-check__box { scale: 0.92; }
+.lg-check input:checked + .lg-check__box,
+.lg-check input:indeterminate + .lg-check__box {
+  background: var(--lg-accent);
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px transparent;
+}
+.lg-check input:checked + .lg-check__box .lg-check__mark { scale: 1; }
+.lg-check input:indeterminate + .lg-check__box .lg-check__mark { scale: 0; }
+.lg-check input:indeterminate + .lg-check__box::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 50%;
+  height: 2px;
+  border-radius: 1px;
+  background: #fff;
+  transform: translateY(-50%);
+}
+.lg-check input:focus-visible + .lg-check__box {
+  outline: 2px solid var(--lg-accent);
+  outline-offset: 3px;
+}
+.lg-check input:disabled ~ .lg-check__box,
+.lg-check input:disabled ~ .lg-check__label { opacity: 0.45; }
+
+/* ==================================================================== *
+ * 8c. 單選  .lg-radio(純 CSS,radio;圓 box + 中心圓點,點為實心內容)
+ * ==================================================================== */
+.lg-radio-group { display: flex; flex-direction: column; gap: 12px; }
+.lg-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+  font: 500 14px/1 var(--lg-font);
+  color: var(--lg-text);
+  user-select: none;
+}
+.lg-radio input { position: absolute; opacity: 0; width: 0; height: 0; }
+.lg-radio__box {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--lg-tint);
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px var(--lg-stroke-soft);
+  transition: background var(--lg-speed) var(--lg-ease-out),
+              box-shadow var(--lg-speed) var(--lg-ease-out),
+              scale var(--lg-speed) var(--lg-ease);
+}
+html.lg-fallback .lg-radio__box,
+.lg-radio__box {
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.6);
+}
+.lg-radio__box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  scale: 0;
+  transition: scale var(--lg-speed) cubic-bezier(.34, 1.56, .64, 1);
+}
+.lg-radio:hover .lg-radio__box {
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px var(--lg-stroke);
+  scale: 1.04;
+}
+.lg-radio:active .lg-radio__box { scale: 0.92; }
+.lg-radio input:checked + .lg-radio__box {
+  background: var(--lg-accent);
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px transparent;
+}
+.lg-radio input:checked + .lg-radio__box::after { scale: 1; }
+.lg-radio input:focus-visible + .lg-radio__box {
+  outline: 2px solid var(--lg-accent);
+  outline-offset: 3px;
+}
+.lg-radio input:disabled ~ .lg-radio__box,
+.lg-radio input:disabled ~ .lg-radio__label { opacity: 0.45; }
+
+/* ==================================================================== *
+ * 8d. 步進器  .lg-stepper(玻璃容器 + native number + −/+ 鈕)
+ * ==================================================================== */
+.lg-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: var(--lg-radius-pill);
+  transition: box-shadow var(--lg-speed) var(--lg-ease-out);
+}
+.lg-stepper__btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--lg-text-dim);
+  cursor: pointer;
+  transition: scale var(--lg-speed) var(--lg-ease),
+              background var(--lg-speed) var(--lg-ease-out),
+              color var(--lg-speed) var(--lg-ease-out);
+}
+.lg-stepper__btn svg { width: 18px; height: 18px; fill: currentColor; }
+.lg-stepper__btn:hover { background: var(--lg-tint); color: var(--lg-text); }
+.lg-stepper__btn:active { scale: 0.9; }
+.lg-stepper__input {
+  width: 44px;
+  flex: none;
+  border: 0;
+  background: transparent;
+  outline: none;
+  text-align: center;
+  font: 600 15px/1 var(--lg-font);
+  color: var(--lg-text);
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.lg-stepper__input::-webkit-outer-spin-button,
+.lg-stepper__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.lg-stepper:focus-within {
+  box-shadow: var(--lg-shadow), 0 0 0 2px var(--lg-accent);
+}
+.lg-stepper--disabled { opacity: 0.5; }
+
+/* ==================================================================== *
+ * 8e. 星等評分  .lg-rating(純 CSS,radio;reverse DOM + ~ 選擇器,星非玻璃)
+ * ==================================================================== */
+.lg-rating {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: 2px;
+}
+.lg-rating input { position: absolute; opacity: 0; width: 0; height: 0; }
+.lg-rating__star {
+  display: inline-flex;
+  cursor: pointer;
+  color: var(--lg-text-dim);
+  transition: color var(--lg-speed) var(--lg-ease-out),
+              scale var(--lg-speed) var(--lg-ease);
+}
+.lg-rating__star svg { width: 28px; height: 28px; fill: currentColor; }
+/* 2. 已選及更低星 → accent */
+.lg-rating input:checked ~ label { color: var(--lg-accent); }
+/* 3. 容器 hover 時全部重置 dim(特異度同規則 2、置於其後 → 勝出) */
+.lg-rating:hover input ~ label { color: var(--lg-text-dim); }
+/* 4. hover 預覽:hovered + 更低星 → accent(特異度高於規則 3 → 勝出);hovered 彈一下 */
+.lg-rating:hover label:hover,
+.lg-rating:hover label:hover ~ label { color: var(--lg-accent); }
+.lg-rating:hover label:hover { scale: 1.12; }
+/* focus / disabled */
+.lg-rating input:focus-visible + label { outline: 2px solid var(--lg-accent); outline-offset: 2px; }
+.lg-rating--disabled { opacity: 0.5; pointer-events: none; }
+
+/* ==================================================================== *
+ * 8f. 驗證碼  .lg-otp(N 個 bespoke 磨砂 input;initOtp 自動進格)
+ * ==================================================================== */
+.lg-otp { display: inline-flex; gap: 8px; }
+.lg-otp__cell {
+  width: 44px;
+  height: 52px;
+  flex: none;
+  border: 0;
+  border-radius: var(--lg-radius-s);
+  background: var(--lg-tint);
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px var(--lg-stroke-soft);
+  text-align: center;
+  font: 600 21px/1 var(--lg-font);
+  color: var(--lg-text);
+  outline: none;
+  transition: box-shadow var(--lg-speed) var(--lg-ease-out);
+}
+html.lg-fallback .lg-otp__cell,
+.lg-otp__cell {
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.6);
+}
+.lg-otp__cell:focus {
+  box-shadow: var(--lg-shadow-soft), inset 0 0 0 1px var(--lg-stroke-soft), 0 0 0 2px var(--lg-accent);
+}
+.lg-otp__cell:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ==================================================================== *
+ * 8g. 檔案上傳  .lg-upload(折射玻璃拖放區 + DataTransfer 清單)
+ * ==================================================================== */
+.lg-upload {
+  display: block;
+  border-radius: var(--lg-radius-l);
+  padding: 28px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: box-shadow var(--lg-speed) var(--lg-ease-out);
+}
+.lg-upload__input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.lg-upload__prompt { display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.lg-upload__icon { width: 40px; height: 40px; fill: currentColor; color: var(--lg-text-dim); }
+.lg-upload__title { margin: 0; font: 500 14px/1.4 var(--lg-font); color: var(--lg-text); }
+.lg-upload__title strong { color: var(--lg-accent); font-weight: 600; }
+.lg-upload__hint { margin: 0; font: 400 12px/1 var(--lg-font); color: var(--lg-text-dim); }
+.lg-upload:focus-within,
+.lg-upload.is-dragover { box-shadow: var(--lg-shadow), 0 0 0 2px var(--lg-accent); }
+.lg-upload.is-dragover .lg-upload__icon { color: var(--lg-accent); }
+.lg-upload__list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lg-upload__list:empty { display: none; }
+.lg-upload__file {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--lg-radius-s);
+  background: var(--lg-tint); text-align: left;
+}
+.lg-upload__fileicon { width: 18px; height: 18px; flex: none; fill: currentColor; color: var(--lg-text-dim); }
+.lg-upload__name { flex: 1; min-width: 0; font: 500 13px/1.2 var(--lg-font); color: var(--lg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-upload__size { flex: none; font: 400 12px/1 var(--lg-font); color: var(--lg-text-dim); }
+.lg-upload__remove {
+  flex: none; width: 24px; height: 24px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: transparent; color: var(--lg-text-dim); cursor: pointer;
+  transition: color var(--lg-speed) var(--lg-ease-out), background var(--lg-speed) var(--lg-ease-out);
+}
+.lg-upload__remove svg { width: 14px; height: 14px; fill: currentColor; }
+.lg-upload__remove:hover { background: var(--lg-tint); color: var(--lg-text); }
+.lg-upload--disabled { opacity: 0.5; pointer-events: none; }
+
+/* ==================================================================== *
+ * 9. 滑桿  .lg-slider(range)
+ * ==================================================================== */
+.lg-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  height: 52px;
+  border-radius: var(--lg-radius-pill);
+}
+.lg-slider svg { flex: none; color: var(--lg-text-dim); }
+.lg-slider__input {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  outline: none;
+  background:
+    linear-gradient(var(--lg-accent), var(--lg-accent)) 0 / var(--lg-fill, 50%) 100% no-repeat,
+    var(--lg-tint-strong);
+  box-shadow: inset 0 0 0 1px var(--lg-stroke-soft);
+  cursor: pointer;
+}
+.lg-slider__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 0;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.98), rgba(235, 240, 248, 0.92));
+  box-shadow:
+    0 2px 7px rgba(22, 32, 52, 0.32),
+    inset 1px 1px 0.5px -0.5px rgba(255, 255, 255, 1);
+  transition: transform 0.18s var(--lg-ease);
+}
+.lg-slider__input::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 0;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(22, 32, 52, 0.32);
+}
+.lg-slider__input:active::-webkit-slider-thumb { transform: scale(1.25); }
+.lg-slider__input:focus-visible {
+  outline: 2px solid var(--lg-accent);
+  outline-offset: 3px;
+}
+
+/* ==================================================================== *
+ * 10. 分頁  .lg-tabs(segmented control,滑動玻璃指示器)
+ * ==================================================================== */
+.lg-tabs {
+  position: relative;
+  display: inline-flex;
+  padding: 5px;
+  border-radius: var(--lg-radius-pill);
+  gap: 2px;
+}
+.lg-tabs__pill {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  width: 0;
+  border-radius: var(--lg-radius-pill);
+  background: var(--lg-tint-strong);
+  box-shadow:
+    0 2px 8px rgba(22, 32, 52, 0.16),
+    inset 1px 1px 0.5px -0.5px var(--lg-rim-hi);
+  transition: left var(--lg-speed) var(--lg-ease), width var(--lg-speed) var(--lg-ease);
+  z-index: 1;
+  transform-origin: center;
+}
+.lg-tabs__tab {
+  position: relative;
+  z-index: 2;
+  border: 0;
+  background: transparent;
+  padding: 9px 18px;
+  border-radius: var(--lg-radius-pill);
+  font: 600 14px/1 var(--lg-font);
+  color: var(--lg-text-dim);
+  cursor: pointer;
+  scale: var(--lg-sq, 1);
+  transition: color var(--lg-speed) var(--lg-ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.lg-tabs__tab.is-active { color: var(--lg-text); }
+
+/* ==================================================================== *
+ * 11. 對話框  .lg-modal
+ *     維持版面尺寸(僅隱形),確保折射貼圖在開啟前已正確生成
+ * ==================================================================== */
+.lg-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.lg-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 22, 36, 0.34);
+  opacity: 0;
+  transition: opacity 0.3s var(--lg-ease-out);
+}
+.lg-modal__panel {
+  position: relative;
+  width: min(420px, 100%);
+  border-radius: var(--lg-radius-l);
+  padding: 26px;
+  opacity: 0;
+  transform: scale(0.86) translateY(18px);
+  transition:
+    transform 0.38s var(--lg-ease),
+    opacity 0.25s var(--lg-ease-out);
+}
+.lg-modal.is-open { visibility: visible; pointer-events: auto; }
+.lg-modal.is-open .lg-modal__overlay { opacity: 1; }
+.lg-modal.is-open .lg-modal__panel {
+  opacity: 1;
+  transform: none;
+  animation: lg-droplet 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes lg-droplet {
+  0%   { opacity: 0; transform: scale(0.62) translateY(46px); }
+  45%  { opacity: 1; transform: scale(1.05) translateY(-6px); }
+  70%  { transform: scale(0.975) translateY(2px); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lg-modal.is-open .lg-modal__panel { animation: none; }
+}
+.lg-modal__panel.is-morphing { animation: none !important; }
+
+/* ==================================================================== *
+ * 12. 工具提示  .lg-tooltip(JS 建立的單例)
+ * ==================================================================== */
+.lg-tooltip {
+  position: fixed;
+  z-index: 80;
+  max-width: 240px;
+  padding: 9px 13px;
+  border-radius: var(--lg-radius-xs);
+  font: 500 13px/1.45 var(--lg-font);
+  color: var(--lg-text);
+  background: var(--lg-tint-strong);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow:
+    var(--lg-shadow-soft),
+    inset 1px 1px 0.5px -0.5px var(--lg-rim-hi),
+    inset 0 0 0 1px var(--lg-stroke-soft);
+  opacity: 0;
+  transform: translateY(4px) scale(0.96);
+  transition: opacity 0.2s var(--lg-ease-out), transform 0.25s var(--lg-ease);
+  pointer-events: none;
+}
+.lg-tooltip.is-visible { opacity: 1; transform: none; }
+
+/* ==================================================================== *
+ * 13. Dock  .lg-dock(鄰近放大由 JS 驅動)
+ * ==================================================================== */
+.lg-dock {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--lg-radius-l);
+}
+.lg-dock__item {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: var(--lg-radius-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--lg-text);
+  background: var(--lg-tint-strong);
+  box-shadow:
+    inset 1px 1px 0.5px -0.5px var(--lg-rim-hi),
+    inset 0 0 0 1px var(--lg-stroke-soft),
+    0 2px 6px rgba(22, 32, 52, 0.14);
+  transform-origin: bottom center;
+  scale: var(--lg-sq, 1);
+  transition: transform 0.2s var(--lg-ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lg-dock__item:hover { transform: scale(1.12); }
+}
+
+/* ==================================================================== *
+ * 14. 小元件:chip / badge
+ * ==================================================================== */
+.lg-chip {
+  scale: var(--lg-sq, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: var(--lg-radius-pill);
+  border: 0;
+  font: 500 13px/1 var(--lg-font);
+  color: var(--lg-text);
+  background: var(--lg-tint-strong);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  backdrop-filter: blur(14px) saturate(1.5);
+  box-shadow:
+    inset 1px 1px 0.5px -0.5px var(--lg-rim-hi),
+    inset 0 0 0 1px var(--lg-stroke-soft);
+  cursor: default;
+}
+.lg-badge {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--lg-radius-pill);
+  background: var(--lg-accent);
+  color: var(--lg-on-accent);
+  font: 700 11px/1 var(--lg-font);
+}
+
+/* ==================================================================== *
+ * 15. 儀表板元件 (v0.1)
+ *     .lg-stat / .lg-meter / .lg-gauge / .lg-chart / .lg-toast
+ *     原則:玻璃只做容器;數字、sparkline、圖表是實心內容層
+ * ==================================================================== */
+
+/* ---- Stat:KPI 卡(數字滾動 + delta 徽章 + sparkline) ---- */
+.lg-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 168px;
+  padding: 16px 18px 13px;
+  border-radius: var(--lg-radius-m);
+}
+.lg-stat__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 11.5px/1.2 var(--lg-font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--lg-text-dim);
+}
+.lg-stat__label svg { width: 14px; height: 14px; fill: currentColor; flex: none; }
+.lg-stat__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lg-stat__value {
+  font: 700 29px/1 var(--lg-font);
+  letter-spacing: -0.01em;
+  color: var(--lg-text);
+  font-variant-numeric: tabular-nums;
+}
+.lg-stat__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3.5px 8px;
+  border-radius: var(--lg-radius-pill);
+  font: 700 12px/1 var(--lg-font);
+  font-variant-numeric: tabular-nums;
+  background: var(--lg-up-soft);
+  color: var(--lg-up);
+}
+.lg-stat__delta svg { width: 12px; height: 12px; fill: currentColor; }
+.lg-stat__delta--down { background: var(--lg-down-soft); color: var(--lg-down); }
+.lg-stat__spark {
+  display: block;
+  width: 100%;
+  height: 38px;
+  margin-top: 2px;
+  color: var(--lg-accent);   /* sparkline 顏色,單卡可覆寫 */
+  overflow: visible;
+}
+
+/* ---- Meter:液體進度條(凹槽軌道 + 實心液體 + 彎月面鼓頭) ---- */
+.lg-meter {
+  position: relative;
+  width: 100%;
+  height: 16px;
+  border-radius: var(--lg-radius-pill);
+  background: var(--lg-tint);
+  box-shadow:
+    inset 0 1.5px 3px rgba(22, 32, 52, 0.16),
+    inset 0 0 0 1px var(--lg-stroke-soft);
+}
+.lg-meter__fill {
+  position: absolute;
+  top: 2px; bottom: 2px; left: 2px;
+  width: 0%;
+  min-width: 12px;
+  max-width: calc(100% - 4px);
+  border-radius: var(--lg-radius-pill);
+  background: var(--lg-accent);
+}
+.lg-meter__fill::before {   /* 液面高光 */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 58%);
+}
+.lg-meter__head {            /* 前緣彎月面:彈簧速度驅動拉伸(JS 寫 transform) */
+  position: absolute;
+  top: 50%; right: -3px;
+  width: 18px; height: 18px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: var(--lg-accent);
+  box-shadow:
+    inset 1.5px 2px 1px -1px rgba(255, 255, 255, 0.8),
+    0 1px 5px rgba(22, 32, 52, 0.28);
+}
+
+/* ---- Gauge:環形儀表(玻璃圓 + SVG 弧,結構由 JS 注入) ---- */
+.lg-gauge {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.lg-gauge__svg {
+  position: absolute;
+  inset: 7px;
+  width: calc(100% - 14px);
+  height: calc(100% - 14px);
+  transform: rotate(-90deg);   /* 弧從 12 點鐘開始 */
+}
+.lg-gauge__track { fill: none; stroke: var(--lg-stroke-soft); stroke-width: 9; }
+.lg-gauge__arc {
+  fill: none;
+  stroke: var(--lg-accent);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.lg-gauge__center { position: relative; text-align: center; }
+.lg-gauge__value {
+  font: 700 26px/1 var(--lg-font);
+  color: var(--lg-text);
+  font-variant-numeric: tabular-nums;
+}
+.lg-gauge__unit {
+  font: 600 13px/1 var(--lg-font);
+  color: var(--lg-text-dim);
+  margin-left: 1px;
+}
+.lg-gauge__label {
+  display: block;
+  margin-top: 5px;
+  font: 600 10px/1.2 var(--lg-font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--lg-text-dim);
+}
+
+/* ---- Chart:玻璃容器 + 手刻 SVG 折線/長條 ---- */
+.lg-chart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 18px 12px;
+  border-radius: var(--lg-radius-m);
+}
+.lg-chart__head { display: flex; align-items: baseline; gap: 10px; }
+.lg-chart__title { margin: 0; font: 650 14.5px/1.2 var(--lg-font); color: var(--lg-text); }
+.lg-chart__meta { font: 500 11.5px/1 var(--lg-font); color: var(--lg-text-dim); }
+.lg-chart__svg {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-height: 120px;
+  color: var(--lg-accent);   /* 線與漸層面繼承 */
+  touch-action: pan-y;
+}
+.lg-chart__grid { stroke: var(--lg-stroke-soft); stroke-width: 1; }
+.lg-chart__axis { font: 500 10px var(--lg-font); fill: var(--lg-text-dim); }
+.lg-chart__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lg-chart__dot { fill: currentColor; stroke: rgba(255, 255, 255, 0.92); stroke-width: 1.5; }
+[data-lg-theme="dark"] .lg-chart__dot { stroke: rgba(18, 24, 38, 0.9); }
+.lg-chart__bar { fill: currentColor; opacity: 0.85; }
+.lg-chart__cross {
+  stroke: var(--lg-text-dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  opacity: 0;
+  transition: opacity 0.15s var(--lg-ease-out);
+  pointer-events: none;
+}
+.lg-chart__tip {              /* 實心數值提示(內容層,深色膠囊) */
+  position: absolute;
+  z-index: 5;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(22, 30, 48, 0.9);
+  color: #f4f7fc;
+  font: 600 12px/1.3 var(--lg-font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, calc(-100% - 12px));
+  transition: opacity 0.15s var(--lg-ease-out);
+}
+.lg-chart__tip.is-visible { opacity: 1; }
+
+/* ---- Toast:右下堆疊,入場複用液滴落地 ---- */
+.lg-toast-stack {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+.lg-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(340px, calc(100vw - 40px));
+  padding: 14px 14px 14px 16px;
+  border-radius: var(--lg-radius-m);
+  animation: lg-droplet 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lg-toast.is-leaving {
+  opacity: 0;
+  transform: scale(0.92) translateY(10px);
+  transition:
+    opacity 0.28s var(--lg-ease-out),
+    transform 0.28s var(--lg-ease-out);
+}
+.lg-toast__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--lg-accent-soft);
+  color: var(--lg-accent);
+}
+.lg-toast__icon svg { width: 18px; height: 18px; fill: currentColor; }
+.lg-toast__body { flex: 1; min-width: 0; }
+.lg-toast__title { margin: 0; font: 700 14px/1.35 var(--lg-font); color: var(--lg-text); }
+.lg-toast__msg { margin: 2px 0 0; font: 500 12.5px/1.5 var(--lg-font); color: var(--lg-text-dim); }
+.lg-toast__close {
+  flex: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  margin: -2px -2px 0 0;
+  border-radius: 8px;
+  color: var(--lg-text-dim);
+}
+.lg-toast__close svg { display: block; width: 13px; height: 13px; }
+.lg-toast__close:hover { color: var(--lg-text); }
+.lg-toast__close:focus-visible { outline: 2px solid var(--lg-accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  .lg-toast { animation: none; }
+}
+
+/* ==================================================================== *
+ * 16. 無障礙與通用
+ * ==================================================================== */
+.lg :focus-visible,
+.lg-btn:focus-visible,
+.lg-navbar__link:focus-visible,
+.lg-tabs__tab:focus-visible,
+.lg-dock__item:focus-visible {
+  outline: 2px solid var(--lg-accent);
+  outline-offset: 2px;
+}
+
+/* 系統要求降低透明度:改為近不透明面板並停用折射/模糊 */
+@media (prefers-reduced-transparency: reduce) {
+  .lg, .lg-static, .lg-chip, .lg-tooltip, .lg-switch__track {
+    background: rgba(248, 250, 253, 0.95) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  [data-lg-theme="dark"] .lg,
+  [data-lg-theme="dark"] .lg-static,
+  [data-lg-theme="dark"] .lg-chip,
+  [data-lg-theme="dark"] .lg-tooltip,
+  [data-lg-theme="dark"] .lg-switch__track {
+    background: rgba(24, 30, 42, 0.96) !important;
+  }
+}
+
+/* 系統要求減少動態 */
+@media (prefers-reduced-motion: reduce) {
+  .lg::after,
+  .lg-glow::before,
+  .lg-glow::after { animation: none !important; transition: none !important; }
+  .lg-btn, .lg-tabs__pill, .lg-switch__thumb, .lg-modal__panel { transition-duration: 0.01s !important; }
+  .lg-check__mark, .lg-check__box { transition-duration: 0.01s !important; }
+  .lg-radio__box, .lg-radio__box::after { transition-duration: 0.01s !important; }
+  .lg-stepper__btn { transition-duration: 0.01s !important; }
+  .lg-rating__star { transition-duration: 0.01s !important; }
+  .lg-otp__cell { transition-duration: 0.01s !important; }
+  .lg-upload { transition-duration: 0.01s !important; }
+  .lg-field__label, .lg-field__box { transition-duration: 0.01s !important; }
+}
+
+
+/* ==================================================================== *
+ * 15. 液態物理層 — goo 黏滯融合 / 擠壓 / 拖曳
+ * ==================================================================== */
+[data-lg-press] { scale: var(--lg-sq, 1); }
+.lg-dragging { transition: none !important; }
+
+.lg-dock { position: relative; }
+.lg-dock__goo {
+  position: absolute; inset: 0;
+  border-radius: inherit; overflow: hidden;
+  filter: url(#lg-goo);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.55;
+}
+.lg-dock__goo i {
+  position: absolute; bottom: 8px;
+  width: 14px; height: 14px; margin-left: -7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+}
+[data-lg-theme="dark"] .lg-dock__goo i { background: rgba(255, 255, 255, 0.5); }
+.lg-dock__goo .blob {
+  width: 30px; height: 30px; margin-left: -15px; bottom: 5px;
+  transform: scale(0);
+}
+
+.lg-switch__track { position: relative; }
+.lg-switch__goo {
+  position: absolute; inset: 0;
+  border-radius: inherit; overflow: hidden;
+  filter: url(#lg-goo);
+  pointer-events: none;
+}
+.lg-switch__goo i {
+  position: absolute; top: 4px; left: 4px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  transition: left 0.45s var(--lg-ease), transform 0.35s var(--lg-ease);
+}
+.lg-switch__goo i.on { left: 28px; }
+.lg-switch__goo i.fade { transform: scale(0); }
+
+/* ------------------------------------------------------------------ *
+ * B1 捲動縮小 — is-condensed
+ * ------------------------------------------------------------------ */
+.lg-navbar[data-lg-shrink],
+.lg-tabs[data-lg-shrink] {
+  transition: padding var(--lg-speed) var(--lg-ease),
+              transform var(--lg-speed) var(--lg-ease),
+              opacity var(--lg-speed) var(--lg-ease);
+}
+.lg-navbar.is-hidden,
+.lg-tabs.is-hidden { transform: translateY(-140%); opacity: 0; pointer-events: none; }
+
+.lg-navbar.is-condensed { padding-top: 4px; padding-bottom: 4px; }
+.lg-navbar.is-condensed .lg-navbar__brand,
+.lg-navbar.is-condensed .lg-navbar__link {
+  padding-top: 5px; padding-bottom: 5px; font-size: 0.88em;
+  transition: padding var(--lg-speed) var(--lg-ease), font-size var(--lg-speed) var(--lg-ease);
+}
+.lg-tabs.is-condensed { padding: 3px; }
+.lg-tabs.is-condensed .lg-tabs__pill { top: 3px; bottom: 3px; }
+.lg-tabs.is-condensed .lg-tabs__tab {
+  padding-top: 6px; padding-bottom: 6px; font-size: 0.9em;
+  transition: padding var(--lg-speed) var(--lg-ease), font-size var(--lg-speed) var(--lg-ease);
+}
+</style>
+<style>
+/* ── Policy 頁改版 mockup 專用樣式（疊在 Liquid Glass Kit 之上）── */
+:root{
+  --bg:#070b11; --ink-90:rgba(255,255,255,.92); --ink-60:rgba(255,255,255,.62);
+  --ink-50:rgba(255,255,255,.5); --ink-40:rgba(255,255,255,.4);
+  --hair:rgba(255,255,255,.1);
+  --gold:#E9BC63; --cyan:#38BDF8; --amber:#F5A54A; --rose:#F0648C; --teal:#35E0A6;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --lg-accent:#35E0A6;
+  --mc:#38BDF8; /* policy 模組色 */
+}
+html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--ink-90);overflow:hidden;
+  font-family:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;font-size:15px;line-height:1.7;}
+.mono{font-family:var(--mono);}
+.mut{color:var(--ink-40);}
+
+/* 背景：點雲 + 光暈 + doc 模式罩幕（壓暗） */
+#harbor{position:fixed;inset:0;z-index:0;}
+.glowfx{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(60rem 34rem at 78% -8%,rgba(53,224,166,.10),transparent 62%),
+             radial-gradient(50rem 30rem at 6% 108%,rgba(56,189,248,.09),transparent 60%);}
+#veil{position:fixed;inset:0;z-index:2;pointer-events:none;background:#070b11;opacity:.82;}
+
+/* 入場動效（對齊 shell 的 .anim 節奏；mockup 自動播放版） */
+.anim{opacity:0;transform:translateY(16px);animation:rise .7s var(--ease) both;animation-delay:var(--d,0s);}
+@keyframes rise{to{opacity:1;transform:none;}}
+@media(prefers-reduced-motion:reduce){.anim{animation:none;opacity:1;transform:none;}}
+
+/* 左側 shell 模組 rail（示意，非可互動） */
+.mockrail{position:fixed;left:16px;top:50%;transform:translateY(-50%);z-index:7;
+  display:flex;flex-direction:column;gap:14px;padding:14px 10px;border-radius:18px;}
+.mockrail i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.22);display:block;}
+.mockrail i.on{background:var(--mc);box-shadow:0 0 10px var(--mc);outline:3px solid rgba(56,189,248,.18);}
+
+/* 版心 */
+main{position:relative;z-index:10;height:100%;}
+.pscreen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;}
+.swrap{max-width:84rem;margin:0 auto;padding:34px 32px 60px 96px;}
+
+/* 頁首 */
+.eyebrow{display:flex;align-items:center;gap:9px;margin:0 0 6px;}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--mc);box-shadow:0 0 10px var(--mc);}
+.eyebrow .lbl{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-50);font-family:var(--mono);}
+.trow{display:flex;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap;}
+.trow h1{font-size:26px;margin:0;letter-spacing:-.01em;font-weight:700;}
+.trow .spacer{flex:1;}
+.lg-chip{font-size:10.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--hair);
+  color:var(--ink-60);font-family:var(--mono);letter-spacing:.06em;white-space:nowrap;}
+.src{font-size:11px;font-family:var(--mono);letter-spacing:.08em;padding:3px 11px;border-radius:999px;
+  border:1px solid var(--hair);color:var(--ink-40);display:inline-flex;align-items:center;gap:6px;}
+.src i{width:6px;height:6px;border-radius:50%;background:var(--ink-40);}
+
+/* LLM 接口切換（screenHeader actionsHtml 位置） */
+.llmswitch{display:flex;gap:6px;padding:6px;border-radius:14px;}
+.lbtn{font-size:12px;padding:6px 16px;border-radius:10px;border:1px solid transparent;cursor:pointer;
+  background:transparent;color:var(--ink-60);font-family:inherit;letter-spacing:.04em;transition:.2s;}
+.lbtn:hover{color:var(--ink-90);}
+.lbtn.on{color:var(--mc);border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.08);}
+.lbtn:focus-visible{outline:2px solid var(--mc);outline-offset:2px;}
+
+/* 三欄 */
+.pcols{display:grid;grid-template-columns:215px 1.62fr .95fr;gap:14px;align-items:start;}
+.stack{display:flex;flex-direction:column;gap:14px;}
+.panel{padding:16px 18px;border-radius:18px;box-sizing:border-box;}
+.panel h4{margin:0 0 10px;font-size:13px;color:var(--ink-60);font-weight:600;
+  display:flex;align-items:center;gap:8px;}
+.panel h4 .lg-badge{margin-left:auto;}
+
+/* 左欄：情報收件匣（極簡：色點＋標題） */
+.inbox{padding:14px 10px;border-radius:18px;}
+.inbox .cap{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-40);
+  font-family:var(--mono);padding:0 8px 8px;display:flex;align-items:center;}
+.simbtn{margin-left:auto;font-size:9px;font-family:var(--mono);letter-spacing:.08em;padding:2px 9px;
+  border-radius:999px;border:1px solid var(--hair);color:var(--ink-40);background:transparent;
+  cursor:pointer;transition:color .25s var(--ease),border-color .25s var(--ease);}
+.simbtn:hover{color:var(--cyan);border-color:rgba(56,189,248,.45);}
+.simbtn:focus-visible{outline:2px solid var(--mc);outline-offset:2px;}
+/* 綜合對話固定入口 */
+.gib .idot{background:linear-gradient(135deg,var(--teal),var(--cyan));box-shadow:0 0 8px rgba(56,189,248,.6);}
+.ibsep{border:none;border-top:1px solid var(--hair);margin:6px 4px 8px;}
+.ib{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border:none;border-radius:11px;
+  background:transparent;color:var(--ink-60);font-size:12.5px;line-height:1.45;cursor:pointer;
+  font-family:inherit;text-align:left;transition:background .25s var(--ease),color .25s var(--ease);}
+.ib:hover{background:rgba(255,255,255,.06);color:var(--ink-90);}
+.ib.on{background:rgba(56,189,248,.1);color:var(--ink-90);}
+.ib .idot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--c,#38BDF8);box-shadow:0 0 8px var(--c,#38BDF8);}
+.ib:focus-visible{outline:2px solid var(--mc);outline-offset:2px;}
+/* 模擬情報流入：滑入動畫 + 未讀圓點 */
+.ib.slidein{animation:ibin .55s var(--ease) both;}
+@keyframes ibin{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:none;}}
+@media(prefers-reduced-motion:reduce){.ib.slidein{animation:none;}}
+.ib .udot{width:7px;height:7px;border-radius:50%;flex:none;margin-left:auto;
+  background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 1.4s ease-in-out infinite;}
+@media(prefers-reduced-motion:reduce){.ib .udot{animation:none;}}
+
+/* 中欄：報告 */
+.report{padding:20px 24px;border-radius:18px;font-size:14px;}
+.rhead{display:flex;align-items:center;gap:12px;}
+.rhead h2{font-size:17.5px;margin:0;flex:1;min-width:0;letter-spacing:-.01em;}
+.rmeta{font-size:11px;color:var(--ink-40);font-family:var(--mono);letter-spacing:.03em;
+  margin:6px 0 8px;font-variant-numeric:tabular-nums;line-height:1.9;}
+.rmeta b{color:var(--ink-60);font-weight:500;}
+/* Grounding 窄橫向 bar（低調，位於 meta 下、對話串上） */
+.gbar{display:flex;align-items:center;gap:10px;margin-top:10px;padding-bottom:12px;margin-bottom:14px;
+  border-bottom:1px solid var(--hair);font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.gbar .glbl{font-size:9px;letter-spacing:.16em;color:var(--ink-40);flex:none;}
+.gbar .gtrack{flex:none;width:180px;height:4px;border-radius:4px;background:rgba(255,255,255,.08);
+  overflow:hidden;position:relative;}
+.gbar .gtrack i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:4px;
+  background:linear-gradient(90deg,var(--teal),var(--cyan));transition:width .8s var(--ease);}
+.gbar .gval{font-size:11px;color:var(--ink-60);flex:none;}
+.gbar .gnote2{font-size:10px;color:var(--ink-40);letter-spacing:.03em;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+@media(prefers-reduced-motion:reduce){.gbar .gtrack i{transition:none;}}
+.report h3{font-size:15px;margin:16px 0 6px;color:var(--ink-90);}
+.report h3:first-of-type{margin-top:0;}
+.report p{margin:0 0 8px;color:var(--ink-60);}
+.report ol{margin:0 0 8px;padding-left:22px;color:var(--ink-60);}
+.report ol li{margin-bottom:4px;}
+.cite{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border-radius:6px;
+  background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.4);color:var(--cyan);
+  font-size:10px;font-family:var(--mono);vertical-align:2px;cursor:pointer;}
+
+/* 突發：歷史相似案例卡 */
+.cases{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 8px;}
+.cases.one{grid-template-columns:1fr;}
+.case{padding:12px 14px;border-radius:13px;border:1px solid var(--hair);background:rgba(255,255,255,.04);}
+.case b{display:block;font-size:13px;margin-bottom:2px;}
+.case .dur{font-size:10.5px;font-family:var(--mono);color:var(--ink-40);letter-spacing:.05em;display:block;margin-bottom:6px;}
+.case p{margin:0;font-size:12px;color:var(--ink-60);line-height:1.65;}
+.case p b2,.case .k{color:var(--ink-40);font-size:11px;font-family:var(--mono);}
+
+/* 日報 */
+.ditems{margin:0 0 10px;padding-left:22px;color:var(--ink-60);}
+.ditems li{margin-bottom:7px;}
+.watch{margin-top:14px;padding-top:12px;border-top:1px solid var(--hair);font-size:13px;color:var(--ink-60);}
+.watch .wlbl{color:var(--ink-40);font-family:var(--mono);font-size:11px;letter-spacing:.08em;margin-right:8px;}
+.wlink{background:none;border:none;padding:0;font:inherit;font-size:13px;color:var(--cyan);cursor:pointer;
+  border-bottom:1px dashed rgba(56,189,248,.5);}
+.wlink:hover{border-bottom-style:solid;}
+.wlink:focus-visible{outline:2px solid var(--mc);outline-offset:2px;}
+
+/* 生成步驟區（看得見 AI 在工作） */
+#steps{padding:6px 2px 2px;}
+.step{display:flex;align-items:center;gap:10px;padding:7px 4px;font-size:12.5px;color:var(--ink-40);
+  font-family:var(--mono);letter-spacing:.02em;transition:color .3s var(--ease);}
+.step .sdot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14);flex:none;transition:.3s;}
+.step.run{color:var(--ink-90);}
+.step.run .sdot{background:var(--cyan);box-shadow:0 0 9px var(--cyan);animation:pulse 1s ease-in-out infinite;}
+.step.done{color:var(--ink-60);}
+.step.done .sdot{background:var(--teal);box-shadow:0 0 6px rgba(53,224,166,.5);}
+@keyframes pulse{50%{opacity:.45;}}
+@media(prefers-reduced-motion:reduce){.step.run .sdot{animation:none;}}
+#reportBody{transition:opacity .4s var(--ease),filter .4s var(--ease);}
+#reportBody.fade{opacity:.12;filter:blur(6px);pointer-events:none;}
+.genin{animation:secin .55s var(--ease) both;animation-delay:var(--gd,0s);}
+@keyframes secin{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+@media(prefers-reduced-motion:reduce){.genin{animation:none;}}
+
+/* 右欄：Grounding 儀表 */
+.gaugebox{display:flex;gap:16px;align-items:center;}
+.gnote{font-size:12.5px;line-height:1.7;}
+
+/* 右欄：來源清單（勾選與引用合一；勾選框 hover 面板才浮現） */
+.srcrow{display:flex;gap:10px;padding:10px 8px;border-bottom:1px solid var(--hair);font-size:12.5px;
+  align-items:baseline;border-radius:8px;transition:background .3s var(--ease);}
+.srcrow:last-child{border-bottom:none;}
+.srcrow .no{font-family:var(--mono);color:var(--cyan);font-size:11px;flex:none;min-width:22px;}
+.srcrow .meta{color:var(--ink-40);font-size:11px;font-family:var(--mono);}
+.srcrow.hl{background:rgba(56,189,248,.13);}
+.srcrow .schk{appearance:none;width:14px;height:14px;margin:0;border-radius:4px;flex:none;align-self:center;
+  border:1px solid rgba(255,255,255,.25);background:transparent;cursor:pointer;position:relative;
+  opacity:0;transition:opacity .25s var(--ease),background .15s,border-color .15s;}
+#srcPanel:hover .schk,.srcrow .schk:focus-visible{opacity:1;}
+.srcrow .schk:checked{background:rgba(56,189,248,.25);border-color:var(--cyan);}
+.srcrow .schk:checked::after{content:'';position:absolute;inset:3px;border-radius:2px;background:var(--cyan);}
+.srcrow .schk:focus-visible{outline:2px solid var(--mc);outline-offset:2px;}
+/* 綜合對話：來源分組摺疊 + 搜尋 */
+.ssearch{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid var(--hair);
+  border-radius:10px;color:var(--ink-90);padding:7px 11px;font-size:12px;font-family:inherit;
+  outline:none;margin-bottom:8px;transition:border-color .25s var(--ease);}
+.ssearch::placeholder{color:var(--ink-40);}
+.ssearch:focus{border-color:rgba(56,189,248,.5);}
+.sghead{display:flex;align-items:center;gap:8px;padding:8px 6px;cursor:pointer;border-radius:8px;
+  font-size:12px;color:var(--ink-60);transition:background .25s var(--ease);user-select:none;}
+.sghead:hover{background:rgba(255,255,255,.05);color:var(--ink-90);}
+.sghead.hl{background:rgba(56,189,248,.13);}
+.sghead .caret{font-size:9px;color:var(--ink-40);transition:transform .25s var(--ease);flex:none;}
+.sghead .caret.open{transform:rotate(90deg);}
+.sghead .gname{flex:1;min-width:0;}
+.sghead .gcnt{font-size:10px;font-family:var(--mono);color:var(--ink-40);font-variant-numeric:tabular-nums;}
+.sghead .gchk{appearance:none;width:14px;height:14px;margin:0;border-radius:4px;flex:none;
+  border:1px solid rgba(255,255,255,.25);background:transparent;cursor:pointer;position:relative;
+  transition:background .15s,border-color .15s;}
+.sghead .gchk:checked{background:rgba(56,189,248,.25);border-color:var(--cyan);}
+.sghead .gchk:checked::after{content:'';position:absolute;inset:3px;border-radius:2px;background:var(--cyan);}
+.sghead .gchk:indeterminate{border-color:var(--cyan);}
+.sghead .gchk:indeterminate::after{content:'';position:absolute;left:3px;right:3px;top:5.5px;height:2px;
+  border-radius:2px;background:var(--cyan);}
+.sghead .gchk:focus-visible{outline:2px solid var(--mc);outline-offset:2px;}
+.sgbody{padding-left:6px;}
+.sgbody .srcrow{padding-top:7px;padding-bottom:7px;}
+.srcrow.off .no,.srcrow.off .sname{color:var(--ink-40);}
+.srcrow.off .sname{text-decoration:none;opacity:.65;}
+.srcrow .skip{font-size:9.5px;font-family:var(--mono);color:var(--ink-40);border:1px solid var(--hair);
+  border-radius:999px;padding:0 7px;margin-left:6px;letter-spacing:.06em;}
+
+/* ── 中欄：對話串（NotebookLM 式） ── */
+.chatcol{display:flex;flex-direction:column;height:calc(100vh - 208px);min-height:480px;}
+.thread{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:2px 2px 6px;scrollbar-width:thin;
+  display:flex;flex-direction:column;gap:12px;}
+.msg{max-width:100%;}
+.msg.user{align-self:flex-end;max-width:78%;padding:9px 14px;border-radius:14px 14px 4px 14px;
+  background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);font-size:13.5px;color:var(--ink-90);}
+.msg.ai{align-self:flex-start;max-width:92%;padding:11px 14px;border-radius:14px 14px 14px 4px;
+  background:rgba(255,255,255,.045);border:1px solid var(--hair);font-size:13.5px;}
+.msg.ai p{margin:0;color:var(--ink-60);}
+.msg .mfoot{margin-top:7px;padding-top:6px;border-top:1px solid var(--hair);font-size:10px;
+  font-family:var(--mono);color:var(--ink-40);letter-spacing:.04em;}
+.msg.thinking{color:var(--ink-40);font-family:var(--mono);font-size:12px;display:flex;gap:9px;align-items:center;}
+.msg.thinking .sdot{width:8px;height:8px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 8px var(--cyan);animation:pulse 1s ease-in-out infinite;flex:none;}
+@media(prefers-reduced-motion:reduce){.msg.thinking .sdot{animation:none;}}
+/* 報告產出卡（對話中的第一則） */
+.msg.reportcard{align-self:stretch;max-width:100%;padding:14px 16px;border-radius:14px;
+  background:rgba(255,255,255,.035);border:1px solid var(--hair);}
+.msg.reportcard .mhead{font-size:10px;font-family:var(--mono);letter-spacing:.14em;color:var(--ink-40);
+  text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:7px;}
+.msg.reportcard .mhead i{width:6px;height:6px;border-radius:50%;background:var(--mc);box-shadow:0 0 7px var(--mc);}
+/* 建議追問 chips + 輸入列 */
+.qchips{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 0;}
+.qchip{font-size:12px;padding:5px 14px;border-radius:999px;border:1px solid var(--hair);color:var(--ink-60);
+  background:transparent;cursor:pointer;font-family:inherit;transition:color .25s var(--ease),border-color .25s var(--ease);}
+.qchip:hover{color:var(--cyan);border-color:rgba(56,189,248,.45);}
+.qchip:focus-visible{outline:2px solid var(--mc);outline-offset:2px;}
+.inrow{display:flex;gap:10px;margin-top:10px;}
+.inrow input{flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid var(--hair);border-radius:12px;
+  color:var(--ink-90);padding:10px 14px;font-size:13.5px;font-family:inherit;outline:none;
+  transition:border-color .25s var(--ease);}
+.inrow input::placeholder{color:var(--ink-40);}
+.inrow input:focus{border-color:rgba(56,189,248,.5);}
+
+@media(max-width:1100px){.pcols{grid-template-columns:180px 1.5fr 1fr;}}
+</style>
+<canvas id="harbor"></canvas>
+<div class="glowfx"></div>
+<div id="veil"></div>
+
+<aside class="mockrail lg" data-lg aria-hidden="true">
+  <i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i>
+</aside>
+
+<main>
+  <div class="pscreen">
+    <div class="swrap">
+      <header class="anim" style="--d:0s">
+        <div class="eyebrow"><span class="dot"></span><span class="lbl">航港局視角 · MODULE 02</span></div>
+        <div class="trow">
+          <h1>AI 政策輔助報告</h1>
+          <span class="spacer"></span>
+          <nav class="llmswitch lg" data-lg aria-label="LLM 接口切換">
+            <button class="lbtn on" data-llm="local">地端部署</button>
+            <button class="lbtn" data-llm="cloud">雲端 API</button>
+          </nav>
+        </div>
+      </header>
+
+      <div class="pcols">
+        <aside class="inbox lg lg-static anim" style="--d:.08s" aria-label="情報收件匣">
+          <div class="cap">情報收件匣<button class="simbtn" id="simBtn" title="模擬新情報偵測流入">模擬偵測</button></div>
+          <div id="inboxList" role="list"></div>
+        </aside>
+
+        <section class="report chatcol lg anim" data-lg style="--d:.12s">
+          <div class="rhead">
+            <h2 id="rTitle"></h2>
+            <button class="lg lg-btn lg-btn--accent lg-btn--sm" data-lg id="genBtn">重新生成</button>
+          </div>
+          <div class="gbar" id="gBar" title="Grounding 事實基礎驗證">
+            <span class="glbl">GROUNDING</span>
+            <span class="gtrack"><i id="gFill"></i></span>
+            <span class="gval" id="gVal">--%</span>
+            <span class="gnote2" id="gNote"></span>
+          </div>
+          <div class="thread" id="thread"></div>
+          <div class="qchips" id="qchips"></div>
+          <div class="inrow">
+            <input id="qinput" type="text" placeholder="就此情報提問，回答皆附 iMarine 來源引用…" aria-label="提問輸入">
+            <button class="lg lg-btn lg-btn--accent lg-btn--sm" data-lg id="qsend">送出</button>
+          </div>
+        </section>
+
+        <aside class="stack anim" style="--d:.16s">
+          <div class="panel lg lg-static" id="srcPanel">
+            <h4>來源 <span class="lg-badge" id="srcCount">0</span></h4>
+            <div id="srcList"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+/*!
+ * Liquid Glass Kit v0.1 — 液態玻璃 UI 工具包(零依賴)
+ * 透明玻璃 / 液態折射 / 發光背景 / 拖曳 / 儀表板元件(stat·meter·gauge·chart·toast)
+ *
+ * 折射原理:以 Snell 定律 (n=1.5) 對「凸超橢圓 (convex squircle)」斷面做
+ * 光線追蹤,產生 SVG 位移貼圖 (feDisplacementMap),再以 backdrop-filter
+ * 即時折射元件背後的內容。非 Chromium 瀏覽器自動降級為磨砂玻璃。
+ */
+(function (global) {
+  'use strict';
+
+  /* ------------------------------------------------------------------ *
+   * 0. 能力偵測
+   *    backdrop-filter: url(#svg) 目前僅 Chromium 引擎支援
+   *    (iOS 上所有瀏覽器皆為 WebKit,UA 不含 "Chrome/",會正確降級)
+   * ------------------------------------------------------------------ */
+  var FULL = (function () {
+    try {
+      if (typeof CSS === 'undefined' || !CSS.supports('backdrop-filter', 'blur(1px)')) return false;
+      if (navigator.userAgentData && navigator.userAgentData.brands) {
+        return navigator.userAgentData.brands.some(function (b) { return /Chromium/i.test(b.brand); });
+      }
+      return /Chrome\/\d+/.test(navigator.userAgent);
+    } catch (e) { return false; }
+  })();
+
+  var REDUCED_MOTION = false;
+  try { REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  /* ------------------------------------------------------------------ *
+   * 0.5 彈簧 — 液態物理核心(質量-阻尼-剛度,半隱式歐拉積分)
+   * ------------------------------------------------------------------ */
+  function Spring(value, opts) {
+    opts = opts || {};
+    this.v = value; this.t = value; this.vel = 0;
+    this.k = opts.stiffness || 340;
+    this.c = opts.damping || 14;
+    this.onUpdate = opts.onUpdate || null;
+    this.onRest = opts.onRest || null;
+    this._raf = 0; this._last = 0;
+  }
+  Spring.prototype.set = function (target) {
+    this.t = target;
+    if (this._raf) return;
+    var self = this;
+    self._last = performance.now();
+    self._raf = requestAnimationFrame(function step(now) {
+      var dt = Math.min((now - self._last) / 1000, 0.04) || 0.016;
+      self._last = now;
+      for (var i = 0; i < 2; i++) {           // 兩段子步,高剛度下仍穩定
+        var h = dt / 2;
+        self.vel += (-self.k * (self.v - self.t) - self.c * self.vel) * h;
+        self.v += self.vel * h;
+      }
+      if (Math.abs(self.v - self.t) < 0.0006 && Math.abs(self.vel) < 0.0006) {
+        self.v = self.t; self.vel = 0; self._raf = 0;
+        self.onUpdate && self.onUpdate(self.v);
+        self.onRest && self.onRest();
+        return;
+      }
+      self.onUpdate && self.onUpdate(self.v);
+      self._raf = requestAnimationFrame(step);
+    });
+  };
+  Spring.prototype.snap = function (v) {
+    this.v = v; this.t = v; this.vel = 0;
+    this.onUpdate && this.onUpdate(v);
+  };
+
+  /* ------------------------------------------------------------------ *
+   * 1. 全域設定(可由 LiquidGlass.config 或 data-lg-* 屬性覆寫)
+   * ------------------------------------------------------------------ */
+  var config = {
+    refraction: 1.25,   // 折射強度倍率(1 = 物理值,>1 更強的視覺張力)
+    chromatic: 0.55,    // 色散強度 0–1(RGB 三通道位移差)
+    blur: 1.6,          // 玻璃內霧化 (px)
+    saturate: 1.55,     // 透過玻璃的色彩飽和度
+    bezel: 0.16,        // 邊框斜面寬,佔短邊比例(0–0.5)
+    bezelMin: 10,       // 斜面最小 px
+    bezelMax: 42,       // 斜面最大 px
+    thickness: 28,      // 玻璃厚度 px(影響位移量)
+    profile: 'squircle',// 斷面:squircle | circle | lip
+    ior: 1.5,           // 玻璃折射率
+    maxWidth: 900       // 超過此寬度自動減弱折射,避免 GPU 卡頓
+  };
+
+  // 材質變體(B6):現狀 = Clear;Regular 較霧較不透,內容上可讀(數值可實機微調)
+  var MATERIALS = {
+    clear:   { blur: 1.6, saturate: 1.55, refraction: 1.25 },
+    regular: { blur: 7.0, saturate: 1.20, refraction: 0.90 }
+  };
+
+  /* ------------------------------------------------------------------ *
+   * 2. 斷面函數 — 距邊緣 t∈[0,1] 處的玻璃相對高度
+   *    Apple 偏好 squircle:平面到曲面的過渡最柔和
+   * ------------------------------------------------------------------ */
+  var PROFILES = {
+    squircle: function (t) { return Math.pow(1 - Math.pow(1 - t, 4), 0.25); },
+    circle:   function (t) { return Math.sqrt(1 - (1 - t) * (1 - t)); },
+    lip: function (t) {
+      var cv = Math.sqrt(1 - (1 - t) * (1 - t));
+      var cc = 1 - cv;
+      var s = t * t * t * (t * (t * 6 - 15) + 10); // smootherstep
+      return cv * (1 - s) + cc * s;
+    }
+  };
+
+  /* ------------------------------------------------------------------ *
+   * 3. 折射表 — 對斷面做 2D 光線追蹤 (Snell 定律)
+   *    回傳每個 t 的橫向位移(px,正值=指向元件內部)
+   *    凸面斷面會讓光線位移留在玻璃內,邊緣取樣不會越界
+   * ------------------------------------------------------------------ */
+  var SAMPLES = 128;
+  var tableCache = {};
+
+  function rayTable(bezelPx, thicknessPx, profileName, ior) {
+    var key = [bezelPx | 0, thicknessPx | 0, profileName, ior].join(':');
+    if (tableCache[key]) return tableCache[key];
+
+    var f = PROFILES[profileName] || PROFILES.squircle;
+    var eta = 1 / ior;                       // 空氣 -> 玻璃
+    var table = new Float64Array(SAMPLES);
+    var maxMag = 0;
+    var clampMax = bezelPx * 2.2;            // 防止近邊緣斜率趨近垂直時位移爆炸
+
+    for (var i = 0; i < SAMPLES; i++) {
+      var t = (i + 0.5) / SAMPLES;
+      // 數值微分取得表面斜率(對實際 px 座標)
+      var dt = 1 / SAMPLES;
+      var t0 = Math.max(t - dt, 1e-4), t1 = Math.min(t + dt, 1);
+      var slope = (f(t1) - f(t0)) * thicknessPx / ((t1 - t0) * bezelPx);
+
+      var m = Math.sqrt(1 + slope * slope);
+      var cosI = 1 / m;                      // 入射光垂直向下
+      var sinI = slope / m;
+      var sinT = eta * sinI;
+      if (sinT > 0.9999) sinT = 0.9999;      // 接近全反射時夾住
+      var cosT = Math.sqrt(1 - sinT * sinT);
+
+      // 折射向量 T = eta*I + (eta*cosI - cosT)*N,I=(0,-1),N=(-slope,1)/m
+      var k = eta * cosI - cosT;
+      var Tx = -k * slope / m;               // > 0:折向內部
+      var Ty = -eta + k / m;                 // < 0:持續向下
+      var height = f(t) * thicknessPx;       // 該點玻璃高度
+      var d = Tx * (height / -Ty);           // 抵達背景平面時的橫向位移
+      if (d > clampMax) d = clampMax;
+      table[i] = d;
+      if (d > maxMag) maxMag = d;
+    }
+    var out = { table: table, maxMag: Math.max(maxMag, 1e-6) };
+    tableCache[key] = out;
+    return out;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 4. 位移貼圖 — 將折射表沿圓角矩形 SDF 旋掃成 RGBA 影像
+   *    R 通道 = X 位移,G 通道 = Y 位移,128 為中性值
+   * ------------------------------------------------------------------ */
+  var mapCache = {};
+  var mapCacheKeys = [];
+
+  function buildMap(w, h, radius, bezelPx, thicknessPx, profileName, ior) {
+    var key = [w, h, radius | 0, bezelPx | 0, thicknessPx | 0, profileName, ior].join(':');
+    if (mapCache[key]) return mapCache[key];
+
+    var rt = rayTable(bezelPx, thicknessPx, profileName, ior);
+    var table = rt.table, maxMag = rt.maxMag;
+
+    var canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(w, h);
+    var data = img.data;
+
+    var hw = w / 2, hh = h / 2;
+    var r = Math.min(radius, hw, hh);
+    var ix = hw - r, iy = hh - r;            // 圓角矩形內芯半徑
+
+    for (var y = 0; y < h; y++) {
+      var py = y + 0.5 - hh;
+      var ay = Math.abs(py) - iy;
+      for (var x = 0; x < w; x++) {
+        var px = x + 0.5 - hw;
+        var ax = Math.abs(px) - ix;
+
+        // 圓角矩形 SDF 與外向法線
+        var dist, nx, ny;
+        if (ax > 0 && ay > 0) {              // 角落區
+          var len = Math.sqrt(ax * ax + ay * ay) || 1e-6;
+          dist = len - r;
+          nx = ax / len; ny = ay / len;
+        } else if (ax > ay) {                // 左右邊
+          dist = ax - r; nx = 1; ny = 0;
+        } else {                             // 上下邊
+          dist = ay - r; nx = 0; ny = 1;
+        }
+        nx *= (px < 0 ? -1 : 1);
+        ny *= (py < 0 ? -1 : 1);
+
+        var inside = -dist;                  // 距邊緣的內部距離
+        var o = (y * w + x) * 4;
+        if (inside <= 0 || inside >= bezelPx) {
+          data[o] = 128; data[o + 1] = 128; data[o + 2] = 128; data[o + 3] = 255;
+          continue;
+        }
+        var t = inside / bezelPx;
+        var mag = table[Math.min(SAMPLES - 1, (t * SAMPLES) | 0)] / maxMag;
+        // 位移方向 = 內向法線(-nx, -ny)
+        data[o]     = Math.round(128 - nx * mag * 127);
+        data[o + 1] = Math.round(128 - ny * mag * 127);
+        data[o + 2] = 128;
+        data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    var url = canvas.toDataURL('image/png');
+    var out = { url: url, maxMag: maxMag };
+
+    mapCache[key] = out;
+    mapCacheKeys.push(key);
+    if (mapCacheKeys.length > 48) delete mapCache[mapCacheKeys.shift()];
+    return out;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 5. SVG 濾鏡 DOM 管理
+   *    注意:承載 <svg> 不可 display:none,否則濾鏡失效
+   * ------------------------------------------------------------------ */
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  var svgRoot = null, svgDefs = null, uid = 0;
+
+  function ensureSvgRoot() {
+    if (svgRoot) return;
+    svgRoot = document.createElementNS(SVG_NS, 'svg');
+    svgRoot.setAttribute('aria-hidden', 'true');
+    svgRoot.setAttribute('focusable', 'false');
+    svgRoot.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;pointer-events:none;';
+    svgDefs = document.createElementNS(SVG_NS, 'defs');
+    svgRoot.appendChild(svgDefs);
+    (document.body || document.documentElement).appendChild(svgRoot);
+  }
+
+  function el(name, attrs) {
+    var n = document.createElementNS(SVG_NS, name);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  // 黏滯融合濾鏡(blur + alpha 對比):供 dock 光斑與開關表面張力使用
+  function ensureGooFilter() {
+    ensureSvgRoot();
+    if (document.getElementById('lg-goo')) return;
+    var f = el('filter', { id: 'lg-goo' });
+    f.appendChild(el('feGaussianBlur', { 'in': 'SourceGraphic', stdDeviation: 5, result: 'b' }));
+    f.appendChild(el('feColorMatrix', { 'in': 'b', type: 'matrix', values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9' }));
+    svgDefs.appendChild(f);
+  }
+
+  // 三通道色散:R / G / B 各用略微不同的位移倍率,再加總合成
+  function buildFilter(id) {
+    var filter = el('filter', {
+      id: id, x: '0%', y: '0%', width: '100%', height: '100%',
+      'color-interpolation-filters': 'sRGB'
+    });
+    var image = el('feImage', { x: 0, y: 0, width: 1, height: 1, result: 'lgMap', preserveAspectRatio: 'none' });
+    filter.appendChild(image);
+
+    var keep = {
+      R: '1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0',
+      G: '0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0',
+      B: '0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0'
+    };
+    ['R', 'G', 'B'].forEach(function (ch) {
+      filter.appendChild(el('feDisplacementMap', {
+        'in': 'SourceGraphic', in2: 'lgMap', scale: 0,
+        xChannelSelector: 'R', yChannelSelector: 'G', result: 'd' + ch
+      }));
+      filter.appendChild(el('feColorMatrix', { 'in': 'd' + ch, type: 'matrix', values: keep[ch], result: 'c' + ch }));
+    });
+    filter.appendChild(el('feComposite', { 'in': 'cR', in2: 'cG', operator: 'arithmetic', k1: 0, k2: 1, k3: 1, k4: 0, result: 'sRG' }));
+    filter.appendChild(el('feComposite', { 'in': 'sRG', in2: 'cB', operator: 'arithmetic', k1: 0, k2: 1, k3: 1, k4: 0, result: 'sRGB2' }));
+    filter.appendChild(el('feGaussianBlur', { 'in': 'sRGB2', stdDeviation: 0, result: 'soft' }));
+    filter.appendChild(el('feColorMatrix', { 'in': 'soft', type: 'saturate', values: 1, result: 'out' }));
+    svgDefs.appendChild(filter);
+    return filter;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 6. Glass 實例 — attach(el, opts)
+   * ------------------------------------------------------------------ */
+  var instances = [];
+
+  function numAttr(elm, name, fallback) {
+    var v = elm.getAttribute(name);
+    if (v === null || v === '') return fallback;
+    var n = parseFloat(v);
+    return isNaN(n) ? fallback : n;
+  }
+
+  function readRadius(elm, w, h) {
+    var br = getComputedStyle(elm).borderTopLeftRadius || '0px';
+    var v = parseFloat(br) || 0;
+    if (br.indexOf('%') > -1) v = Math.min(w, h) * v / 100;
+    return Math.min(v, Math.min(w, h) / 2);
+  }
+
+  function applyConcentric(el) {
+    var parent = el.parentElement;
+    while (parent && !parent.classList.contains('lg')) parent = parent.parentElement;
+    if (!parent) return;                       // 找不到 lg 父層 → no-op
+    function r(v) { return parseFloat(v) || 0; }
+    var pcs = getComputedStyle(parent);
+    var ptl = r(pcs.borderTopLeftRadius), ptr = r(pcs.borderTopRightRadius),
+        pbr = r(pcs.borderBottomRightRadius), pbl = r(pcs.borderBottomLeftRadius);
+    if (!(ptl || ptr || pbr || pbl)) return;   // 父無圓角 → no-op
+    var prc = parent.getBoundingClientRect(), crc = el.getBoundingClientRect();
+    var gapL = crc.left - prc.left - r(pcs.borderLeftWidth);
+    var gapT = crc.top - prc.top - r(pcs.borderTopWidth);
+    var gapR = prc.right - crc.right - r(pcs.borderRightWidth);
+    var gapB = prc.bottom - crc.bottom - r(pcs.borderBottomWidth);
+    var MIN = 4;
+    function corner(prad, ga, gb) { return Math.max(prad - Math.max(ga, gb), MIN); } // 角由相鄰兩邊定義,取大者
+    el.style.borderTopLeftRadius     = corner(ptl, gapL, gapT) + 'px';
+    el.style.borderTopRightRadius    = corner(ptr, gapR, gapT) + 'px';
+    el.style.borderBottomRightRadius = corner(pbr, gapR, gapB) + 'px';
+    el.style.borderBottomLeftRadius  = corner(pbl, gapL, gapB) + 'px';
+  }
+
+  function Glass(elm, opts) {
+    opts = opts || {};
+    this.el = elm;
+    this.id = 'lg-f-' + (++uid);
+    this.opts = {
+      refraction: opts.refraction != null ? opts.refraction : numAttr(elm, 'data-lg-refraction', NaN),
+      chromatic:  opts.chromatic  != null ? opts.chromatic  : numAttr(elm, 'data-lg-chromatic', NaN),
+      blur:       opts.blur       != null ? opts.blur       : numAttr(elm, 'data-lg-blur', NaN),
+      saturate:   opts.saturate   != null ? opts.saturate   : numAttr(elm, 'data-lg-saturate', NaN),
+      bezel:      opts.bezel      != null ? opts.bezel      : numAttr(elm, 'data-lg-bezel', NaN),
+      thickness:  opts.thickness  != null ? opts.thickness  : numAttr(elm, 'data-lg-thickness', NaN),
+      profile:    opts.profile || elm.getAttribute('data-lg-profile') || ''
+    };
+    ensureSvgRoot();
+    this.filter = buildFilter(this.id);
+    this.nodes = {
+      image: this.filter.querySelector('feImage'),
+      disp: this.filter.querySelectorAll('feDisplacementMap'),
+      blur: this.filter.querySelector('feGaussianBlur'),
+      sat: this.filter.querySelector('feColorMatrix[type="saturate"]')
+    };
+    var self = this;
+    this._pending = false;
+    this.ro = new ResizeObserver(function () { self.schedule(); });
+    this.ro.observe(elm);
+    instances.push(this);
+    this.update();
+  }
+
+  Glass.prototype.schedule = function () {
+    if (this._pending) return;
+    this._pending = true;
+    var self = this;
+    requestAnimationFrame(function () { self._pending = false; self.update(); });
+  };
+
+  Glass.prototype.update = function () {
+    var elm = this.el;
+    var w = Math.round(elm.offsetWidth), h = Math.round(elm.offsetHeight);
+    if (w < 2 || h < 2) return;
+
+    var o = this.opts;
+    var mat = elm.classList.contains('lg--regular') ? MATERIALS.regular
+            : elm.classList.contains('lg--clear')   ? MATERIALS.clear : null;
+    var profile = o.profile || config.profile;
+    var thickness = isNaN(o.thickness) ? config.thickness : o.thickness;
+    var bezel = isNaN(o.bezel)
+      ? Math.max(config.bezelMin, Math.min(config.bezelMax, Math.min(w, h) * config.bezel))
+      : o.bezel;
+    bezel = Math.min(bezel, Math.min(w, h) / 2);
+    var radius = readRadius(elm, w, h);
+
+    var map = buildMap(w, h, radius, bezel, thickness, profile, config.ior);
+
+    // 折射倍率(大面積自動減弱)
+    var refraction = !isNaN(o.refraction) ? o.refraction : (mat ? mat.refraction : config.refraction);
+    if (w > config.maxWidth) refraction *= config.maxWidth / w;
+    // 貼圖編碼為 (C-0.5) ∈ ±0.5,故 scale 乘 2 才等於 maxMag 像素的實際位移
+    var scale = map.maxMag * refraction * 2;
+
+    // 色散:三通道位移差
+    var ca = (isNaN(o.chromatic) ? config.chromatic : o.chromatic) * 0.12;
+    var blur = !isNaN(o.blur) ? o.blur : (mat ? mat.blur : config.blur);
+    var sat = !isNaN(o.saturate) ? o.saturate : (mat ? mat.saturate : config.saturate);
+
+    // filter 區域維持 0%–100%(objectBoundingBox),feImage 用元素像素尺寸
+    var img = this.nodes.image;
+    img.setAttribute('width', w);
+    img.setAttribute('height', h);
+    img.setAttribute('href', map.url);
+
+    var disp = this.nodes.disp;
+    disp[0].setAttribute('scale', (scale * (1 + ca)).toFixed(2)); // R
+    disp[1].setAttribute('scale', scale.toFixed(2));              // G
+    disp[2].setAttribute('scale', (scale * (1 - ca)).toFixed(2)); // B
+    this._baseScales = [scale * (1 + ca), scale, scale * (1 - ca)];
+    this.nodes.blur.setAttribute('stdDeviation', blur);
+    this.nodes.sat.setAttribute('values', sat);
+
+    if (FULL) elm.style.backdropFilter = 'url(#' + this.id + ')';
+  };
+
+  Glass.prototype.setOptions = function (opts) {
+    for (var k in opts) this.opts[k] = opts[k];
+    this.update();
+  };
+
+  // 按壓鼓起:把三通道位移同乘 k,折射即時變強,無需重算貼圖
+  Glass.prototype.setBulge = function (k) {
+    if (!this._baseScales) return;
+    var d = this.nodes.disp;
+    d[0].setAttribute('scale', (this._baseScales[0] * k).toFixed(2));
+    d[1].setAttribute('scale', (this._baseScales[1] * k).toFixed(2));
+    d[2].setAttribute('scale', (this._baseScales[2] * k).toFixed(2));
+  };
+
+  Glass.prototype.destroy = function () {
+    this.ro.disconnect();
+    if (this.filter.parentNode) this.filter.parentNode.removeChild(this.filter);
+    this.el.style.backdropFilter = '';
+    var i = instances.indexOf(this);
+    if (i > -1) instances.splice(i, 1);
+  };
+
+  function attach(elm, opts) {
+    if (!FULL) return { el: elm, update: function(){}, setOptions: function(){}, setBulge: function(){}, destroy: function(){}, fallback: true };
+    if (elm._lgGlass) return elm._lgGlass;
+    elm._lgGlass = new Glass(elm, opts);
+    return elm._lgGlass;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 7. 動態光澤 — 指標位置寫入 CSS 變數,供 .lg 高光層使用
+   * ------------------------------------------------------------------ */
+  var sheenRaf = 0;
+  function initSheen() {
+    document.addEventListener('pointermove', function (e) {
+      if (sheenRaf) return;
+      sheenRaf = requestAnimationFrame(function () {
+        sheenRaf = 0;
+        var t = e.target && e.target.closest ? e.target.closest('.lg') : null;
+        if (!t) return;
+        var r = t.getBoundingClientRect();
+        t.style.setProperty('--lg-px', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+        t.style.setProperty('--lg-py', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+      });
+    }, { passive: true });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 8. 拖曳 — pointer events + 慣性 + 邊界
+   *    draggable(el, { handle, bounds: 'viewport'|'parent', inertia })
+   * ------------------------------------------------------------------ */
+  function draggable(elm, opts) {
+    opts = opts || {};
+    var handle = opts.handle ? (typeof opts.handle === 'string' ? elm.querySelector(opts.handle) : opts.handle) : elm;
+    var bounds = opts.bounds || 'viewport';
+    var inertia = opts.inertia !== false && !REDUCED_MOTION;
+    var x = 0, y = 0, vx = 0, vy = 0, lastX = 0, lastY = 0, lastT = 0;
+    var dragging = false, raf = 0, pid = null;
+    var stretch = 1, ang = 0, wobV = 0;
+
+    function apply() {
+      var t = 'translate3d(' + x + 'px,' + y + 'px,0)';
+      if (Math.abs(stretch - 1) > 0.002) {
+        var s2 = 1 / Math.sqrt(stretch);
+        t += ' rotate(' + ang.toFixed(4) + 'rad) scale(' + stretch.toFixed(4) + ',' + s2.toFixed(4) + ') rotate(' + (-ang).toFixed(4) + 'rad)';
+      }
+      elm.style.transform = t;
+    }
+
+    function clampBounds() {
+      var r = elm.getBoundingClientRect();
+      var bw, bh, bl, bt;
+      if (bounds === 'parent' && elm.parentElement) {
+        var p = elm.parentElement.getBoundingClientRect();
+        bl = p.left; bt = p.top; bw = p.width; bh = p.height;
+      } else {
+        bl = 0; bt = 0; bw = innerWidth; bh = innerHeight;
+      }
+      var dx = 0, dy = 0;
+      if (r.left < bl) dx = bl - r.left;
+      if (r.right > bl + bw) dx = bl + bw - r.right;
+      if (r.top < bt) dy = bt - r.top;
+      if (r.bottom > bt + bh) dy = bt + bh - r.bottom;
+      x += dx; y += dy;
+      if (dx) vx = 0;
+      if (dy) vy = 0;
+    }
+
+    function onDown(e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      dragging = true; pid = e.pointerId;
+      handle.setPointerCapture && handle.setPointerCapture(pid);
+      lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
+      vx = vy = 0;
+      cancelAnimationFrame(raf);
+      elm.classList.add('lg-dragging');
+      e.preventDefault();
+    }
+    function onMove(e) {
+      if (!dragging || e.pointerId !== pid) return;
+      var now = performance.now(), dt = Math.max(now - lastT, 1);
+      var dx = e.clientX - lastX, dy = e.clientY - lastY;
+      x += dx; y += dy;
+      vx = vx * 0.4 + (dx / dt * 16) * 0.6;
+      vy = vy * 0.4 + (dy / dt * 16) * 0.6;
+      lastX = e.clientX; lastY = e.clientY; lastT = now;
+      if (!REDUCED_MOTION) {
+        // 液態拉伸:速度越快,沿運動方向越長(體積守恆,垂直向壓縮)
+        var sp = Math.sqrt(vx * vx + vy * vy);
+        if (sp > 0.5) ang = Math.atan2(vy, vx);
+        stretch += (1 + Math.min(sp * 0.013, 0.22) - stretch) * 0.3;
+        var g = elm._lgGlass;
+        if (g && g.setBulge) g.setBulge(1 + (stretch - 1) * 1.6);
+      }
+      clampBounds(); apply();
+    }
+    function onUp(e) {
+      if (!dragging || e.pointerId !== pid) return;
+      dragging = false;
+      elm.classList.remove('lg-dragging');
+      if (REDUCED_MOTION) { stretch = 1; apply(); return; }
+      // 釋放:慣性滑行 + 欠阻尼彈簧讓拉伸抖動收斂(果凍回彈)
+      wobV = 0;
+      (function settle() {
+        var sliding = inertia && (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1);
+        if (sliding) {
+          vx *= 0.92; vy *= 0.92;
+          x += vx; y += vy;
+          clampBounds();
+        }
+        wobV += (-(stretch - 1) * 340 - wobV * 9) / 60;
+        stretch += wobV / 60;
+        apply();
+        var g = elm._lgGlass;
+        if (g && g.setBulge) g.setBulge(1 + Math.abs(stretch - 1) * 1.6);
+        if (!sliding && Math.abs(stretch - 1) < 0.003 && Math.abs(wobV) < 0.02) {
+          stretch = 1; apply();
+          if (g && g.setBulge) g.setBulge(1);
+          return;
+        }
+        raf = requestAnimationFrame(settle);
+      })();
+    }
+
+    handle.style.touchAction = 'none';
+    handle.style.cursor = 'grab';
+    handle.addEventListener('pointerdown', onDown);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+
+    return {
+      destroy: function () {
+        cancelAnimationFrame(raf);
+        handle.removeEventListener('pointerdown', onDown);
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onUp);
+        handle.removeEventListener('pointercancel', onUp);
+      }
+    };
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 9. 共用 scroll util(B1 建立,B5 沿用)
+   * ------------------------------------------------------------------ */
+  /* makeScrollWatcher(target) → { subscribe(cb) }  cb 收 { y, dy, atTop, atBottom } */
+  function makeScrollWatcher(target) {
+    var t = target || window, subs = [], raf = 0;
+    function getY() { return t === window ? (window.scrollY || window.pageYOffset || 0) : t.scrollTop; }
+    function maxY() {
+      return t === window
+        ? (document.documentElement.scrollHeight - window.innerHeight)
+        : (t.scrollHeight - t.clientHeight);
+    }
+    var lastY = getY();
+    function tick() {
+      raf = 0;
+      var y = getY(), m = maxY();
+      var s = { y: y, dy: y - lastY, atTop: y <= 1, atBottom: y >= m - 1 };
+      lastY = y;
+      subs.forEach(function (cb) { cb(s); });
+    }
+    function onScroll() { if (!raf) raf = requestAnimationFrame(tick); }
+    t.addEventListener('scroll', onScroll, { passive: true });
+    return {
+      subscribe: function (cb) { subs.push(cb); var y0 = getY(); cb({ y: y0, dy: 0, atTop: y0 <= 1, atBottom: y0 >= maxY() - 1 }); },
+      destroy: function () { t.removeEventListener('scroll', onScroll); subs = []; }
+    };
+  }
+  var _winScroll = null;
+  function getWindowScroll() { return _winScroll || (_winScroll = makeScrollWatcher(window)); }
+
+  /* ------------------------------------------------------------------ *
+   * 9b. initScrollShrink(B1):navbar / tabs data-lg-shrink 下捲縮小
+   * ------------------------------------------------------------------ */
+  function initScrollShrink() {
+    var bars = [].slice.call(document.querySelectorAll('[data-lg-shrink]'));
+    if (!bars.length || REDUCED_MOTION) return;   // reduced-motion:定在展開、不隱藏
+    var THRESH = 6, CONDENSE_AT = 24, HIDE_AT = 90;
+    function setCondensed(bar, want) {
+      if (bar.classList.contains('is-condensed') === want) return;
+      bar.classList.toggle('is-condensed', want);
+      // tabs:padding transition 結束後重定位藥丸(只認 bar 自身的 padding 過渡,防子 tab 冒泡與堆疊)
+      if (bar.classList.contains('lg-tabs') && bar._lgRepositionPill && !bar._lgPillPending) {
+        bar._lgPillPending = true;
+        bar.addEventListener('transitionend', function te(e) {
+          if (e.target !== bar || e.propertyName.indexOf('padding') !== 0) return;
+          bar._lgPillPending = false;
+          bar.removeEventListener('transitionend', te);
+          bar._lgRepositionPill();
+        });
+      }
+    }
+    getWindowScroll().subscribe(function (s) {
+      bars.forEach(function (bar) {
+        setCondensed(bar, s.y >= CONDENSE_AT);     // 第一段:縮小(位置驅動)
+        var hide;                                   // 第二段:隱藏(方向驅動)
+        if (s.y < CONDENSE_AT) hide = false;        // 近頂一律現身
+        else if (s.dy > THRESH && s.y > HIDE_AT) hide = true;   // 往下且夠深 → 隱藏
+        else if (s.dy < -THRESH) hide = false;      // 往上 → 現身
+        else hide = bar.classList.contains('is-hidden');       // 維持
+        bar.classList.toggle('is-hidden', hide);
+      });
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 9c. initScrollEdge(B5):data-lg-scroll-edge 容器邊緣漸隱 mask
+   * ------------------------------------------------------------------ */
+  function initScrollEdge() {
+    [].slice.call(document.querySelectorAll('[data-lg-scroll-edge]')).forEach(function (el) {
+      var mode = el.getAttribute('data-lg-scroll-edge') || 'both';
+      var useTop = mode === 'top' || mode === 'both';
+      var useBot = mode === 'bottom' || mode === 'both';
+      var FADE = 36;
+      makeScrollWatcher(el).subscribe(function (s) {
+        var max = el.scrollHeight - el.clientHeight;
+        var t = useTop ? Math.max(0, Math.min(s.y, FADE)) : 0;         // 距頂越遠,頂緣漸隱帶越長(平滑淡入)
+        var b = useBot ? Math.max(0, Math.min(max - s.y, FADE)) : 0;   // 距底越遠,底緣漸隱帶越長
+        if (!t && !b) { el.style.webkitMaskImage = ''; el.style.maskImage = ''; return; }
+        var m = 'linear-gradient(to bottom, transparent 0, #000 ' + t.toFixed(1) + 'px, #000 calc(100% - ' + b.toFixed(1) + 'px), transparent 100%)';
+        el.style.webkitMaskImage = m;
+        el.style.maskImage = m;
+      });
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 10. 元件行為:tabs / slider / modal / tooltip / dock
+   * ------------------------------------------------------------------ */
+  function initTabs(root) {
+    var pill = root.querySelector('.lg-tabs__pill');
+    var tabs = [].slice.call(root.querySelectorAll('.lg-tabs__tab'));
+    function move(tab) {
+      tabs.forEach(function (t) {
+        t.classList.toggle('is-active', t === tab);
+        t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+      });
+      if (pill) {
+        var fromLeft = parseFloat(pill.style.left) || 0;
+        var d = tab.offsetLeft - fromLeft;
+        pill.style.width = tab.offsetWidth + 'px';
+        pill.style.left = tab.offsetLeft + 'px';
+        // 液滴遷移:途中被拉長,抵達時擠壓回彈
+        if (!REDUCED_MOTION && Math.abs(d) > 6 && pill.animate) {
+          var st = 1 + Math.min(Math.abs(d) / 140, 0.5);
+          pill.animate([
+            { transform: 'scaleX(1)' },
+            { transform: 'scaleX(' + st.toFixed(3) + ')', offset: 0.45 },
+            { transform: 'scaleX(0.96)', offset: 0.8 },
+            { transform: 'scaleX(1)' }
+          ], { duration: 400, easing: 'ease-out' });
+        }
+      }
+    }
+    tabs.forEach(function (t, i) {
+      t.addEventListener('click', function () { move(t); });
+      t.addEventListener('keydown', function (e) {
+        var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!d) return;
+        var n = tabs[(i + d + tabs.length) % tabs.length];
+        n.focus(); move(n);
+        e.preventDefault();
+      });
+    });
+    root._lgRepositionPill = function () {
+      var act = root.querySelector('.lg-tabs__tab.is-active') || tabs[0];
+      if (act && pill) { pill.style.width = act.offsetWidth + 'px'; pill.style.left = act.offsetLeft + 'px'; }
+    };
+    var active = root.querySelector('.lg-tabs__tab.is-active') || tabs[0];
+    if (active) requestAnimationFrame(function () { move(active); });
+  }
+
+  function initSlider(input) {
+    function paint() {
+      var min = parseFloat(input.min) || 0, max = parseFloat(input.max) || 100;
+      var p = ((input.value - min) / (max - min)) * 100;
+      input.style.setProperty('--lg-fill', p + '%');
+    }
+    input.addEventListener('input', paint);
+    paint();
+  }
+
+  function morphFrom(origin, panel) {
+    // 量測前先中性化 transform:is-open 的 transition 在 t=0 尚未推進,面板仍是 base 的
+    // scale(0.86) translateY(18px),直接量會量到縮放盒 → FLIP 的 sx/sy/dx/dy 全偏(實測差約 14%/33px)。
+    var savedTrans = panel.style.transition;
+    panel.style.transition = 'none';
+    panel.style.transform = 'none';
+    var o = origin.getBoundingClientRect(), p = panel.getBoundingClientRect(); // 強制 reflow → 真正靜止盒
+    panel.style.transform = '';            // 交回 CSS(is-open = transform:none)
+    panel.style.transition = savedTrans;
+    if (!p.width || !p.height) return false;
+    var dx = (o.left + o.width / 2) - (p.left + p.width / 2);
+    var dy = (o.top + o.height / 2) - (p.top + p.height / 2);
+    var sx = Math.max(o.width / p.width, 0.05), sy = Math.max(o.height / p.height, 0.05);
+    panel.animate([
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx.toFixed(3) + ',' + sy.toFixed(3) + ')', opacity: 0.4 },
+      { transform: 'none', opacity: 1 }
+    ], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    return true;  // 全程保留折射(不關 backdrop-filter)
+  }
+
+  function initModals() {
+    var lastFocus = null;
+    function open(modal, origin) {
+      if (modal.classList.contains('is-open')) return;   // 已開啟則不重入(避免雙重 morph)
+      lastFocus = document.activeElement;
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      var panel = modal.querySelector('.lg-modal__panel');
+      if (FULL) instances.forEach(function (g) { if (modal.contains(g.el)) g.update(); });
+      var morphed = false;
+      if (panel && origin && !REDUCED_MOTION && panel.animate) {
+        panel.classList.add('is-morphing');                   // 抑制 keyframe,WAAPI 獨佔
+        morphed = morphFrom(origin, panel);
+        if (!morphed) panel.classList.remove('is-morphing');  // 量不到盒 → 回退既有預設 keyframe
+      }
+      if (panel) panel._lgOrigin = morphed ? origin : null;
+      var f = modal.querySelector('button, [href], input, [tabindex]');
+      if (f) f.focus();
+    }
+    function finishClose(modal) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      var panel = modal.querySelector('.lg-modal__panel');
+      if (panel) panel.classList.remove('is-morphing');   // 清乾淨,下次開啟才正常
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+    function close(modal) {
+      var panel = modal.querySelector('.lg-modal__panel');
+      if (panel && panel._lgOrigin && !REDUCED_MOTION && panel.animate) {
+        var o = panel._lgOrigin.getBoundingClientRect(), p = panel.getBoundingClientRect();
+        var dx = (o.left + o.width / 2) - (p.left + p.width / 2);
+        var dy = (o.top + o.height / 2) - (p.top + p.height / 2);
+        var sx = Math.max(o.width / p.width, 0.05), sy = Math.max(o.height / p.height, 0.05);
+        var anim = panel.animate([
+          { transform: 'none', opacity: 1 },
+          { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx.toFixed(3) + ',' + sy.toFixed(3) + ')', opacity: 0.3 }
+        ], { duration: 300, easing: 'cubic-bezier(.4,0,.7,.2)' });
+        anim.onfinish = function () { finishClose(modal); };
+      } else {
+        finishClose(modal);
+      }
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest ? e.target.closest('[data-lg-open]') : null;
+      if (t) {
+        var m = document.querySelector(t.getAttribute('data-lg-open'));
+        if (m) open(m, t);     // t = 觸發按鈕,作為 morph origin
+        return;
+      }
+      var c = e.target.closest ? e.target.closest('[data-lg-close]') : null;
+      if (c) {
+        var mm = c.closest('.lg-modal');
+        if (mm) close(mm);
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var openModal = document.querySelector('.lg-modal.is-open');
+      if (openModal) close(openModal);
+    });
+  }
+
+  function initClearFields() {
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('[data-lg-clear]') : null;
+      if (!btn) return;
+      var box = btn.closest('.lg-field__box');
+      var input = box ? box.querySelector('.lg-field__input') : null;
+      if (!input) return;
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      input.focus();
+    });
+  }
+
+  function initSteppers() {
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('[data-lg-step]') : null;
+      if (!btn) return;
+      var box = btn.closest('.lg-stepper');
+      var input = box ? box.querySelector('.lg-stepper__input') : null;
+      if (!input || input.disabled) return;
+      var n = parseInt(btn.getAttribute('data-lg-step'), 10) || 0;
+      if (n > 0) input.stepUp(n);
+      else if (n < 0) input.stepDown(-n);
+      else return;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  function initOtp(otp) {
+    var cells = [].slice.call(otp.querySelectorAll('.lg-otp__cell'));
+    cells.forEach(function (cell, i) {
+      cell.addEventListener('input', function () {
+        if (cell.value.length > 1) cell.value = cell.value.slice(-1);
+        if (cell.value && cells[i + 1]) cells[i + 1].focus();
+      });
+      cell.addEventListener('keydown', function (e) {
+        if (e.key === 'Backspace' && !cell.value && cells[i - 1]) {
+          cells[i - 1].focus();
+          cells[i - 1].value = '';
+          e.preventDefault();
+        }
+      });
+      cell.addEventListener('paste', function (e) {
+        e.preventDefault();
+        var data = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\s/g, '');
+        var j = 0;
+        while (j < data.length && j < cells.length) { cells[j].value = data.charAt(j); j++; }
+        (cells[j] || cells[cells.length - 1]).focus();
+      });
+    });
+  }
+
+  function initUpload(panel) {
+    var input = panel.querySelector('.lg-upload__input');
+    var list = panel.querySelector('.lg-upload__list');
+    if (!input || !list) return;
+    var store = new DataTransfer();
+    function fmt(b) {
+      if (b < 1024) return b + ' B';
+      if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+      return (b / 1048576).toFixed(1) + ' MB';
+    }
+    function render() {
+      list.innerHTML = '';
+      [].forEach.call(store.files, function (file, i) {
+        var li = document.createElement('li');
+        li.className = 'lg-upload__file';
+        li.innerHTML = '<svg class="lg-upload__fileicon" viewBox="0 0 256 256"><use href="#ph-file-text"/></svg>'
+          + '<span class="lg-upload__name"></span>'
+          + '<span class="lg-upload__size"></span>'
+          + '<button type="button" class="lg-upload__remove" aria-label="移除"><svg viewBox="0 0 256 256"><use href="#ph-x"/></svg></button>';
+        li.querySelector('.lg-upload__name').textContent = file.name;
+        li.querySelector('.lg-upload__size').textContent = fmt(file.size);
+        li.querySelector('.lg-upload__remove').addEventListener('click', function (e) {
+          e.stopPropagation();
+          store.items.remove(i);
+          input.files = store.files;
+          render();
+        });
+        list.appendChild(li);
+      });
+    }
+    function add(files) {
+      [].forEach.call(files, function (f) {
+        var dup = [].some.call(store.files, function (g) { return g.name === f.name && g.size === f.size; });
+        if (!dup) store.items.add(f);
+      });
+      input.files = store.files;
+      render();
+    }
+    panel.addEventListener('click', function (e) {
+      if (e.target.closest('.lg-upload__list')) return;
+      input.click();
+    });
+    input.addEventListener('change', function () { add(input.files); });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      panel.addEventListener(ev, function (e) { e.preventDefault(); panel.classList.add('is-dragover'); });
+    });
+    panel.addEventListener('dragleave', function (e) {
+      e.preventDefault();
+      if (!panel.contains(e.relatedTarget)) panel.classList.remove('is-dragover');
+    });
+    panel.addEventListener('drop', function (e) {
+      e.preventDefault();
+      panel.classList.remove('is-dragover');
+      if (e.dataTransfer) add(e.dataTransfer.files);
+    });
+  }
+
+  function initTooltips() {
+    var tip = null;
+    function ensure() {
+      if (tip) return tip;
+      tip = document.createElement('div');
+      tip.className = 'lg-tooltip';
+      tip.setAttribute('role', 'tooltip');
+      document.body.appendChild(tip);
+      return tip;
+    }
+    function show(target) {
+      var t = ensure();
+      t.textContent = target.getAttribute('data-lg-tip');
+      t.classList.add('is-visible');
+      var r = target.getBoundingClientRect();
+      var tr = t.getBoundingClientRect();
+      var top = r.top - tr.height - 10;
+      if (top < 8) top = r.bottom + 10;
+      var left = Math.min(Math.max(8, r.left + r.width / 2 - tr.width / 2), innerWidth - tr.width - 8);
+      t.style.top = top + 'px';
+      t.style.left = left + 'px';
+    }
+    function hide() { if (tip) tip.classList.remove('is-visible'); }
+    document.addEventListener('pointerenter', function (e) {
+      var t = e.target && e.target.closest ? e.target.closest('[data-lg-tip]') : null;
+      if (t) show(t);
+    }, true);
+    document.addEventListener('pointerleave', function (e) {
+      if (e.target && e.target.closest && e.target.closest('[data-lg-tip]')) hide();
+    }, true);
+    document.addEventListener('focusin', function (e) {
+      var t = e.target.closest ? e.target.closest('[data-lg-tip]') : null;
+      if (t) show(t); else hide();
+    });
+  }
+
+  function initDock(dock) {
+    var items = [].slice.call(dock.querySelectorAll('.lg-dock__item'));
+    // 黏滯光斑層:每個圖示下方一顆定置液滴,游標液滴滑過時與其融合、分離
+    var goo = document.createElement('div');
+    goo.className = 'lg-dock__goo';
+    goo.setAttribute('aria-hidden', 'true');
+    var blob = document.createElement('i');
+    blob.className = 'blob';
+    goo.appendChild(blob);
+    dock.insertBefore(goo, dock.firstChild);
+    requestAnimationFrame(function () {
+      items.forEach(function (it) {
+        var b = document.createElement('i');
+        b.style.left = (it.offsetLeft + it.offsetWidth / 2) + 'px';
+        goo.appendChild(b);
+      });
+    });
+    if (REDUCED_MOTION) return; // 降級為 CSS hover
+    var raf = 0, blobRaf = 0, targetX = null, curX = null, lastBX = 0;
+    function blobLoop() {
+      if (targetX === null) { blobRaf = 0; return; }
+      curX += (targetX - curX) * 0.22;
+      var sp = Math.abs(curX - lastBX);
+      lastBX = curX;
+      blob.style.left = curX.toFixed(1) + 'px';
+      blob.style.transform = 'scale(' + Math.min(1 + sp * 0.02, 1.5).toFixed(3) + ',' + Math.max(1 - sp * 0.008, 0.8).toFixed(3) + ')';
+      blobRaf = requestAnimationFrame(blobLoop);
+    }
+    dock.addEventListener('pointermove', function (e) {
+      var dr = dock.getBoundingClientRect();
+      targetX = e.clientX - dr.left;
+      if (curX === null) { curX = targetX; lastBX = targetX; }
+      if (!blobRaf) blobRaf = requestAnimationFrame(blobLoop);
+      if (raf) return;
+      raf = requestAnimationFrame(function () {
+        raf = 0;
+        items.forEach(function (it) {
+          var r = it.getBoundingClientRect();
+          var d = Math.abs(e.clientX - (r.left + r.width / 2));
+          var s = 1 + 0.55 * Math.exp(-(d * d) / (2 * 70 * 70));
+          it.style.transform = 'scale(' + s.toFixed(3) + ') translateY(' + (-(s - 1) * 14).toFixed(1) + 'px)';
+        });
+      });
+    });
+    dock.addEventListener('pointerleave', function () {
+      items.forEach(function (it) { it.style.transform = ''; });
+      targetX = null;
+      blob.style.transform = 'scale(0)';
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 7.5 按壓擠壓 — 液滴被壓:彈簧驅動 scale,放開後過衝回彈
+   *     有折射實例者同步鼓起(位移貼圖 scale 即時放大,零重算)
+   * ------------------------------------------------------------------ */
+  var PRESS_SEL = '.lg-btn,.lg-chip,.lg-tabs__tab,.lg-dock__item,[data-lg-press]';
+  function pressSpringFor(t, springs) {
+    var s = springs.get(t);
+    if (s) return s;
+    s = new Spring(1, {
+      onUpdate: function (v) {
+        t.style.scale = v.toFixed(4);
+        var g = t._lgGlass;
+        if (g && g.setBulge) g.setBulge(1 + (1 - v) * 4);
+      }
+    });
+    springs.set(t, s);
+    return s;
+  }
+  function initPress() {
+    if (REDUCED_MOTION) return;
+    var springs = new WeakMap();
+    document.addEventListener('pointerdown', function (e) {
+      var t = e.target.closest ? e.target.closest(PRESS_SEL) : null;
+      if (!t) return;
+      var s = pressSpringFor(t, springs);
+      var r = t.getBoundingClientRect();
+      var diag = Math.sqrt(r.width * r.width + r.height * r.height) || 60;
+      s.k = 760; s.c = 32;                       // 壓下:快速且不震
+      s.set(Math.max(0.9, Math.min(0.97, 1 - 22 / diag)));
+      function up() {
+        s.k = 380; s.c = 9.5;                    // 放開:欠阻尼,回彈兩三下
+        s.set(1);
+        removeEventListener('pointerup', up, true);
+        removeEventListener('pointercancel', up, true);
+      }
+      addEventListener('pointerup', up, true);
+      addEventListener('pointercancel', up, true);
+    }, true);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 9.5 開關表面張力 — goo 層的錨點液滴被拉斷,thumb 拉伸後回彈
+   * ------------------------------------------------------------------ */
+  function initSwitchTension(label) {
+    var track = label.querySelector('.lg-switch__track');
+    var input = label.querySelector('input[type="checkbox"]');
+    var thumb = label.querySelector('.lg-switch__thumb');
+    if (!track || !input || track._lgGoo) return;
+    track._lgGoo = true;
+    var goo = document.createElement('span');
+    goo.className = 'lg-switch__goo';
+    goo.setAttribute('aria-hidden', 'true');
+    var A = document.createElement('i'), B = document.createElement('i');
+    goo.appendChild(A); goo.appendChild(B);
+    track.insertBefore(goo, track.firstChild);
+    function sync() {
+      A.classList.toggle('on', input.checked);
+      B.classList.toggle('on', input.checked);
+      A.classList.remove('fade');
+    }
+    sync();
+    if (REDUCED_MOTION) { input.addEventListener('change', sync); return; }
+    var st = new Spring(1, {
+      onUpdate: function (v) {
+        if (!thumb) return;
+        thumb.style.setProperty('--lg-thx', v.toFixed(3));
+        thumb.style.setProperty('--lg-thy', (1 / Math.sqrt(v)).toFixed(3));
+      }
+    });
+    input.addEventListener('change', function () {
+      B.classList.toggle('on', input.checked);   // 移動液滴跟著 thumb 出發
+      A.classList.add('fade');                   // 錨點液滴被拉斷、縮回
+      setTimeout(function () {
+        A.classList.toggle('on', input.checked); // 抵達後在新端點重新聚成錨點
+        A.classList.remove('fade');
+      }, 430);
+      st.snap(1.5); st.k = 300; st.c = 8; st.set(1);
+    });
+  }
+
+
+  /* ------------------------------------------------------------------ *
+   * 10. 初始化
+   * ------------------------------------------------------------------ */
+  var inited = false;
+  /* ------------------------------------------------------------------ *
+   * 13.5 儀表板元件 (v0.1) — .lg-stat / .lg-meter / .lg-gauge / .lg-chart
+   *      原則:玻璃只做容器,數字、sparkline、圖表本身是實心內容層
+   *      (內容套玻璃會看不見,這是技術上必要的邊界)。
+   *      數值一律「屬性驅動」:改 data-lg-value / data-lg-spark /
+   *      data-lg-points 即觸發彈簧動畫——單一 MutationObserver 監聽全
+   *      部實例,對 AI 生成的程式碼最友善,不必學新的 JS API。
+   * ------------------------------------------------------------------ */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var statRegistry = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var statObserver = null;
+  var chartRO = null;
+  var sparkSeq = 0;
+
+  function svgNode(name, attrs, parent) {
+    var n = document.createElementNS(SVGNS, name);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+
+  // 千分位格式化(實心數字層)
+  function fmtNumber(v, decimals) {
+    var neg = v < 0; v = Math.abs(v);
+    var parts = v.toFixed(decimals).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (neg ? '-' : '') + parts.join('.');
+  }
+
+  // Catmull-Rom → 三次貝茲,折線變平滑曲線
+  function smoothPath(p) {
+    if (p.length < 3) {
+      return 'M' + p.map(function (q) { return q[0].toFixed(2) + ' ' + q[1].toFixed(2); }).join(' L');
+    }
+    var d = 'M' + p[0][0].toFixed(2) + ' ' + p[0][1].toFixed(2);
+    for (var i = 0; i < p.length - 1; i++) {
+      var p0 = p[i - 1] || p[i], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2] || p2;
+      d += 'C' + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(2) + ' ' + (p1[1] + (p2[1] - p0[1]) / 6).toFixed(2)
+         + ' ' + (p2[0] - (p3[0] - p1[0]) / 6).toFixed(2) + ' ' + (p2[1] - (p3[1] - p1[1]) / 6).toFixed(2)
+         + ' ' + p2[0].toFixed(2) + ' ' + p2[1].toFixed(2);
+    }
+    return d;
+  }
+
+  // 進入視口才把彈簧放向目標(REDUCED_MOTION 直接落定)
+  function springOnVisible(elm, fire) {
+    if (REDUCED_MOTION || typeof IntersectionObserver === 'undefined') { fire(); return; }
+    var io = new IntersectionObserver(function (es) {
+      for (var i = 0; i < es.length; i++) {
+        if (es[i].isIntersecting) { fire(); io.disconnect(); return; }
+      }
+    }, { threshold: 0.35 });
+    io.observe(elm);
+  }
+
+  function clamp01k(v) { return Math.max(0, Math.min(100, v)); }
+
+  /* ---- Stat:數字滾動 ---- */
+  function initStatValue(span) {
+    if (!statRegistry || statRegistry.get(span)) return;
+    var prefix = span.getAttribute('data-lg-prefix') || '';
+    var suffix = span.getAttribute('data-lg-suffix') || '';
+    function target() { return parseFloat(span.getAttribute('data-lg-value')) || 0; }
+    function decimals() {
+      var a = span.getAttribute('data-lg-decimals');
+      if (a !== null) return Math.max(0, Math.min(4, +a || 0));
+      var raw = span.getAttribute('data-lg-value') || '';
+      var dot = raw.indexOf('.');
+      return dot < 0 ? 0 : Math.min(raw.length - dot - 1, 4);
+    }
+    function write(v) { span.textContent = prefix + fmtNumber(v, decimals()) + suffix; }
+    var sp = new Spring(0, { stiffness: 120, damping: 22, onUpdate: write });
+    statRegistry.set(span, {
+      update: function () { REDUCED_MOTION ? sp.snap(target()) : sp.set(target()); }
+    });
+    write(REDUCED_MOTION ? target() : 0);
+    if (REDUCED_MOTION) sp.snap(target());
+    else springOnVisible(span, function () { sp.set(target()); });
+  }
+
+  /* ---- Stat:sparkline(實心內容層,顏色繼承 currentColor) ---- */
+  function renderSpark(svg) {
+    var raw = (svg.getAttribute('data-lg-spark') || '').split(',').map(parseFloat).filter(isFinite);
+    if (raw.length < 2) return;
+    var W = 100, H = 32, P = 3;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var min = Math.min.apply(null, raw), max = Math.max.apply(null, raw);
+    var span = (max - min) || 1;
+    var pts = raw.map(function (v, i) {
+      return [P + (W - 2 * P) * i / (raw.length - 1), H - P - (H - 2 * P) * (v - min) / span];
+    });
+    var gid = 'lg-spark-g' + (++sparkSeq);
+    var grad = svgNode('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }, svgNode('defs', {}, svg));
+    svgNode('stop', { offset: '0%', 'stop-color': 'currentColor', 'stop-opacity': 0.26 }, grad);
+    svgNode('stop', { offset: '100%', 'stop-color': 'currentColor', 'stop-opacity': 0 }, grad);
+    var d = smoothPath(pts);
+    svgNode('path', {
+      d: d + 'L' + pts[pts.length - 1][0].toFixed(2) + ' ' + H + 'L' + pts[0][0].toFixed(2) + ' ' + H + 'Z',
+      fill: 'url(#' + gid + ')'
+    }, svg);
+    svgNode('path', {
+      d: d, fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
+      'vector-effect': 'non-scaling-stroke', 'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+    }, svg);
+  }
+  function initSpark(svg) {
+    if (!statRegistry || statRegistry.get(svg)) return;
+    statRegistry.set(svg, { update: function () { renderSpark(svg); } });
+    renderSpark(svg);
+  }
+
+  /* ---- Meter:液體進度。前緣彎月面鼓頭隨彈簧速度拉伸 ---- */
+  function initMeter(elm) {
+    if (!statRegistry || statRegistry.get(elm)) return;
+    var fill = elm.querySelector('.lg-meter__fill');
+    if (!fill) {
+      fill = document.createElement('span'); fill.className = 'lg-meter__fill';
+      var hd = document.createElement('span'); hd.className = 'lg-meter__head';
+      fill.appendChild(hd);
+      elm.appendChild(fill);
+    }
+    var head = fill.querySelector('.lg-meter__head');
+    if (!elm.getAttribute('role')) {
+      elm.setAttribute('role', 'progressbar');
+      elm.setAttribute('aria-valuemin', '0');
+      elm.setAttribute('aria-valuemax', '100');
+    }
+    function target() { return clamp01k(parseFloat(elm.getAttribute('data-lg-value')) || 0); }
+    var sp = new Spring(0, {
+      stiffness: 210, damping: REDUCED_MOTION ? 30 : 11,   // 低阻尼=液體晃動
+      onUpdate: function (v) {
+        fill.style.width = clamp01k(v) + '%';
+        if (head && !REDUCED_MOTION) {
+          var st = 1 + Math.min(Math.abs(sp.vel) * 0.0045, 0.55);
+          head.style.transform = 'scale(' + st.toFixed(3) + ',' + (1 / Math.sqrt(st)).toFixed(3) + ')';
+        }
+      },
+      onRest: function () { if (head) head.style.transform = ''; }
+    });
+    statRegistry.set(elm, {
+      update: function () {
+        elm.setAttribute('aria-valuenow', String(Math.round(target())));
+        REDUCED_MOTION ? sp.snap(target()) : sp.set(target());
+      }
+    });
+    elm.setAttribute('aria-valuenow', String(Math.round(target())));
+    if (REDUCED_MOTION) sp.snap(target());
+    else springOnVisible(elm, function () { sp.set(target()); });
+  }
+
+  /* ---- Gauge:環形儀表(SVG 弧 + 中心數值;結構由 JS 注入) ---- */
+  function initGauge(elm) {
+    if (!statRegistry || statRegistry.get(elm)) return;
+    var SIZE = 120, SW = 9, R = (SIZE - SW) / 2, CIRC = 2 * Math.PI * R;
+    var arc = elm.querySelector('.lg-gauge__arc');
+    var valEl = elm.querySelector('.lg-gauge__value');
+    if (!arc) {
+      var svg = svgNode('svg', {
+        'class': 'lg-gauge__svg', viewBox: '0 0 ' + SIZE + ' ' + SIZE, 'aria-hidden': 'true'
+      });
+      svgNode('circle', { 'class': 'lg-gauge__track', cx: SIZE / 2, cy: SIZE / 2, r: R }, svg);
+      arc = svgNode('circle', {
+        'class': 'lg-gauge__arc', cx: SIZE / 2, cy: SIZE / 2, r: R,
+        'stroke-dasharray': CIRC.toFixed(2), 'stroke-dashoffset': CIRC.toFixed(2)
+      }, svg);
+      elm.appendChild(svg);
+      var center = document.createElement('div'); center.className = 'lg-gauge__center';
+      valEl = document.createElement('span'); valEl.className = 'lg-gauge__value'; valEl.textContent = '0';
+      var unit = document.createElement('span'); unit.className = 'lg-gauge__unit';
+      unit.textContent = elm.getAttribute('data-lg-unit') || '%';
+      center.appendChild(valEl); center.appendChild(unit);
+      var labelText = elm.getAttribute('data-lg-label');
+      if (labelText) {
+        var lb = document.createElement('span'); lb.className = 'lg-gauge__label';
+        lb.textContent = labelText;
+        center.appendChild(lb);
+      }
+      elm.appendChild(center);
+    }
+    if (!elm.getAttribute('role')) {
+      elm.setAttribute('role', 'meter');
+      elm.setAttribute('aria-valuemin', '0');
+      elm.setAttribute('aria-valuemax', '100');
+      if (elm.getAttribute('data-lg-label')) elm.setAttribute('aria-label', elm.getAttribute('data-lg-label'));
+    }
+    function target() { return clamp01k(parseFloat(elm.getAttribute('data-lg-value')) || 0); }
+    var sp = new Spring(0, {
+      stiffness: 170, damping: REDUCED_MOTION ? 26 : 13,
+      onUpdate: function (v) {
+        var c = clamp01k(v);   // 弧與數字夾住 0–100,中段過衝仍看得見
+        arc.setAttribute('stroke-dashoffset', (CIRC * (1 - c / 100)).toFixed(2));
+        valEl.textContent = String(Math.round(c));
+      }
+    });
+    statRegistry.set(elm, {
+      update: function () {
+        elm.setAttribute('aria-valuenow', String(Math.round(target())));
+        REDUCED_MOTION ? sp.snap(target()) : sp.set(target());
+      }
+    });
+    elm.setAttribute('aria-valuenow', String(Math.round(target())));
+    if (REDUCED_MOTION) sp.snap(target());
+    else springOnVisible(elm, function () { sp.set(target()); });
+  }
+
+  /* ---- Chart:手刻 SVG 折線/長條(零依賴),hover 十字線 + 數值提示 ---- */
+  function initChart(svg) {
+    if (!statRegistry || statRegistry.get(svg)) return;
+    var panel = (svg.closest && svg.closest('.lg-chart')) || svg.parentNode;
+    var tip = panel.querySelector('.lg-chart__tip');
+    if (!tip) {
+      tip = document.createElement('div'); tip.className = 'lg-chart__tip';
+      panel.appendChild(tip);
+    }
+    var state = { pts: [], data: [], labels: [], plotX0: 0, plotX1: 0, drawn: REDUCED_MOTION };
+
+    function render() {
+      var type = svg.getAttribute('data-lg-chart') || 'line';
+      var data = (svg.getAttribute('data-lg-points') || '').split(',').map(parseFloat).filter(isFinite);
+      var labels = (svg.getAttribute('data-lg-labels') || '').split(',').map(function (s) { return s.trim(); });
+      var rect = svg.getBoundingClientRect();
+      if (data.length < 2 || rect.width < 40 || rect.height < 40) return;   // 視圖隱藏時跳過,RO 顯示後補繪
+      var W = Math.round(rect.width), H = Math.round(rect.height);
+      var PL = 8, PR = 8, PT = 10, PB = labels[0] ? 20 : 8;
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+      var min = Math.min.apply(null, data), max = Math.max.apply(null, data);
+      var pad = (max - min || Math.abs(max) || 1) * 0.1;
+      min -= pad; max += pad;
+      if (type === 'bar' && min > 0) min = 0;
+      var px = type === 'bar'
+        ? function (i) { return PL + (W - PL - PR) / data.length * (i + 0.5); }   // 長條置中於等寬帶,首尾不被裁切
+        : function (i) { return PL + (W - PL - PR) * (data.length === 1 ? 0.5 : i / (data.length - 1)); };
+      var py = function (v) { return PT + (H - PT - PB) * (1 - (v - min) / (max - min)); };
+
+      for (var g = 1; g <= 3; g++) {
+        var gy = PT + (H - PT - PB) * g / 4;
+        svgNode('line', { 'class': 'lg-chart__grid', x1: PL, x2: W - PR, y1: gy.toFixed(1), y2: gy.toFixed(1) }, svg);
+      }
+
+      var pts = data.map(function (v, i) { return [px(i), py(v)]; });
+      state.pts = pts; state.data = data; state.labels = labels;
+      state.plotX0 = PL; state.plotX1 = W - PR;
+
+      if (type === 'bar') {
+        var bw = (W - PL - PR) / data.length * 0.56;
+        var y0 = py(Math.max(min, 0));
+        data.forEach(function (v, i) {
+          var y = py(v);
+          svgNode('rect', {
+            'class': 'lg-chart__bar', x: (px(i) - bw / 2).toFixed(1), width: bw.toFixed(1),
+            y: Math.min(y, y0).toFixed(1), height: Math.max(2, Math.abs(y0 - y)).toFixed(1), rx: Math.min(5, bw / 2)
+          }, svg);
+        });
+      } else {
+        var d = smoothPath(pts);
+        var gid = 'lg-chart-g' + (++sparkSeq);
+        var grad = svgNode('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }, svgNode('defs', {}, svg));
+        svgNode('stop', { offset: '0%', 'stop-color': 'currentColor', 'stop-opacity': 0.22 }, grad);
+        svgNode('stop', { offset: '100%', 'stop-color': 'currentColor', 'stop-opacity': 0 }, grad);
+        svgNode('path', {
+          'class': 'lg-chart__area',
+          d: d + 'L' + pts[pts.length - 1][0].toFixed(2) + ' ' + (H - PB) + 'L' + pts[0][0].toFixed(2) + ' ' + (H - PB) + 'Z',
+          fill: 'url(#' + gid + ')'
+        }, svg);
+        var line = svgNode('path', { 'class': 'lg-chart__line', d: d }, svg);
+        pts.forEach(function (p) {
+          svgNode('circle', { 'class': 'lg-chart__dot', cx: p[0].toFixed(2), cy: p[1].toFixed(2), r: 3 }, svg);
+        });
+        if (!state.drawn) {           // 首繪:線條描入(REDUCED_MOTION 略過)
+          state.drawn = true;
+          try {
+            var len = line.getTotalLength();
+            line.style.strokeDasharray = len + ' ' + len;
+            line.style.strokeDashoffset = len;
+            line.getBoundingClientRect();
+            line.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(0.3, 0.8, 0.3, 1)';
+            line.style.strokeDashoffset = '0';
+          } catch (e) {}
+        }
+      }
+
+      if (labels[0]) {
+        var skip = Math.ceil(labels.length / Math.max(2, Math.floor((W - PL - PR) / 56)));
+        labels.forEach(function (t, i) {
+          if (!t || i % skip) return;
+          svgNode('text', {
+            'class': 'lg-chart__axis', x: px(i).toFixed(1), y: H - 5, 'text-anchor': 'middle'
+          }, svg).textContent = t;
+        });
+      }
+      state.cross = svgNode('line', { 'class': 'lg-chart__cross', y1: PT, y2: H - PB, x1: -9, x2: -9 }, svg);
+    }
+
+    svg.addEventListener('pointermove', function (e) {
+      if (!state.pts.length || !state.cross) return;
+      var r = svg.getBoundingClientRect();
+      var best = 0, bd = Infinity;
+      for (var i = 0; i < state.pts.length; i++) {
+        var dd = Math.abs(state.pts[i][0] - (e.clientX - r.left));
+        if (dd < bd) { bd = dd; best = i; }
+      }
+      var p = state.pts[best];
+      state.cross.setAttribute('x1', p[0]); state.cross.setAttribute('x2', p[0]);
+      state.cross.style.opacity = '1';
+      var pr = panel.getBoundingClientRect();
+      tip.textContent = (state.labels[best] ? state.labels[best] + ' · ' : '') + fmtNumber(state.data[best], state.data[best] % 1 ? 1 : 0);
+      tip.style.left = (r.left - pr.left + p[0]) + 'px';
+      tip.style.top = (r.top - pr.top + p[1]) + 'px';
+      tip.classList.add('is-visible');
+    });
+    svg.addEventListener('pointerleave', function () {
+      if (state.cross) state.cross.style.opacity = '0';
+      tip.classList.remove('is-visible');
+    });
+
+    statRegistry.set(svg, { update: render, render: render });
+    if (typeof ResizeObserver !== 'undefined') {
+      if (!chartRO) chartRO = new ResizeObserver(function (es) {
+        for (var i = 0; i < es.length; i++) {
+          var en = statRegistry.get(es[i].target);
+          if (en && en.render) en.render();
+        }
+      });
+      chartRO.observe(svg);   // observe 即觸發首繪;視圖隱藏時尺寸為 0,顯示後自動補繪
+    } else {
+      render();
+      window.addEventListener('resize', render);
+    }
+  }
+
+  /* ---- 屬性驅動:單一 MutationObserver 監聽全部實例 ---- */
+  function ensureStatObserver() {
+    if (statObserver || !statRegistry || typeof MutationObserver === 'undefined') return;
+    statObserver = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        var entry = statRegistry.get(muts[i].target);
+        if (entry) entry.update();
+      }
+    });
+    statObserver.observe(document.documentElement, {
+      attributes: true, subtree: true,
+      attributeFilter: ['data-lg-value', 'data-lg-spark', 'data-lg-points']
+    });
+  }
+
+  function initStats(root) {
+    root = root || document;
+    [].forEach.call(root.querySelectorAll('.lg-stat__value[data-lg-value]'), initStatValue);
+    [].forEach.call(root.querySelectorAll('.lg-stat__spark[data-lg-spark]'), initSpark);
+    [].forEach.call(root.querySelectorAll('.lg-meter'), initMeter);
+    [].forEach.call(root.querySelectorAll('.lg-gauge'), initGauge);
+    [].forEach.call(root.querySelectorAll('svg[data-lg-chart]'), initChart);
+    ensureStatObserver();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 13.6 Toast (v0.1) — LiquidGlass.toast({ title, message, icon, duration })
+   *      入場複用對話框的液滴落地物理(lg-droplet),自動消退,
+   *      懸停暫停;折射實例在移除時 destroy,不洩漏濾鏡節點。
+   * ------------------------------------------------------------------ */
+  var toastStack = null;
+  function toast(opts) {
+    opts = opts || {};
+    if (!toastStack) {
+      toastStack = document.createElement('div');
+      toastStack.className = 'lg-toast-stack';
+      toastStack.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toastStack);
+    }
+    var t = document.createElement('div');
+    t.className = 'lg lg-toast';
+    t.setAttribute('role', 'status');
+    if (opts.icon) {
+      var ic = document.createElement('span'); ic.className = 'lg-toast__icon';
+      var isv = svgNode('svg', { 'aria-hidden': 'true' });
+      svgNode('use', { href: '#' + String(opts.icon).replace(/^#/, '') }, isv);
+      ic.appendChild(isv); t.appendChild(ic);
+    }
+    var body = document.createElement('div'); body.className = 'lg-toast__body';
+    if (opts.title) {
+      var h = document.createElement('p'); h.className = 'lg-toast__title';
+      h.textContent = opts.title; body.appendChild(h);
+    }
+    if (opts.message) {
+      var m = document.createElement('p'); m.className = 'lg-toast__msg';
+      m.textContent = opts.message; body.appendChild(m);
+    }
+    t.appendChild(body);
+    var x = document.createElement('button');
+    x.className = 'lg-toast__close'; x.type = 'button';
+    x.setAttribute('aria-label', '關閉通知');
+    var xs = svgNode('svg', { viewBox: '0 0 14 14', 'aria-hidden': 'true' });
+    svgNode('path', { d: 'M2 2 12 12 M12 2 2 12', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', fill: 'none' }, xs);
+    x.appendChild(xs); t.appendChild(x);
+
+    // 最多同時 4 則,溢出時收掉最舊的
+    var live = toastStack.querySelectorAll('.lg-toast:not(.is-leaving)');
+    if (live.length >= 4) leaveToast(live[0]);
+
+    toastStack.appendChild(t);
+    var glass = attach(t);
+    t._lgLeave = function () { leaveToast(t, glass); };
+    x.addEventListener('click', t._lgLeave);
+
+    var ttl = opts.duration === 0 ? 0 : (opts.duration || 4200);
+    if (ttl) {
+      var timer = setTimeout(t._lgLeave, ttl);
+      t.addEventListener('pointerenter', function () { clearTimeout(timer); });
+      t.addEventListener('pointerleave', function () { clearTimeout(timer); timer = setTimeout(t._lgLeave, 1600); });
+    }
+    return t;
+  }
+  function leaveToast(t, glass) {
+    if (t._lgLeft) return;
+    t._lgLeft = true;
+    t.classList.add('is-leaving');
+    setTimeout(function () {
+      var g = glass || t._lgGlass;
+      if (g && g.destroy) g.destroy();
+      if (t.parentNode) t.parentNode.removeChild(t);
+    }, 300);
+  }
+
+  function init(userConfig) {
+    if (userConfig) for (var k in userConfig) config[k] = userConfig[k];
+    document.documentElement.classList.add(FULL ? 'lg-full' : 'lg-fallback');
+    if (inited) return;
+    inited = true;
+
+    function boot() {
+      [].forEach.call(document.querySelectorAll('[data-lg]'), function (n) { attach(n); });
+      [].forEach.call(document.querySelectorAll('[data-lg-concentric]'), function (n) {
+        applyConcentric(n);
+        if (typeof ResizeObserver === 'undefined') return;
+        var ro = new ResizeObserver(function () { applyConcentric(n); });
+        ro.observe(n);
+        var p = n.parentElement;
+        while (p && !p.classList.contains('lg')) p = p.parentElement;
+        if (p) ro.observe(p);   // 父層尺寸/內距變動也重算
+      });
+      [].forEach.call(document.querySelectorAll('.lg-tabs'), initTabs);
+      [].forEach.call(document.querySelectorAll('.lg-otp'), initOtp);
+      [].forEach.call(document.querySelectorAll('[data-lg-upload]'), initUpload);
+      [].forEach.call(document.querySelectorAll('input.lg-slider__input'), initSlider);
+      [].forEach.call(document.querySelectorAll('.lg-dock'), initDock);
+      [].forEach.call(document.querySelectorAll('.lg-switch'), initSwitchTension);
+      [].forEach.call(document.querySelectorAll('[data-lg-drag]'), function (n) {
+        draggable(n, { handle: n.getAttribute('data-lg-drag-handle') || undefined, bounds: n.getAttribute('data-lg-drag') || 'viewport' });
+      });
+      initModals();
+      initTooltips();
+      initStats();
+      initSheen();
+      ensureGooFilter();
+      initPress();
+      initScrollShrink();
+      initScrollEdge();
+      initClearFields();
+      initSteppers();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  }
+
+  function refresh() { instances.forEach(function (g) { g.update(); }); }
+
+  global.LiquidGlass = {
+    version: '0.1.0',
+    supported: FULL,
+    reducedMotion: REDUCED_MOTION,
+    config: config,
+    init: init,
+    attach: attach,
+    draggable: draggable,
+    refresh: refresh,
+    toast: toast,
+    Spring: Spring,
+    behaviors: { tabs: initTabs, slider: initSlider, dock: initDock, switchTension: initSwitchTension, stats: initStats }
+  };
+})(typeof window !== 'undefined' ? window : this);
+</script>
+<script>
+/* ── Policy 頁改版 mockup 互動 v2（中欄＝NotebookLM 式對話串，報告為產出卡）── */
+'use strict';
+
+/* 背景點雲（示意：doc 模式下被 veil 壓暗，只求玻璃有折射素材） */
+(function () {
+  var cv = document.getElementById('harbor'), ctx = cv.getContext('2d');
+  function draw() {
+    var w = cv.width = innerWidth * devicePixelRatio, h = cv.height = innerHeight * devicePixelRatio;
+    ctx.clearRect(0, 0, w, h);
+    var sd = 7;
+    function rnd() { sd = (sd * 16807) % 2147483647; return sd / 2147483647; }
+    for (var i = 0; i < 900; i++) {
+      var x = rnd() * w, y = rnd() * h, r = rnd();
+      ctx.fillStyle = r > .93 ? 'rgba(53,224,166,.55)' : r > .86 ? 'rgba(56,189,248,.45)' : 'rgba(160,190,220,.28)';
+      ctx.beginPath(); ctx.arc(x, y, (r > .86 ? 1.6 : 1) * devicePixelRatio, 0, 7); ctx.fill();
+    }
+  }
+  draw(); addEventListener('resize', draw);
+})();
+
+var RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+var MODEL = { local: '地端 LLM · 8B 量化版', cloud: '雲端 API · 旗艦模型' };
+/* 報告重生成步驟時長（ms）：地端較慢，體現擬真差異 */
+var STEPMS = { local: [800, 1300, 2400, 1000], cloud: [500, 800, 1500, 700] };
+/* 追問回答時長（ms）：檢索 → 綜合 兩拍 */
+var ANSMS = { local: [900, 1100], cloud: [500, 700] };
+
+/* ── mock briefs（7 條，形狀對照 spec §6 PolicyBrief union + qa 追問劇本）── */
+var DATA = [
+  {
+    id: 'inc-redsea', type: 'incident', title: '紅海航線中斷升級', time: '今日 14:02',
+    severity: 'high', confidence: 87, grounding: 87, groundingNote: '26 / 30 個量化數字具可追溯來源', retrieved: 24,
+    summary: '紅海南段商船遇襲頻率一週內上升 3 倍，兩大航運聯盟宣布即日起暫停蘇伊士航線、改道好望角<span class="cite" data-src="1">1</span>，歐亞主幹線單程航程增加 10-14 天，即期運價指數單週上漲 12.4%<span class="cite" data-src="2">2</span>。本事件由情報彙整於今日 14:02 自動偵測，信心度 87%，嚴重度評為高。',
+    cases: [
+      { title: '2021 蘇伊士擱淺', duration: '堵塞 6 天', action: '亞洲主要港啟動彈性泊位調度、加開夜航時窗', outcome: '滯留船隊 3 週內消化完畢', cite: 3 },
+      { title: '2024 紅海危機', duration: '持續 14 個月', action: '航商徵收繞航附加費，港口提供綠色航線費率誘因', outcome: '高雄港轉運量維持 92% 水準', cite: 4 }
+    ],
+    impact: '歐亞線靠港船隊改道好望角後，單航次燃油消耗與碳排放增加約 18%<span class="cite" data-src="5">5</span>，NZF 生效後履約成本將同步上升；短期內東亞—美西航線班次重排，高雄港轉運需求估增 6-8%<span class="cite" data-src="2">2</span>，船席與拖船能量須預先盤點。',
+    actions: [
+      '參照 2021 蘇伊士處置，啟動彈性泊位調度預案並預留緩衝船席',
+      '評估繞航船舶的綠色航線費率誘因，銜接碳權模組 SU 折抵機制',
+      '密切追蹤 IMO 航行安全通告與 MEPC 84 應對決議時程'
+    ],
+    qa: [
+      { q: '三個建議行動的優先順序？',
+        a: '建議優先啟動彈性泊位調度預案——2021 蘇伊士事件顯示前置作業約需 72 小時<span class="cite" data-src="3">3</span>，時效最緊；費率誘因需經費率委員會程序，可並行預告<span class="cite" data-src="4">4</span>；MEPC 84 追蹤屬持續性工作，不佔用應變資源。' },
+      { q: '對碳權模組有什麼連動影響？',
+        a: '繞道使單航次碳排增加約 18%<span class="cite" data-src="5">5</span>，NZF 履約缺口擴大、SU 需求上升；建議以碳權代幣化模組的 SU 流通紀錄預估折抵需求變化，作為港埠費誘因的試算基礎。' }
+    ],
+    sources: [
+      { no: 1, name: '航線中斷事件彙整', cat: '海運焦點新聞', date: '2026-07-04', checked: true },
+      { no: 2, name: '全球航運指數 07-04', cat: '全球航運指數', date: '2026-07-04', checked: true },
+      { no: 3, name: '蘇伊士事件檔案', cat: '海運焦點新聞', date: '2021-03', checked: true },
+      { no: 4, name: '紅海危機處置紀錄', cat: '海運焦點新聞', date: '2024-12', checked: true },
+      { no: 5, name: '台灣港群碳排統計', cat: '台灣數據統計', date: '2026-06', checked: true },
+      { no: 6, name: '替代能源專區月報', cat: '替代能源專區', date: '2026-06', checked: false },
+      { no: 7, name: '航港法令檢索：港埠費', cat: '航港法令', date: '2026-05', checked: false }
+    ]
+  },
+  {
+    id: 'pol-nzf', type: 'policy', title: 'IMO NZF 通過後之港埠費減免政策評估', time: '今日 09:30',
+    grounding: 93, groundingNote: '28 / 30 個量化數字具可追溯來源', retrieved: 31,
+    sections: [
+      { heading: '一、背景', html: 'IMO 淨零框架（NZF）預計對 5000GT 以上船舶徵收溫室氣體排放費<span class="cite" data-src="1">1</span>，歐盟 ETS 自 2026 年起要求航運全額繳納排放配額<span class="cite" data-src="2">2</span>，單艘貨櫃船年均履約成本估計自 €54 萬升至 €94.5 萬<span class="cite" data-src="2">2</span>。' },
+      { heading: '二、國際案例', html: '新加坡 MPA 自 2025 年起對零排放燃料船舶港埠費全額減免、低碳燃料減免 30%<span class="cite" data-src="3">3</span>；長灘港依 ESI 分數每航次最高獎勵 $9,000<span class="cite" data-src="4">4</span>。' },
+      { heading: '三、量化參考', html: '以高雄港 2025 年靠港結構推估，分級減免方案年成本約 NT$ 2.1 億，可帶動綠色燃料靠港占比自 6.8% 提升至 11-14%<span class="cite" data-src="5">5</span>。' },
+      { heading: '四、政策選項', html: '方案 A：對接 NZF Surplus Units 的港埠費折抵（建議）；方案 B：固定分級費率；方案 C：維持現行、觀望 MEPC 84 決議。' },
+      { heading: '五、建議草稿', html: '建議於 NZF 生效前完成港埠費折抵法制預告，先以高雄港為示範港試行一年，並以本平台碳權代幣化模組之 SU 流通紀錄<span class="cite" data-src="5">5</span>作為折抵稽核依據。' }
+    ],
+    qa: [
+      { q: '方案 A 與方案 B 的成本差異？',
+        a: '方案 A（SU 折抵）年成本估 NT$ 2.1 億，且隨綠色燃料靠港占比提升而動態增加<span class="cite" data-src="5">5</span>，但可直接對接 NZF 獎勵申請；方案 B 固定分級費率初期成本較低、易編列預算，惟無法隨國際機制滾動，NZF 生效後恐需二次修法。' },
+      { q: '新加坡模式可以直接移植嗎？',
+        a: '不建議直接移植——MPA 全額減免以其全球轉運樞紐規模與燃料加註生態為前提<span class="cite" data-src="3">3</span>；台灣港群靠港結構以近洋線與散雜貨占比較高，建議採分級減免並以高雄港先行試點。' }
+    ],
+    sources: [
+      { no: 1, name: 'IMO MEPC 83 決議摘要', cat: '航港法令', date: '2026-04', checked: true },
+      { no: 2, name: 'EU ETS Maritime 指令', cat: '航港法令', date: '2026-01', checked: true },
+      { no: 3, name: 'MPA Green Port Circular', cat: '海運焦點新聞', date: '2025-12', checked: true },
+      { no: 4, name: 'Port of Long Beach ESI Program', cat: '海運焦點新聞', date: '2026-03', checked: true },
+      { no: 5, name: 'iMarine 台灣數據統計', cat: '台灣數據統計', date: '2026-06', checked: true }
+    ]
+  },
+  {
+    id: 'day-0704', type: 'daily', title: '07-04 海運晨報', time: '今日 07:00',
+    grounding: 91, groundingNote: '10 / 11 個量化數字具可追溯來源', retrieved: 18,
+    items: [
+      { text: '紅海情勢升溫，兩大聯盟評估暫停蘇伊士航線，歐亞線即期運價 +3.2%', cite: 1 },
+      { text: 'IMO NZF 進入表決週，港埠費減免對接方案成為各國關注焦點', cite: 2 },
+      { text: '高雄港上半年貨櫃吞吐量年增 4.1%，轉運占比回升', cite: 3 },
+      { text: '綠色甲醇船用加註需求上升，亞太供應鏈布局加速', cite: 4 }
+    ],
+    watch: { text: 'NZF 表決結果對港埠費減免政策的影響', goto: 'pol-nzf' },
+    qa: [
+      { q: '今天最需要向上級摘報的一條？',
+        a: '紅海情勢<span class="cite" data-src="1">1</span>——若聯盟正式暫停蘇伊士航線，高雄港轉運需求估增 6-8%，建議同步確認泊位調度預案整備度；完整分析見收件匣「紅海航線中斷升級」決策報告。' }
+    ],
+    sources: [
+      { no: 1, name: '全球航運指數 07-04', cat: '全球航運指數', date: '2026-07-04', checked: true },
+      { no: 2, name: 'IMO 動態彙整', cat: '海運焦點新聞', date: '2026-07-03', checked: true },
+      { no: 3, name: '台灣港群營運統計', cat: '台灣數據統計', date: '2026-06', checked: true },
+      { no: 4, name: '替代能源專區月報', cat: '替代能源專區', date: '2026-06', checked: true }
+    ]
+  },
+  {
+    id: 'inc-sg', type: 'incident', title: '新加坡港壅塞外溢', time: '昨日 18:20',
+    severity: 'medium', confidence: 74, grounding: 82, groundingNote: '14 / 17 個量化數字具可追溯來源', retrieved: 15,
+    summary: '新加坡港貨櫃船平均等泊時間升至 3.8 天、一週內增加 42%<span class="cite" data-src="1">1</span>，部分航商評估改靠區域替代樞紐。本事件由情報彙整於昨日 18:20 自動偵測，信心度 74%，嚴重度評為中。',
+    cases: [
+      { title: '2021 洛杉磯／長灘壅塞', duration: '高峰排隊 109 艘', action: '實施 24 小時作業與預約閘口制度', outcome: '排隊船數 4 個月內降至 10 艘以下', cite: 2 }
+    ],
+    impact: null,
+    actions: [
+      '盤點高雄港週轉船席與拖船能量，預備承接改靠需求',
+      '與航商協調加靠班次的優先泊位時窗'
+    ],
+    qa: [
+      { q: '高雄港可承接多少改靠量？',
+        a: '以近四週船席週轉率推估<span class="cite" data-src="3">3</span>，短期可承接約 5-7% 額外靠港量而不影響既有班期；若壅塞持續逾一個月，建議參照 LA/LB 經驗評估延長作業時窗<span class="cite" data-src="2">2</span>。' }
+    ],
+    sources: [
+      { no: 1, name: '港口壅塞監測彙整', cat: '海運焦點新聞', date: '2026-07-03', checked: true },
+      { no: 2, name: 'LA/LB 壅塞處置檔案', cat: '海運焦點新聞', date: '2021-10', checked: true },
+      { no: 3, name: '全球航運指數 07-03', cat: '全球航運指數', date: '2026-07-03', checked: true }
+    ]
+  },
+  {
+    id: 'pol-ets', type: 'policy', title: 'EU ETS 配額修正案影響評估', time: '昨日 11:00',
+    grounding: 89, groundingNote: '18 / 20 個量化數字具可追溯來源', retrieved: 22,
+    sections: [
+      { heading: '一、背景', html: '歐盟議會通過 ETS 海運配額修正案，2027 年起免費配額全面退場<span class="cite" data-src="1">1</span>，碳價中樞預估上移至 €95-105 區間<span class="cite" data-src="2">2</span>。' },
+      { heading: '二、對台影響', html: '掛靠歐盟港口的本國船隊年履約成本估增 11-15%<span class="cite" data-src="3">3</span>，中小型航商承壓最大，歐線艙位成本轉嫁壓力升高。' },
+      { heading: '三、初步建議', html: '建議聯動碳權代幣化模組試算 SU 折抵空間，並於下次港埠費檢討納入歐線船舶過渡期減免。' }
+    ],
+    qa: [
+      { q: '港埠費檢討的時程建議？',
+        a: '修正案 2027 年生效<span class="cite" data-src="1">1</span>，建議 2026 Q4 前完成歐線船舶過渡期減免的法制預告，預留一季公告期，與 NZF 折抵方案共用同一次費率檢討程序以減少行政成本。' }
+    ],
+    sources: [
+      { no: 1, name: 'EU ETS 修正案條文', cat: '航港法令', date: '2026-07-01', checked: true },
+      { no: 2, name: '歐盟碳價走勢', cat: '全球航運指數', date: '2026-07', checked: true },
+      { no: 3, name: '台灣船商履約成本推估', cat: '台灣數據統計', date: '2026-06', checked: true }
+    ]
+  },
+  {
+    id: 'day-0703', type: 'daily', title: '07-03 海運晨報', time: '昨日 07:00',
+    grounding: 90, groundingNote: '9 / 10 個量化數字具可追溯來源', retrieved: 16,
+    items: [
+      { text: '新加坡港等泊時間攀升，區域轉運鏈醞釀重排', cite: 1 },
+      { text: '波羅的海乾散運價指數週線翻紅，煤炭與鐵礦石需求回溫', cite: 2 },
+      { text: '台灣港群 6 月船舶進出港艘次年增 2.3%', cite: 3 }
+    ],
+    watch: { text: '新加坡等泊變化對高雄轉運的外溢效應' },
+    qa: [
+      { q: '乾散回溫對高雄港的意義？',
+        a: '波羅的海指數週線翻紅<span class="cite" data-src="2">2</span>反映煤炭與鐵礦石需求回溫，散裝靠港艘次可望回升；建議調度端預留散雜貨泊位彈性，避免與貨櫃改靠需求疊加時發生排擠。' }
+    ],
+    sources: [
+      { no: 1, name: '港口壅塞監測彙整', cat: '海運焦點新聞', date: '2026-07-03', checked: true },
+      { no: 2, name: '全球航運指數 07-03', cat: '全球航運指數', date: '2026-07-03', checked: true },
+      { no: 3, name: '台灣港群營運統計', cat: '台灣數據統計', date: '2026-06', checked: true }
+    ]
+  },
+  {
+    id: 'pol-fuel', type: 'policy', title: '替代燃料補貼草案初評', time: '07-02 14:00',
+    grounding: 86, groundingNote: '15 / 18 個量化數字具可追溯來源', retrieved: 19,
+    sections: [
+      { heading: '一、背景', html: '交通部預告航運業替代燃料補貼草案，綠色甲醇與氨燃料加註設施納入補助範圍<span class="cite" data-src="1">1</span>。' },
+      { heading: '二、國際對照', html: '新加坡、鹿特丹皆以「補貼＋港埠費減免」雙軌推動替代燃料加註樞紐<span class="cite" data-src="2">2</span>，先行者已出現供應鏈群聚效應。' },
+      { heading: '三、初步建議', html: '建議高雄港同步盤點加註設施用地與安全規範，並以替代能源專區供應鏈資料<span class="cite" data-src="3">3</span>追蹤產能落地進度。' }
+    ],
+    qa: [
+      { q: '加註設施的先期障礙是什麼？',
+        a: '主要是港區用地取得與氨燃料安全規範尚未定案<span class="cite" data-src="1">1</span>；國際經驗顯示安全規範先行可縮短後續建置期<span class="cite" data-src="2">2</span>，建議先啟動規範研議與用地盤點兩條前置線。' }
+    ],
+    sources: [
+      { no: 1, name: '航港法令檢索：補貼草案', cat: '航港法令', date: '2026-07-02', checked: true },
+      { no: 2, name: '綠色燃料樞紐動態', cat: '海運焦點新聞', date: '2026-06', checked: true },
+      { no: 3, name: '替代能源專區月報', cat: '替代能源專區', date: '2026-06', checked: true }
+    ]
+  }
+];
+
+/* 模擬情報流入：進頁 ~9 秒後自動插入的新突發事件（demo「自動偵測」敘事） */
+var NEWBRIEF = {
+  id: 'inc-panama', type: 'incident', title: '巴拿馬運河通行配額再削減', time: '剛剛',
+  severity: 'high', confidence: 81, grounding: 84, groundingNote: '19 / 23 個量化數字具可追溯來源', retrieved: 21,
+  summary: '巴拿馬運河管理局宣布因集水區水位持續偏低，日通行配額自 32 艘再削減至 27 艘<span class="cite" data-src="1">1</span>，亞洲—美東航線預估延誤 4-6 天。本事件由情報彙整於剛剛自動偵測，信心度 81%，嚴重度評為高；與紅海情勢疊加，兩大節點同時受限。',
+  cases: [
+    { title: '2023-24 巴拿馬乾旱限航', duration: '配額縮減 11 個月', action: '航商競標通行權、部分改道蘇伊士或美西陸橋', outcome: '美東線運價高峰上漲 38%', cite: 3 }
+  ],
+  impact: '亞洲—美東經巴拿馬班期延誤，疊加紅海繞道後蘇伊士替代路徑同樣受限<span class="cite" data-src="2">2</span>，雙節點約束下美東線運價與美西陸橋轉運需求看漲，高雄港作為跨太平洋轉運節點的船席需求可能提前反映。',
+  actions: [
+    '追蹤兩大節點聯合影響下的班表重排，預估跨太平洋線加靠需求',
+    '與貨主端確認美西陸橋替代方案的轉運艙位彈性'
+  ],
+  qa: [
+    { q: '和紅海事件疊加會怎樣？',
+      a: '兩大節點同時受限是 2021 年以來首見——蘇伊士替代巴拿馬的迴旋空間消失<span class="cite" data-src="2">2</span>，美東線運價上行壓力高於單一事件；參照 2023-24 乾旱期經驗<span class="cite" data-src="3">3</span>，美西陸橋與跨太平洋轉運將吸收主要溢出量，建議將兩事件合併為單一情境監測。' }
+  ],
+  sources: [
+    { no: 1, name: '巴拿馬運河公告彙整', cat: '海運焦點新聞', date: '2026-07-05', checked: true },
+    { no: 2, name: '全球航運指數 07-04', cat: '全球航運指數', date: '2026-07-04', checked: true },
+    { no: 3, name: '2023 乾旱限航檔案', cat: '海運焦點新聞', date: '2024-02', checked: true }
+  ]
+};
+
+var NEWBRIEF2 = {
+  id: 'inc-malacca', type: 'incident', title: '馬六甲海峽碰撞單向管制', time: '剛剛',
+  severity: 'medium', confidence: 78, grounding: 80, groundingNote: '11 / 14 個量化數字具可追溯來源', retrieved: 13,
+  summary: '馬六甲海峽南口兩貨輪碰撞，海峽當局實施單向航行管制、預計持續 48 小時<span class="cite" data-src="1">1</span>，過境船速下降約 30%。本事件由情報彙整於剛剛自動偵測，信心度 78%，嚴重度評為中。',
+  cases: [
+    { title: '2017 馬六甲商船碰撞', duration: '管制 3 天', action: '過境船舶分批排程、鄰近港提供臨時錨位', outcome: '未形成長期壅塞，一週內恢復', cite: 2 }
+  ],
+  impact: null,
+  actions: [
+    '確認高雄港進出口船期受影響清單，提前調整引水與拖船排班',
+    '對過境延誤船舶提供彈性靠泊時窗'
+  ],
+  qa: [
+    { q: '需要升級為高嚴重度嗎？',
+      a: '暫不需要——單向管制屬短期擾動，2017 年同型事件一週內恢復<span class="cite" data-src="2">2</span>；建議設 48 小時觀察點，若管制延長或疊加區域壅塞<span class="cite" data-src="3">3</span>再升級。' }
+  ],
+  sources: [
+    { no: 1, name: '馬六甲海峽當局公告', cat: '海運焦點新聞', date: '2026-07-05', checked: true },
+    { no: 2, name: '2017 碰撞事件檔案', cat: '海運焦點新聞', date: '2017-08', checked: true },
+    { no: 3, name: '港口壅塞監測彙整', cat: '海運焦點新聞', date: '2026-07-03', checked: true }
+  ]
+};
+
+/* 綜合對話（NotebookLM 式知識庫模式）：跨全部情報的來源聯集 + 直接提問 */
+var GLOBAL = {
+  id: 'global', title: '綜合對話', used: {},
+  qa: [
+    { q: '本週所有情報中，最需要優先行動的是哪一件？',
+      a: '綜合目前全部情報評估，紅海航線中斷的時效壓力最高{{c:航線中斷事件彙整}}——彈性泊位調度預案需 72 小時前置{{c:蘇伊士事件檔案}}；政策面 IMO NZF 進入表決週{{c:IMO MEPC 83 決議摘要}}，建議應變行動與法制預告兩線並行。' },
+    { q: '港埠費政策該如何回應近期情勢？',
+      a: '短期以綠色航線費率誘因回應繞航成本上升{{c:紅海危機處置紀錄}}；中期對接 NZF Surplus Units 折抵、參照新加坡分級減免模式{{c:MPA Green Port Circular}}，成本推估以台灣港群靠港結構與碳排統計為基礎{{c:iMarine 台灣數據統計}}{{c:台灣港群碳排統計}}。' }
+  ]
+};
+var globalChecked = {};   /* 綜合對話的來源勾選狀態（跨切換保留），key = 來源名稱 */
+var globalUnion = [];     /* 最近一次建立的來源聯集（含編號） */
+
+/* 每條 brief 的「這份報告當時由誰生成」meta（切換 LLM 只影響下一次生成/回答） */
+DATA.forEach(function (b) { b.gen = { model: MODEL.local, time: b.time }; b.used = {}; });
+
+var cur = DATA[0];
+var llm = 'local';
+var generating = false;   /* 報告重生成中 */
+var answering = false;    /* 追問回答中 */
+var genTimers = [];
+
+var $ = function (s) { return document.querySelector(s); };
+var inboxList = $('#inboxList'), rTitle = $('#rTitle'),
+    thread = $('#thread'), qchips = $('#qchips'), qinput = $('#qinput'), qsend = $('#qsend'),
+    genBtn = $('#genBtn'), gFill = $('#gFill'), gVal = $('#gVal'), gNote = $('#gNote'),
+    srcList = $('#srcList'), srcCount = $('#srcCount');
+
+function dotColor(b) {
+  if (b.type === 'policy') return 'var(--cyan)';
+  if (b.type === 'daily') return 'var(--teal)';
+  return b.severity === 'high' ? 'var(--rose)' : 'var(--amber)';
+}
+function typeName(b) {
+  return b.type === 'policy' ? '政策' : b.type === 'daily' ? '日報' : '突發';
+}
+function nowStr() {
+  var d = new Date();
+  return '今日 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+/* ── 左欄收件匣 ── */
+function renderInbox() {
+  inboxList.innerHTML =
+    '<button class="ib gib' + (cur.id === 'global' ? ' on' : '') + '" role="listitem" data-id="global"' +
+    ' title="跨全部情報來源直接提問"><i class="idot"></i><span>綜合對話 · 全部來源</span></button>' +
+    '<hr class="ibsep">' +
+    DATA.map(function (b) {
+      return '<button class="ib' + (b.id === cur.id ? ' on' : '') + (b.fresh ? ' slidein' : '') +
+        '" role="listitem" data-id="' + b.id +
+        '" title="' + typeName(b) + ' · ' + b.time + '"><i class="idot" style="--c:' + dotColor(b) + '"></i><span>' + b.title + '</span>' +
+        (b.unread ? '<i class="udot" aria-label="未讀"></i>' : '') + '</button>';
+    }).join('');
+  DATA.forEach(function (b) { b.fresh = false; }); /* 滑入動畫只播一次 */
+}
+inboxList.addEventListener('click', function (e) {
+  var btn = e.target.closest('.ib');
+  if (btn) select(btn.getAttribute('data-id'));
+});
+
+/* ── 模擬情報流入：池內依序流入；用畢下一次點擊重置並重新開始（demo 可重複） ── */
+var POOL = [NEWBRIEF, NEWBRIEF2];
+var flowIdx = 0;
+function flowIn() {
+  if (flowIdx >= POOL.length) {
+    /* 池用畢：移除已流入條目重置，並立刻重新流入第一條 */
+    var removedCur = POOL.some(function (p) { return p.id === cur.id; });
+    POOL.forEach(function (p) {
+      var i = DATA.indexOf(p);
+      if (i >= 0) DATA.splice(i, 1);
+    });
+    flowIdx = 0;
+    if (removedCur) { select(DATA[0].id); }
+    if (cur.id === 'global') updateGlobalPanels();
+  }
+  var nb = POOL[flowIdx++];
+  nb.gen = { model: MODEL.local, time: nb.time };
+  nb.used = {};
+  nb.unread = true;
+  nb.fresh = !RM;
+  DATA.unshift(nb);
+  renderInbox();
+  if (cur.id === 'global') updateGlobalPanels(); /* 知識庫模式下同步來源聯集，不動對話串 */
+  LiquidGlass.toast({
+    title: '偵測到新事件',
+    message: nb.title + ' · 信心度 ' + nb.confidence + '% · 已自動生成決策建議',
+    duration: 4200
+  });
+}
+document.getElementById('simBtn').addEventListener('click', flowIn);
+/* 進頁 ~9 秒自動流入第一條（若簡報者尚未手動觸發過） */
+setTimeout(function () { if (flowIdx === 0) flowIn(); }, 9000);
+
+/* ── 報告內容（產出卡內文，三類專屬版型） ── */
+function bodyHtml(b) {
+  if (b.type === 'incident') {
+    var h = '<h3>一、事件摘要</h3><p>' + b.summary + '</p>' +
+      '<h3>二、歷史相似案例</h3><div class="cases' + (b.cases.length === 1 ? ' one' : '') + '">' +
+      b.cases.map(function (c) {
+        return '<div class="case"><b>' + c.title + '</b><span class="dur">' + c.duration + '</span>' +
+          '<p><span class="k">處置</span> ' + c.action + '<br><span class="k">成效</span> ' + c.outcome +
+          '<span class="cite" data-src="' + c.cite + '">' + c.cite + '</span></p></div>';
+      }).join('') + '</div>';
+    var n = 3;
+    if (b.impact) { h += '<h3>三、對高雄港影響評估</h3><p>' + b.impact + '</p>'; n = 4; }
+    h += '<h3>' + ['一', '二', '三', '四'][n - 1] + '、建議行動</h3><ol>' +
+      b.actions.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ol>';
+    return h;
+  }
+  if (b.type === 'policy') {
+    return b.sections.map(function (s) { return '<h3>' + s.heading + '</h3><p>' + s.html + '</p>'; }).join('');
+  }
+  return '<ol class="ditems">' +
+    b.items.map(function (it) {
+      return '<li>' + it.text + '<span class="cite" data-src="' + it.cite + '">' + it.cite + '</span></li>';
+    }).join('') + '</ol>' +
+    '<div class="watch"><span class="wlbl">→ 建議關注</span>' +
+    (b.watch.goto ? '<button class="wlink" data-goto="' + b.watch.goto + '">' + b.watch.text + '</button>'
+                  : '<span>' + b.watch.text + '</span>') + '</div>';
+}
+function reportLabel(b) {
+  return b.type === 'incident' ? '結構化產出 · 決策建議報告'
+       : b.type === 'daily' ? '結構化產出 · 每日晨報' : '結構化產出 · 政策評估報告';
+}
+
+/* ── 對話串 ── */
+function scrollThread() { thread.scrollTop = thread.scrollHeight; }
+
+function renderThread(b) {
+  thread.innerHTML =
+    '<div class="msg ai reportcard"><div class="mhead"><i></i>' + reportLabel(b) + '</div>' +
+    '<div id="reportBody">' + bodyHtml(b) + '</div></div>';
+  bindCites(thread);
+  bindWlink();
+  renderChips(b);
+  qinput.value = '';
+}
+function bindWlink() {
+  var w = thread.querySelector('.wlink');
+  if (w) w.addEventListener('click', function () { select(w.getAttribute('data-goto')); });
+}
+function renderChips(b) {
+  qchips.innerHTML = b.qa.map(function (p, i) {
+    return b.used[i] ? '' : '<button class="qchip" data-qi="' + i + '">' + p.q + '</button>';
+  }).join('');
+}
+qchips.addEventListener('click', function (e) {
+  var c = e.target.closest('.qchip');
+  if (!c) return;
+  var qi = +c.getAttribute('data-qi');
+  var pair = cur.qa[qi];
+  /* 綜合對話：送出當下才把 {{c:名稱}} 解析成當前聯集編號 */
+  if (cur.id === 'global') pair = { q: pair.q, a: resolveTokens(pair.a) };
+  ask(pair, qi);
+});
+
+/* 引用 hover 連動 + 點擊跳轉右欄來源（報告卡與回答氣泡共用） */
+function bindCites(root) {
+  root.querySelectorAll('.cite').forEach(function (c) {
+    if (c._bound) return;
+    c._bound = true;
+    var no = c.getAttribute('data-src');
+    var row = function () { return srcList.querySelector('.srcrow[data-no="' + no + '"]'); };
+    /* 綜合對話：目標來源可能在收合群組內——hover 高亮其群組標頭、點擊先展開再捲動 */
+    var ghead = function () {
+      var s = globalUnion.find(function (x) { return x.no === +no; });
+      return s ? srcList.querySelector('.sghead[data-cat="' + s.cat + '"]') : null;
+    };
+    c.addEventListener('mouseenter', function () {
+      var r = row();
+      if (r) { r.classList.add('hl'); return; }
+      if (cur.id === 'global') { var h = ghead(); if (h) h.classList.add('hl'); }
+    });
+    c.addEventListener('mouseleave', function () {
+      var r = row(); if (r) r.classList.remove('hl');
+      if (cur.id === 'global') { var h = ghead(); if (h) h.classList.remove('hl'); }
+    });
+    c.addEventListener('click', function () {
+      var r = row();
+      if (!r && cur.id === 'global') {
+        var s = globalUnion.find(function (x) { return x.no === +no; });
+        if (!s) return;
+        expandedCats[s.cat] = true; /* 自動展開目標群組 */
+        srcQuery = '';
+        renderUnionSources();
+        r = row();
+      }
+      if (!r) return;
+      r.scrollIntoView({ behavior: RM ? 'auto' : 'smooth', block: 'nearest' });
+      r.classList.add('hl');
+      setTimeout(function () { r.classList.remove('hl'); }, 2000);
+    });
+  });
+}
+
+/* ── 追問（chips 走劇本；自由輸入給誠實的示範說明） ── */
+function ask(pair, qi) {
+  if (answering || generating) return;
+  var b = cur, model = MODEL[llm];
+  answering = true;
+  var uq = document.createElement('div');
+  uq.className = 'msg user';
+  uq.textContent = pair.q;
+  thread.appendChild(uq);
+  if (qi != null) { b.used[qi] = true; renderChips(b); }
+
+  var citeN = (pair.a.match(/data-src=/g) || []).length ? (function () {
+    var set = {}, re = /data-src="(\d+)"/g, m;
+    while ((m = re.exec(pair.a))) set[m[1]] = true;
+    return Object.keys(set).length;
+  })() : 0;
+
+  var finishAns = function () {
+    answering = false;
+    var think = thread.querySelector('.msg.thinking');
+    if (think) think.remove();
+    var am = document.createElement('div');
+    am.className = 'msg ai';
+    am.innerHTML = '<p>' + pair.a + '</p><div class="mfoot">' + model + ' · ' + nowStr().replace('今日 ', '') +
+      (citeN ? ' · 引用 ' + citeN + ' 筆' : '') + '</div>';
+    thread.appendChild(am);
+    bindCites(am);
+    scrollThread();
+  };
+
+  if (RM) { finishAns(); return; }
+
+  var think = document.createElement('div');
+  think.className = 'msg ai thinking';
+  think.innerHTML = '<i class="sdot"></i><span>檢索 iMarine 資料庫…</span>';
+  thread.appendChild(think);
+  scrollThread();
+  var ms = ANSMS[llm];
+  genTimers.push(setTimeout(function () {
+    var sp = think.querySelector('span');
+    if (sp) sp.textContent = '綜合回答與 Grounding 驗證…';
+  }, ms[0]));
+  genTimers.push(setTimeout(finishAns, ms[0] + ms[1]));
+}
+
+function sendFree() {
+  var t = qinput.value.trim();
+  if (!t || answering || generating) return;
+  qinput.value = '';
+  ask({
+    q: t,
+    a: '此為示範環境，自由輸入的問題將由正式版 LLM + RAG 依 iMarine 五類資料庫即時回答並附引用；您可先點選下方建議追問體驗完整流程。'
+  }, null);
+}
+qsend.addEventListener('click', sendFree);
+qinput.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendFree(); });
+
+/* ── 右欄 ── */
+/* Grounding 窄橫向 bar（中欄 meta 下方，低調呈現） */
+function renderGauge(b) {
+  var val, note;
+  if (b.id === 'global') {
+    /* 知識庫模式：全情報 Grounding 平均 */
+    val = Math.round(DATA.reduce(function (a, x) { return a + x.grounding; }, 0) / DATA.length);
+    note = '跨 ' + DATA.length + ' 條情報平均 · ' + globalUnion.length + ' 筆來源就緒';
+  } else {
+    val = b.grounding; note = b.groundingNote;
+  }
+  gVal.textContent = val + '%';
+  gNote.textContent = note;
+  if (RM) { gFill.style.width = val + '%'; return; }
+  gFill.style.width = '0%';
+  requestAnimationFrame(function () { requestAnimationFrame(function () { gFill.style.width = val + '%'; }); });
+}
+function srcRowHtml(s, key) {
+  return '<div class="srcrow' + (s.checked ? '' : ' off') + '" data-no="' + s.no + '">' +
+    '<input type="checkbox" class="schk" ' + key + '' + (s.checked ? ' checked' : '') +
+    ' aria-label="' + s.name + ' 參與生成">' +
+    '<span class="no">[' + s.no + ']</span>' +
+    '<div><span class="sname">' + s.name + '</span>' + (s.checked ? '' : '<span class="skip">未參與</span>') +
+    '<div class="meta">' + s.cat + ' · ' + s.date + '</div></div></div>';
+}
+
+function renderSources(b) {
+  if (b.id === 'global') { renderUnionSources(); return; }
+  srcCount.textContent = b.sources.length;
+  srcList.innerHTML = b.sources.map(function (s, i) { return srcRowHtml(s, 'data-i="' + i + '"'); }).join('');
+  srcList.querySelectorAll('.schk').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      var s = cur.sources[+chk.getAttribute('data-i')];
+      s.checked = chk.checked;
+      renderSources(cur); /* 灰列/未參與標記即時更新；meta 統計待下次生成 */
+    });
+  });
+}
+
+/* ── 綜合對話：來源分組摺疊（iMarine 五類）＋ 群組勾選 ＋ 搜尋 ── */
+var CATS = ['海運焦點新聞', '全球航運指數', '台灣數據統計', '航港法令', '替代能源專區'];
+var expandedCats = {};
+var srcQuery = '';
+function setUnionChecked(s, on) {
+  s.checked = on;
+  globalChecked[s.name] = on; /* 跨切換保留 */
+}
+function renderUnionSources() {
+  srcCount.textContent = globalUnion.length;
+  var q = srcQuery.trim();
+  var html = '<input class="ssearch" id="ssearch" type="text" placeholder="搜尋來源名稱…" value="' +
+    srcQuery.replace(/"/g, '&quot;') + '" aria-label="搜尋來源">';
+  CATS.forEach(function (cat) {
+    var all = globalUnion.filter(function (s) { return s.cat === cat; });
+    if (!all.length) return;
+    var hits = q ? all.filter(function (s) { return s.name.indexOf(q) >= 0; }) : all;
+    if (q && !hits.length) return; /* 搜尋時隱藏無命中的群組 */
+    var open = q ? true : !!expandedCats[cat]; /* 搜尋時自動展開命中群組 */
+    var checkedN = all.filter(function (s) { return s.checked; }).length;
+    html += '<div class="sgroup"><div class="sghead" data-cat="' + cat + '">' +
+      '<input type="checkbox" class="gchk" data-cat="' + cat + '"' +
+      (checkedN === all.length ? ' checked' : '') + ' aria-label="' + cat + ' 全選">' +
+      '<span class="caret' + (open ? ' open' : '') + '">▶</span>' +
+      '<span class="gname">' + cat + '</span><span class="gcnt">' + checkedN + '/' + all.length + '</span>' +
+      '</div>' +
+      (open ? '<div class="sgbody">' + hits.map(function (s) { return srcRowHtml(s, 'data-no-chk="' + s.no + '"'); }).join('') + '</div>' : '') +
+      '</div>';
+  });
+  srcList.innerHTML = html;
+  /* 半選狀態（部分勾選）需以 property 設定 */
+  srcList.querySelectorAll('.gchk').forEach(function (g) {
+    var cat = g.getAttribute('data-cat');
+    var all = globalUnion.filter(function (s) { return s.cat === cat; });
+    var n = all.filter(function (s) { return s.checked; }).length;
+    g.indeterminate = n > 0 && n < all.length;
+    g.addEventListener('change', function () {
+      all.forEach(function (s) { setUnionChecked(s, g.checked); });
+      renderUnionSources();
+    });
+  });
+  /* 群組標頭點擊展開/收合（點勾選框不觸發） */
+  srcList.querySelectorAll('.sghead').forEach(function (h) {
+    h.addEventListener('click', function (e) {
+      if (e.target.classList.contains('gchk')) return;
+      var cat = h.getAttribute('data-cat');
+      expandedCats[cat] = !expandedCats[cat];
+      renderUnionSources();
+    });
+  });
+  /* 單筆勾選 */
+  srcList.querySelectorAll('.schk').forEach(function (chk) {
+    var no = chk.getAttribute('data-no-chk');
+    if (no == null) return;
+    chk.addEventListener('change', function () {
+      var s = globalUnion.find(function (x) { return x.no === +no; });
+      if (!s) return;
+      setUnionChecked(s, chk.checked);
+      renderUnionSources();
+    });
+  });
+  /* 搜尋（重繪後還原焦點與游標位置） */
+  var se = document.getElementById('ssearch');
+  se.addEventListener('input', function () {
+    srcQuery = se.value;
+    renderUnionSources();
+    var el = document.getElementById('ssearch');
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  });
+}
+
+/* ── 綜合對話：來源聯集（依收件匣順序去重）＋ cite 佔位解析 ── */
+function buildUnion() {
+  var seen = {}, list = [];
+  DATA.forEach(function (b) {
+    b.sources.forEach(function (s) {
+      if (seen[s.name]) return;
+      seen[s.name] = true;
+      list.push({
+        no: list.length + 1, name: s.name, cat: s.cat, date: s.date,
+        checked: globalChecked[s.name] !== undefined ? globalChecked[s.name] : true
+      });
+    });
+  });
+  globalUnion = list;
+  return list;
+}
+/* 綜合回答的 {{c:來源名稱}} 佔位 → 依當前聯集編號解析成 cite span（送出當下解析，編號永遠正確） */
+function resolveTokens(html) {
+  return html.replace(/\{\{c:([^}]+)\}\}/g, function (_, name) {
+    var s = globalUnion.find(function (x) { return x.name === name; });
+    return s ? '<span class="cite" data-src="' + s.no + '">' + s.no + '</span>' : '';
+  });
+}
+function catCounts(list) {
+  var m = {};
+  list.forEach(function (s) { m[s.cat] = (m[s.cat] || 0) + 1; });
+  return Object.keys(m).map(function (k) { return k + ' ' + m[k]; }).join(' · ');
+}
+function updateGlobalPanels() { /* 流入/勾選後同步右欄與 meta，不動對話串 */
+  buildUnion();
+  renderGauge(GLOBAL);
+  renderSources(GLOBAL);
+}
+
+/* ── 條目切換（現成報告直接顯示，不播生成動畫；global 進知識庫模式） ── */
+function select(id) {
+  if (id === 'global') {
+    cancelGen();
+    cur = GLOBAL;
+    renderInbox();
+    rTitle.textContent = '綜合對話 — 跨情報知識庫';
+    genBtn.style.display = 'none'; /* 知識庫模式無單一報告可重生成 */
+    buildUnion();
+    thread.innerHTML =
+      '<div class="msg ai reportcard"><div class="mhead"><i></i>知識庫總覽</div>' +
+      '<p style="margin:0;color:var(--ink-60);font-size:13.5px">已就緒 ' + DATA.length + ' 條情報、' +
+      globalUnion.length + ' 筆來源文件（' + catCounts(globalUnion) + '）。' +
+      '可勾選右欄來源後直接提問，回答皆附引用；也可點下方建議提問開始。</p></div>';
+    renderChips(GLOBAL);
+    qinput.value = '';
+    renderGauge(GLOBAL);
+    renderSources(GLOBAL);
+    return;
+  }
+  var b = DATA.find(function (x) { return x.id === id; });
+  if (!b) return;
+  cancelGen();
+  cur = b;
+  b.unread = false; /* 點開即讀 */
+  genBtn.style.display = '';
+  renderInbox();
+  rTitle.textContent = b.title + (b.type === 'incident' ? ' — 決策建議報告' : '');
+  renderThread(b);
+  renderGauge(b);
+  renderSources(b);
+}
+
+/* ── 報告重生成（步驟動畫在產出卡內原位播放） ── */
+function cancelGen() {
+  genTimers.forEach(clearTimeout); genTimers = [];
+  generating = false;
+  answering = false;
+  genBtn.textContent = '重新生成';
+}
+function stepHtml(texts, state) {
+  return '<div id="steps">' + texts.map(function (t, i) {
+    var cls = i < state ? 'done' : i === state ? 'run' : '';
+    return '<div class="step ' + cls + '"><i class="sdot"></i><span>' + t + '</span></div>';
+  }).join('') + '</div>';
+}
+
+genBtn.addEventListener('click', function () {
+  if (generating || answering || cur.id === 'global') return; /* 生成中不可重入；知識庫模式無重生成 */
+  var b = cur, useLlm = llm, model = MODEL[useLlm];
+  var checked = b.sources.filter(function (s) { return s.checked; });
+  var card = thread.querySelector('.reportcard');
+  var body = function () { return document.getElementById('reportBody'); };
+
+  var finish = function () {
+    generating = false;
+    genBtn.textContent = '重新生成';
+    b.gen = { model: model, time: nowStr() };
+    body().innerHTML = bodyHtml(b);
+    if (!RM) {
+      var kids = body().children;
+      for (var i = 0; i < kids.length; i++) {
+        kids[i].classList.add('genin');
+        kids[i].style.setProperty('--gd', (i * 0.09).toFixed(2) + 's');
+      }
+    }
+    bindCites(card);
+    bindWlink();
+    LiquidGlass.toast({ title: '報告已生成', message: b.groundingNote + ' · Grounding ' + b.grounding + '%', duration: 3600 });
+  };
+
+  if (RM) { finish(); return; } /* reduced-motion：跳過步驟動畫直通結果 */
+
+  generating = true;
+  genBtn.textContent = '生成中…';
+
+  var texts = [
+    '解讀議題：' + b.title,
+    '檢索 iMarine 資料庫 · 命中 ' + b.retrieved + ' 筆',
+    '閱讀來源（0/' + checked.length + '）',
+    '綜合草稿與 Grounding 驗證'
+  ];
+  var ms = STEPMS[useLlm];
+  body().innerHTML = stepHtml(texts, 0);
+  var redraw = function (state) { var el = body(); if (el) el.innerHTML = stepHtml(texts, state); };
+
+  var t = ms[0];
+  genTimers.push(setTimeout(function () { redraw(1); }, t));
+  t += ms[1];
+  genTimers.push(setTimeout(function () { redraw(2); }, t));
+  var per = ms[2] / Math.max(checked.length, 1);
+  checked.forEach(function (s, i) {
+    genTimers.push(setTimeout(function () {
+      texts[2] = '閱讀來源：' + s.name + '（' + (i + 1) + '/' + checked.length + '）';
+      redraw(2);
+    }, t + per * i));
+  });
+  t += ms[2];
+  genTimers.push(setTimeout(function () {
+    texts[2] = '閱讀來源 ' + checked.length + ' 筆完成';
+    redraw(3);
+  }, t));
+  t += ms[3];
+  genTimers.push(setTimeout(finish, t));
+});
+
+/* ── LLM 接口切換（只影響下一次生成/回答） ── */
+document.querySelectorAll('.lbtn').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    if (btn.classList.contains('on')) return;
+    document.querySelectorAll('.lbtn').forEach(function (x) { x.classList.remove('on'); });
+    btn.classList.add('on');
+    llm = btn.getAttribute('data-llm');
+    LiquidGlass.toast({
+      title: '已切換 LLM 接口',
+      message: (llm === 'local' ? '地端部署（' + MODEL.local + '）' : '雲端 API（' + MODEL.cloud + '）') + '，下次生成生效',
+      duration: 3200
+    });
+  });
+});
+
+/* ── 開機 ── */
+if (window.LiquidGlass && window.LiquidGlass.init) window.LiquidGlass.init();
+select(DATA[0].id);
+</script>
