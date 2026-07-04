@@ -2,7 +2,7 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Policy 頁改版 Task 7（綜合對話知識庫模式：聯集+分組摺疊+搜尋+{{c}} 解析）實作完成，分支 policy-redesign
+最後更新：2026-07-05 Policy 頁改版 Task 8（全站驗收 + 文件收尾）完成，8 個 task 全數完成，分支 policy-redesign 待整支複審
 
 ---
 
@@ -114,6 +114,49 @@
   Task 5 已知邊界情況——條目回答思考氣泡進行中切到「綜合對話」，`thread.innerHTML` 完整覆蓋
   無殘留思考氣泡、且原 timeline 被 `cancelTimers()` 真正取消不會延遲洩漏回答氣泡；
   console 全程乾淨。**六大功能 task（4-7）全數完成，Policy 頁改版剩 Task 8 全站驗收。**
+- **Task 8 完成（全站驗收 + 文件收尾，分支 `policy-redesign`）：Policy 頁改版 8 個 task 全部完成。**
+  未改動任何程式碼，純驗收：
+  - **三綠燈**：`npx tsc --noEmit` 0 errors；`npx vitest run` 7 個測試檔 21 tests 全綠；
+    `npm run build` 成功（173 modules，3.67s，既有 chunk-size 警告與本次無關）。
+  - **spec §10 逐項驗收（1-9）**：MCP 瀏覽器（chrome-devtools/playwright）profile 仍被鎖，沿用
+    Task 4-7 手法——獨立 headless Chrome（`--remote-debugging-port=9455` + 專屬 user-data-dir +
+    SwiftShader flags）+ 四支自寫 CDP 腳本（Node + `ws`），共 106 項斷言全數通過：
+    (1) 三條主秀劇本迴歸——紅海 4 區塊+雙案例卡、重新生成四步動畫（地端 7.8s 內完成含前置
+    delay、雲端更快）+ stagger + toast；NZF 五段文案 + cite hover/click 連動右欄；07-04 晨報
+    建議關注 goto → 正確跳轉 NZF。(2) LLM 切換：chip 互斥、toast、雲端/地端生成與回答計時差異、
+    切換後不覆寫已顯示回答的 footer 模型名。(3) 來源勾選：checkbox 預設 `opacity:0`（hover
+    才浮現，CSS 層級，不影響功能）、取消勾選→灰列「未參與」、重新生成閱讀計數隨勾選數變化。
+    (4) 追問對話：chip→使用者氣泡→兩拍思考氣泡→回答氣泡（cite+footer 模型/時間/引用數）、
+    chip 用畢跨切換記憶、自由輸入誠實示範說明、不可重入、生成/回答中切條目正確取消不洩漏。
+    (5) 模擬情報流入：**首次全流程跑在單一長壽命 session 內時，因中途各項生成/回答動畫耗時
+    加總已超過 9 秒，9 秒自動流入會提前於手動點擊插入，導致池計數表面「錯位」**——另補一支
+    獨立腳本用全新分頁乾淨重測，確認：模擬偵測 3 連擊＝巴拿馬→馬六甲→池用盡重置回收（正確
+    無誤，含未讀點/toast/不搶選中）、9 秒閒置自動流入（僅觸發一次）、離開頁面 9 秒內不跳
+    policy toast 且收件匣不變——12/12 全通過，證實(1)的「錯位」是測試手法問題而非程式缺陷。
+    (6) 綜合對話：知識庫模式（genBtn 隱藏/總覽卡/聯集去重編號/平均 Grounding）、五類分組摺疊
+    三態勾選、搜尋過濾自動展開、跨情報 chip 回答 cite 正確映射聯集編號、收合群組 cite 點擊
+    自動展開+捲動/hover 高亮群組標頭、流入時聯集同步擴充且對話串不重置、切回一般條目
+    genBtn 恢復、勾選狀態跨切換保留。(7) 全部 8 筆收件匣入口（7 briefs + 綜合對話）逐一點擊
+    右欄同步、console 全程零錯誤。
+  - **鍵盤導覽迴歸**：`#qinput` focus 後以 CDP `Input.dispatchKeyEvent` 送出真實鍵盤事件輸入
+    `1`-`6`，六碼正確落入欄位且 `location.hash` 全程未變；對照組確認同碼在非輸入框情境下
+    仍正常觸發全站導覽（`main.ts` 既有的 `INPUT/TEXTAREA/SELECT/isContentEditable` bail-out
+    確認涵蓋本頁新輸入框，無需改動）。
+  - **`prefers-reduced-motion: reduce` 驗證**（CDP `Emulation.setEmulatedMedia`）：13 項全過——
+    選條目無淡入即完整顯示、重新生成無四步動畫直接出結果+toast、追問無思考氣泡直接出答案、
+    模擬流入條目無 slidein class 直接出現（未讀點仍標示，脈動效果屬 CSS 動畫由 media query
+    抑制，class 層級無法量測但已確認邏輯路徑正確跳過）、Grounding bar 兩種模式皆直接設值非
+    0%，內容皆完整非空白。
+  - **7 頁全站迴歸**：hero→carbon（PoC 後端剛好在線，LIVE 資料）→policy→twin（原生 WebGL 3D
+    場景截圖確認真實渲染，非空白/未拋錯）→dispatch→epidemic→alert→回 hero，全程 `.screen.active`
+    正確切換、console 零新增錯誤。
+  - **殘留/未盡事項**：無阻斷性殘留；驗收過程發現的「模擬流入計數錯位」純屬第一支驗收腳本的
+    測試手法瑕疵（沿用同一活頁跑滿全部項目導致背景 9 秒計時器提前觸發），已用獨立分頁重測
+    排除疑慮，不影響任何交付程式碼。完整逐項證據（含截圖）見
+    `.superpowers/sdd/task-8-report.md`（scratch，未進版控）。
+  - **Policy 頁改版 8 個 task（TDD generate.ts → 契約+mock JSON → components.ts 微調 → 三欄
+    骨架+版型 → 對話串 → 生成動畫+情報流入 → 綜合對話 → 全站驗收）全部完成，分支
+    `policy-redesign` 待使用者實機驗收 + 決定整支複審/合併方式。**
 
 **（以下為已完成的前一輪工作）**
 
