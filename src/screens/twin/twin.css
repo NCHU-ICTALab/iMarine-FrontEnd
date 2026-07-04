@@ -1,0 +1,90 @@
+/* Twin 頁專屬版面（雙分頁戰情室）。玻璃效果一律 Kit（data-lg / lg-static），
+   本檔只寫定位/排版/配色；#s-twin scope 確保不外漏。 */
+#s-twin .full{position:absolute;inset:0;}
+#s-twin #twinView{position:absolute;inset:0;width:100%;height:100%;display:block;background:#08111c;}
+
+#s-twin .viewbar{position:absolute;left:104px;top:22px;z-index:7;display:flex;gap:6px;padding:6px;border-radius:14px;}
+#s-twin .vbtn{font-size:11.5px;padding:5px 14px;border-radius:10px;border:1px solid transparent;cursor:pointer;
+  background:transparent;color:var(--ink-60);font-family:inherit;transition:.2s;}
+#s-twin .vbtn:hover{color:var(--ink-90);}
+#s-twin .vbtn.on{color:#7FB4FF;border-color:rgba(127,180,255,.4);background:rgba(127,180,255,.08);}
+#s-twin .vbtn:focus-visible{outline:2px solid #7FB4FF;outline-offset:2px;}
+
+#s-twin .tabsbar{position:absolute;right:22px;top:22px;z-index:7;display:flex;gap:6px;padding:6px;border-radius:14px;}
+#s-twin .mtab{font-size:12px;padding:6px 18px;border-radius:10px;border:1px solid transparent;cursor:pointer;
+  background:transparent;color:var(--ink-60);font-family:inherit;letter-spacing:.04em;transition:.2s;}
+#s-twin .mtab:hover{color:var(--ink-90);}
+#s-twin .mtab.on{color:#7FB4FF;border-color:rgba(127,180,255,.4);background:rgba(127,180,255,.08);}
+#s-twin .mtab:focus-visible{outline:2px solid #7FB4FF;outline-offset:2px;}
+
+#s-twin .trail{position:absolute;right:22px;top:74px;bottom:96px;width:300px;z-index:6;
+  display:flex;flex-direction:column;gap:12px;overflow-y:auto;scrollbar-width:none;}
+#s-twin .trail::-webkit-scrollbar{display:none;}
+#s-twin .trail>.panel{flex:none;}
+#s-twin .panel h4 .tag{margin-left:auto;font-size:9.5px;font-family:var(--mono);letter-spacing:.08em;
+  color:var(--ink-40);border:1px solid var(--hair);border-radius:999px;padding:1px 8px;}
+
+/* 分頁面板顯示切換（body[data-tmode] 由 index.ts 維護） */
+#s-twin [data-mode-panel]{display:none;}
+body[data-tmode="replay"] #s-twin [data-mode-panel="replay"]{display:block;}
+body[data-tmode="future"] #s-twin [data-mode-panel="future"]{display:block;}
+
+/* 船型篩選（兩欄；勾選列＝圖例） */
+#s-twin #railFilters{display:grid;grid-template-columns:1fr 1fr;column-gap:14px;}
+#s-twin .frow{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0;cursor:pointer;color:var(--ink-90);}
+#s-twin .frow .cdot{width:10px;height:10px;border-radius:50%;flex:none;}
+#s-twin .frow .cnt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-40);font-variant-numeric:tabular-nums;}
+#s-twin .frow input{appearance:none;width:15px;height:15px;margin:0;border-radius:5px;border:1px solid rgba(255,255,255,.25);
+  background:transparent;cursor:pointer;position:relative;flex:none;transition:.15s;}
+#s-twin .frow input:checked{background:rgba(127,180,255,.25);border-color:#7FB4FF;}
+#s-twin .frow input:checked::after{content:'';position:absolute;inset:3px;border-radius:2px;background:#7FB4FF;}
+#s-twin .frow input:focus-visible{outline:2px solid #7FB4FF;outline-offset:2px;}
+#s-twin .densrow{margin-top:8px;padding-top:9px;border-top:1px solid var(--hair);}
+#s-twin .cdot-dens{background:linear-gradient(90deg,#35E0A6,#F5A54A,#F0648C);}
+
+/* 在港趨勢 */
+#s-twin #trend{width:100%;height:110px;display:block;}
+#s-twin .tread{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);
+  color:var(--ink-40);margin-top:6px;font-variant-numeric:tabular-nums;}
+#s-twin .tread b{color:#7FB4FF;font-weight:600;}
+
+/* 情境切換（.scn 樣式沿用 tokens.css 既有規則；此處只排版） */
+#s-twin .scnrow{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* 泊位甘特（.gantt/.grow_/.gtrack/.gbar/.gaxis 沿用 tokens.css 既有規則） */
+#s-twin .gaxis{padding-left:32px;}
+#s-twin #gnow{position:absolute;top:-2px;bottom:-2px;width:1.5px;background:var(--lg-accent);
+  box-shadow:0 0 6px var(--lg-accent);left:32px;transition:left .1s linear;pointer-events:none;z-index:1;}
+
+/* KPI 在港船數 */
+#s-twin .kpirow{display:flex;align-items:baseline;gap:10px;}
+#s-twin #kpiCount{font-family:var(--mono);font-size:30px;font-weight:600;color:var(--ink-90);font-variant-numeric:tabular-nums;}
+#s-twin .kpirow .unit{font-size:12px;color:var(--ink-40);}
+#s-twin .kpinote{margin:6px 0 0;font-size:11px;color:var(--ink-40);line-height:1.7;}
+#s-twin .kpinote b{color:var(--lg-accent);font-weight:600;}
+
+/* 底部時間軸（取代 tokens.css 舊 .tline 的 left/right，其餘沿用） */
+#s-twin .tline{position:absolute;left:104px;bottom:22px;right:346px;padding:12px 18px;border-radius:16px;z-index:6;}
+#s-twin .tline .lab{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);
+  letter-spacing:.04em;color:var(--ink-40);margin-bottom:8px;font-variant-numeric:tabular-nums;}
+#s-twin .tline .lab #tclock{color:var(--ink-60);}
+#s-twin .trow2{display:flex;align-items:center;gap:12px;}
+#s-twin .mstep{display:flex;align-items:center;gap:2px;border:1px solid var(--hair);border-radius:10px;padding:2px 4px;}
+#s-twin .mstep button{width:22px;height:22px;border:0;background:transparent;color:var(--ink-60);cursor:pointer;
+  font-size:14px;font-family:var(--mono);border-radius:6px;line-height:1;}
+#s-twin .mstep button:hover{color:var(--ink-90);background:rgba(255,255,255,.06);}
+#s-twin .mstep span{font-family:var(--mono);font-size:11px;color:var(--ink-60);min-width:26px;text-align:center;font-variant-numeric:tabular-nums;}
+#s-twin #play{width:30px;height:30px;border-radius:10px;border:1px solid var(--hair);background:rgba(255,255,255,.04);
+  color:var(--ink-90);cursor:pointer;font-size:12px;line-height:1;transition:.2s;flex:none;}
+#s-twin #play:hover{border-color:rgba(127,180,255,.45);color:#7FB4FF;}
+#s-twin #play:focus-visible{outline:2px solid #7FB4FF;outline-offset:2px;}
+#s-twin .lg-slider{flex:1;}
+#s-twin .lg-slider .lg-slider__input{width:100%;}
+
+/* 點船資訊 chip（.lg.lg-static 玻璃；fixed 定位需逃出 section 排版流，
+   selector 用全域唯一 id 即已足夠 scope） */
+#shipchip{position:fixed;z-index:12;pointer-events:none;padding:8px 12px;border-radius:12px;
+  font-size:11.5px;line-height:1.6;color:var(--ink-90);transform:translate(-50%,calc(-100% - 14px));}
+#shipchip b{font-size:12.5px;display:block;}
+#shipchip .row{display:flex;gap:8px;color:var(--ink-60);font-family:var(--mono);font-size:10.5px;}
+#shipchip .row i{width:8px;height:8px;border-radius:50%;align-self:center;}
