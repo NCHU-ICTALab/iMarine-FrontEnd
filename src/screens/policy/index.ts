@@ -103,7 +103,12 @@ function flowIn(): void {
     duration: 4200,
   });
 }
-function updateAfterInflow(): void { /* Task 7 實作（global 模式同步右欄與 gbar） */ }
+function updateAfterInflow(): void {
+  if (curId !== 'global') return;
+  buildUnion(); // 對話串不重置，只同步右欄與 gbar
+  renderGbar(avgGrounding(), `跨 ${briefs.length} 條情報平均 · ${globalUnion.length} 筆來源就緒`);
+  renderUnionSources();
+}
 
 /* ── 三類版型（產出卡內文） ── */
 function bodyHtml(b: PolicyBrief): string {
@@ -167,21 +172,142 @@ function renderSources(b: PolicyBrief): void {
   });
 }
 
-/* ── 引用連動（hover 高亮 + 點擊捲動；global 群組擴充見 Task 7） ── */
+/* ── 綜合對話（知識庫模式）：來源聯集 + 分組摺疊 + {{c:名稱}} 解析 ── */
+const CATS = ['海運焦點新聞', '全球航運指數', '台灣數據統計', '航港法令', '替代能源專區'];
+let globalUnion: PolicySource[] = [];
+const globalChecked = new Map<string, boolean>(); // key=來源名稱，跨切換保留
+const expandedCats = new Set<string>();
+let srcQuery = '';
+
+function buildUnion(): void {
+  const seen = new Set<string>();
+  const list: PolicySource[] = [];
+  for (const b of briefs) {
+    for (const src of b.sources) {
+      if (seen.has(src.name)) continue;
+      seen.add(src.name);
+      list.push({
+        no: list.length + 1, name: src.name, cat: src.cat, date: src.date,
+        checked: globalChecked.get(src.name) ?? true,
+      });
+    }
+  }
+  globalUnion = list;
+}
+function resolveTokens(html: string): string {
+  return html.replace(/\{\{c:([^}]+)\}\}/g, (_, name: string) => {
+    const s = globalUnion.find((x) => x.name === name);
+    return s ? `<span class="cite" data-src="${s.no}">${s.no}</span>` : '';
+  });
+}
+function catCounts(): string {
+  const m = new Map<string, number>();
+  for (const s of globalUnion) m.set(s.cat, (m.get(s.cat) ?? 0) + 1);
+  return [...m.entries()].map(([k, v]) => `${k} ${v}`).join(' · ');
+}
+function avgGrounding(): number {
+  return Math.round(briefs.reduce((a, b) => a + b.grounding, 0) / briefs.length);
+}
+
+/* ── 分組摺疊來源面板（global 模式；一般條目仍用上方平面 renderSources） ── */
+function setUnionChecked(s: PolicySource, on: boolean): void {
+  s.checked = on;
+  globalChecked.set(s.name, on);
+}
+function renderUnionSources(): void {
+  $('#srcCount').textContent = String(globalUnion.length);
+  const q = srcQuery.trim();
+  let html = `<input class="ssearch" id="ssearch" type="text" placeholder="搜尋來源名稱…"` +
+    ` value="${srcQuery.replace(/"/g, '&quot;')}" aria-label="搜尋來源">`;
+  for (const cat of CATS) {
+    const all = globalUnion.filter((s) => s.cat === cat);
+    if (!all.length) continue;
+    const hits = q ? all.filter((s) => s.name.includes(q)) : all;
+    if (q && !hits.length) continue; // 搜尋時隱藏無命中群組
+    const open = q ? true : expandedCats.has(cat); // 搜尋時自動展開命中群組
+    const checkedN = all.filter((s) => s.checked).length;
+    html += `<div class="sgroup"><div class="sghead" data-cat="${cat}">` +
+      `<input type="checkbox" class="gchk" data-cat="${cat}"${checkedN === all.length ? ' checked' : ''}` +
+      ` aria-label="${cat} 全選">` +
+      `<span class="caret${open ? ' open' : ''}">▶</span>` +
+      `<span class="gname">${cat}</span><span class="gcnt">${checkedN}/${all.length}</span></div>` +
+      (open ? `<div class="sgbody">${hits.map((s) => srcRowHtml(s, `data-no-chk="${s.no}"`)).join('')}</div>` : '') +
+      '</div>';
+  }
+  const list = $('#srcList');
+  list.innerHTML = html;
+  list.querySelectorAll<HTMLInputElement>('.gchk').forEach((g) => {
+    const cat = g.getAttribute('data-cat')!;
+    const all = globalUnion.filter((s) => s.cat === cat);
+    const n = all.filter((s) => s.checked).length;
+    g.indeterminate = n > 0 && n < all.length; // 半選需以 property 設定
+    g.addEventListener('change', () => {
+      all.forEach((s) => setUnionChecked(s, g.checked));
+      renderUnionSources();
+    });
+  });
+  list.querySelectorAll<HTMLElement>('.sghead').forEach((h) => {
+    h.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).classList.contains('gchk')) return;
+      const cat = h.getAttribute('data-cat')!;
+      if (expandedCats.has(cat)) expandedCats.delete(cat); else expandedCats.add(cat);
+      renderUnionSources();
+    });
+  });
+  list.querySelectorAll<HTMLInputElement>('.schk').forEach((chk) => {
+    const no = chk.getAttribute('data-no-chk');
+    if (no === null) return;
+    chk.addEventListener('change', () => {
+      const s = globalUnion.find((x) => x.no === Number(no));
+      if (!s) return;
+      setUnionChecked(s, chk.checked);
+      renderUnionSources();
+    });
+  });
+  const se = list.querySelector<HTMLInputElement>('#ssearch')!;
+  se.addEventListener('input', () => {
+    srcQuery = se.value;
+    renderUnionSources();
+    const el = list.querySelector<HTMLInputElement>('#ssearch')!; // 重繪後還原焦點與游標
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  });
+}
+
+/* ── 引用連動（hover 高亮 + 點擊捲動；global 收合群組擴充見下方） ── */
 function bindCites(root: HTMLElement): void {
   root.querySelectorAll<HTMLElement>('.cite').forEach((c) => {
     if ((c as HTMLElement & { _bound?: boolean })._bound) return;
     (c as HTMLElement & { _bound?: boolean })._bound = true;
     const no = c.getAttribute('data-src');
     const row = () => $('#srcList').querySelector<HTMLElement>(`.srcrow[data-no="${no}"]`);
-    c.addEventListener('mouseenter', () => row()?.classList.add('hl'));
-    c.addEventListener('mouseleave', () => row()?.classList.remove('hl'));
-    c.addEventListener('click', () => {
+    const ghead = () => {
+      const s = globalUnion.find((x) => x.no === Number(no));
+      return s ? $('#srcList').querySelector<HTMLElement>(`.sghead[data-cat="${s.cat}"]`) : null;
+    };
+    c.addEventListener('mouseenter', () => {
       const r = row();
+      if (r) { r.classList.add('hl'); return; }
+      if (curId === 'global') ghead()?.classList.add('hl'); // 收合中 → 高亮群組標頭
+    });
+    c.addEventListener('mouseleave', () => {
+      row()?.classList.remove('hl');
+      if (curId === 'global') ghead()?.classList.remove('hl');
+    });
+    c.addEventListener('click', () => {
+      let r = row();
+      if (!r && curId === 'global') {
+        const s = globalUnion.find((x) => x.no === Number(no));
+        if (!s) return;
+        expandedCats.add(s.cat); // 自動展開目標群組
+        srcQuery = '';
+        renderUnionSources();
+        r = row();
+      }
       if (!r) return;
       r.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'nearest' });
       r.classList.add('hl');
-      setTimeout(() => r.classList.remove('hl'), 2000);
+      setTimeout(() => r!.classList.remove('hl'), 2000);
     });
   });
 }
@@ -252,7 +378,7 @@ function ask(pair: PolicyQA, qi: number | null): void {
   );
 }
 function currentQa(): PolicyQA[] {
-  return briefById(curId)?.qa ?? []; // Task 7 擴充 global 分支
+  return curId === 'global' ? globalQa : (briefById(curId)?.qa ?? []);
 }
 function sendFree(): void {
   const input = $('#qinput') as HTMLInputElement;
@@ -339,8 +465,25 @@ function regenerate(): void {
 /* ── 條目切換 ── */
 function select(id: string): void {
   cancelTimers(); // 切條目取消進行中的回答/生成
+  if (id === 'global') {
+    curId = 'global';
+    renderInbox();
+    $('#rTitle').textContent = '綜合對話 — 跨情報知識庫';
+    ($('#genBtn') as HTMLElement).style.display = 'none'; // 知識庫模式無單一報告可重生成
+    buildUnion();
+    $('#thread').innerHTML =
+      `<div class="msg ai reportcard"><div class="mhead"><i></i>知識庫總覽</div>` +
+      `<p style="margin:0;color:var(--ink-60);font-size:13.5px">已就緒 ${briefs.length} 條情報、` +
+      `${globalUnion.length} 筆來源文件（${catCounts()}）。可勾選右欄來源後直接提問，回答皆附引用；` +
+      '也可點下方建議提問開始。</p></div>';
+    renderChips(globalQa, 'global');
+    ($('#qinput') as HTMLInputElement).value = '';
+    renderGbar(avgGrounding(), `跨 ${briefs.length} 條情報平均 · ${globalUnion.length} 筆來源就緒`);
+    renderUnionSources();
+    return;
+  }
   const b = briefById(id);
-  if (!b) return; // global 分支 Task 7 補
+  if (!b) return;
   curId = id;
   st(id).unread = false;
   ($('#genBtn') as HTMLElement).style.display = '';
@@ -400,7 +543,9 @@ const s: Screen = {
       const c = (e.target as HTMLElement).closest('.qchip');
       if (!c) return;
       const qi = Number(c.getAttribute('data-qi'));
-      ask(currentQa()[qi], qi);
+      let pair = currentQa()[qi];
+      if (curId === 'global') pair = { q: pair.q, a: resolveTokens(pair.a) }; // 送出當下解析，編號永遠正確
+      ask(pair, qi);
     });
     $('#qsend').addEventListener('click', sendFree);
     ($('#qinput') as HTMLInputElement).addEventListener('keydown', (e) => {

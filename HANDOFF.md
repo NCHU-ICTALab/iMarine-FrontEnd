@@ -2,7 +2,7 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Policy 頁改版 Task 6（重新生成步驟動畫 + 模擬情報流入）實作完成，分支 policy-redesign
+最後更新：2026-07-05 Policy 頁改版 Task 7（綜合對話知識庫模式：聯集+分組摺疊+搜尋+{{c}} 解析）實作完成，分支 policy-redesign
 
 ---
 
@@ -99,6 +99,21 @@
   生成中切條目/切頁的取消語意、模擬偵測三次循環、9 秒自動流入與「先手動觸發則不自動」互斥、
   停在 hero 頁不跳 policy toast），console 全程乾淨；三張截圖存證（步驟動畫中/完成 stagger+
   toast/模擬流入雙 toast + 未讀點）。
+- **Task 7 完成（最後一個功能 task，分支 `policy-redesign`）**：`index.ts` 接上「綜合對話」
+  知識庫模式——`buildUnion()`（跨 briefs 來源聯集、名稱去重重編號、`globalChecked` 跨切換
+  保留勾選）、`resolveTokens()`（`{{c:名稱}}` → 送出當下解析成聯集編號 cite span）、
+  `renderUnionSources()`（五類分組摺疊、三態群組勾選用 `indeterminate` property、搜尋自動
+  展開命中群組並隱藏無命中群組、搜尋框重繪後還原焦點與游標）；`select('global')` 分支接在
+  `select()` 開頭（`cancelTimers()` 之後）、隱藏 `genBtn`、`thread.innerHTML` 無條件寫入知識
+  庫總覽卡；`currentQa()`/qchips 委派/`updateAfterInflow()`/`bindCites()` 均擴充 global 分支
+  （收合群組時 hover 高亮標頭、點擊自動展開+捲動）。僅動 `index.ts`；`npx tsc --noEmit` 0
+  錯、`npx vitest run` 21 PASS、`npm run build` 成功；MCP 瀏覽器 profile 仍被鎖，沿用獨立
+  headless Chrome（`--remote-debugging-port` + 專屬 user-data-dir）+ 自寫 CDP 腳本跑完 brief
+  驗收清單 1-7（含群組全選/半選/清空、搜尋過濾、cite hover/click 收合展開、模擬偵測不重置
+  對話串、勾選與 chip 記憶跨切換保留、切回一般條目 genBtn 恢復），另補一組針對性測試驗證
+  Task 5 已知邊界情況——條目回答思考氣泡進行中切到「綜合對話」，`thread.innerHTML` 完整覆蓋
+  無殘留思考氣泡、且原 timeline 被 `cancelTimers()` 真正取消不會延遲洩漏回答氣泡；
+  console 全程乾淨。**六大功能 task（4-7）全數完成，Policy 頁改版剩 Task 8 全站驗收。**
 
 **（以下為已完成的前一輪工作）**
 
