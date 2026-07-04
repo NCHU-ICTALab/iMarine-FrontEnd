@@ -42,7 +42,7 @@
 @keyframes ibin{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:none;}}
 @media(prefers-reduced-motion:reduce){#s-policy .ib.slidein{animation:none;}}
 #s-policy .ib .udot{width:7px;height:7px;border-radius:50%;flex:none;margin-left:auto;
-  background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 1.4s ease-in-out infinite;}
+  background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pgpulse 1.4s ease-in-out infinite;}
 @media(prefers-reduced-motion:reduce){#s-policy .ib .udot{animation:none;}}
 
 /* 中欄：報告頭 + Grounding 窄橫向 bar */
@@ -91,10 +91,10 @@
   font-family:var(--mono);letter-spacing:.02em;transition:color .3s var(--ease);}
 #s-policy .step .sdot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14);flex:none;transition:.3s;}
 #s-policy .step.run{color:var(--ink-90);}
-#s-policy .step.run .sdot{background:var(--cyan);box-shadow:0 0 9px var(--cyan);animation:pulse 1s ease-in-out infinite;}
+#s-policy .step.run .sdot{background:var(--cyan);box-shadow:0 0 9px var(--cyan);animation:pgpulse 1s ease-in-out infinite;}
 #s-policy .step.done{color:var(--ink-60);}
 #s-policy .step.done .sdot{background:var(--lg-accent);box-shadow:0 0 6px rgba(53,224,166,.5);}
-@keyframes pulse{50%{opacity:.45;}}
+@keyframes pgpulse{50%{opacity:.45;}}
 @media(prefers-reduced-motion:reduce){#s-policy .step.run .sdot{animation:none;}}
 #s-policy .genin{animation:secin .55s var(--ease) both;animation-delay:var(--gd,0s);}
 @keyframes secin{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
@@ -154,7 +154,7 @@
   font-family:var(--mono);color:var(--ink-40);letter-spacing:.04em;}
 #s-policy .msg.thinking{color:var(--ink-40);font-family:var(--mono);font-size:12px;display:flex;gap:9px;align-items:center;}
 #s-policy .msg.thinking .sdot{width:8px;height:8px;border-radius:50%;background:var(--cyan);
-  box-shadow:0 0 8px var(--cyan);animation:pulse 1s ease-in-out infinite;flex:none;}
+  box-shadow:0 0 8px var(--cyan);animation:pgpulse 1s ease-in-out infinite;flex:none;}
 @media(prefers-reduced-motion:reduce){#s-policy .msg.thinking .sdot{animation:none;}}
 /* 報告產出卡（對話中的第一則） */
 #s-policy .msg.reportcard{align-self:stretch;max-width:100%;padding:14px 16px;border-radius:14px;

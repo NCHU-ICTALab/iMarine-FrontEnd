@@ -106,7 +106,7 @@ function flowIn(): void {
 function updateAfterInflow(): void {
   if (curId !== 'global') return;
   buildUnion(); // 對話串不重置，只同步右欄與 gbar
-  renderGbar(avgGrounding(), `跨 ${briefs.length} 條情報平均 · ${globalUnion.length} 筆來源就緒`);
+  renderGbar(avgGrounding(), globalGbarNote());
   renderUnionSources();
 }
 
@@ -207,6 +207,9 @@ function catCounts(): string {
 }
 function avgGrounding(): number {
   return Math.round(briefs.reduce((a, b) => a + b.grounding, 0) / briefs.length);
+}
+function globalGbarNote(): string {
+  return `跨 ${briefs.length} 條情報平均 · ${globalUnion.length} 筆來源就緒`;
 }
 
 /* ── 分組摺疊來源面板（global 模式；一般條目仍用上方平面 renderSources） ── */
@@ -478,7 +481,7 @@ function select(id: string): void {
       '也可點下方建議提問開始。</p></div>';
     renderChips(globalQa, 'global');
     ($('#qinput') as HTMLInputElement).value = '';
-    renderGbar(avgGrounding(), `跨 ${briefs.length} 條情報平均 · ${globalUnion.length} 筆來源就緒`);
+    renderGbar(avgGrounding(), globalGbarNote());
     renderUnionSources();
     return;
   }
@@ -564,6 +567,21 @@ const s: Screen = {
       if (flowIdx === 0 && sectionEl.classList.contains('active')) flowIn();
     }, 9000);
   },
-  hide() { cancelTimers(); },
+  hide() {
+    const wasAnimating = generating || answering;
+    cancelTimers();
+    if (!wasAnimating) return;
+    // 動畫中被切走：還原乾淨狀態，避免返回時看到凍結的步驟區/殘留思考氣泡
+    sectionEl.querySelector('#thread .msg.thinking')?.remove();
+    const b = briefById(curId);
+    const body = sectionEl.querySelector<HTMLElement>('#reportBody');
+    if (b && body) {
+      body.innerHTML = bodyHtml(b);
+      bindCites($('#thread'));
+      $('#thread').querySelector<HTMLButtonElement>('.wlink')?.addEventListener('click', function () {
+        select(this.getAttribute('data-goto')!);
+      });
+    }
+  },
 };
 export default s;

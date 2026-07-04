@@ -29,4 +29,27 @@ describe('policy mock 契約', () => {
       for (const m of qa.a.matchAll(/\{\{c:([^}]+)\}\}/g)) expect(names.has(m[1])).toBe(true);
     }
   });
+  it('每則簡報內文的 data-src 引用皆能對應到該簡報自身的 sources 編號', async () => {
+    const s = await createMockExchange().policy.snapshot();
+    const all = [...s.briefs, ...s.inflow];
+    for (const b of all) {
+      const sourceNos = new Set(b.sources.map((x) => x.no));
+      const cites = new Set<number>();
+      const collect = (html: string | null | undefined) => {
+        if (!html) return;
+        for (const m of html.matchAll(/data-src="(\d+)"/g)) cites.add(Number(m[1]));
+      };
+      if (b.type === 'incident') {
+        collect(b.summary);
+        collect(b.impact);
+        for (const c of b.cases) cites.add(c.cite);
+      } else if (b.type === 'policy') {
+        for (const sec of b.sections) collect(sec.html);
+      } else {
+        for (const it of b.items) cites.add(it.cite);
+      }
+      for (const qa of b.qa) collect(qa.a);
+      for (const no of cites) expect(sourceNos.has(no)).toBe(true);
+    }
+  });
 });
