@@ -12,7 +12,7 @@ export interface ScreenHeaderOptions {
   color: string; // 模組色，餵給 eyebrow 圓點的 --mc
   title: string;
   badges?: string[]; // 技術徽章 chips（渲染成 .lg-chip）
-  source: Source;
+  source?: Source; // 未給則不渲染資料源 chip（policy 頁特例，spec 2026-07-04 §2）
   sourceLabel?: string; // live→綠 chip，mock→灰；未給則用 srcChip() 的預設文字
   actionsHtml?: string; // 標題列右側自訂區（.spacer 之後）
 }
@@ -43,12 +43,13 @@ export function srcChip(source: Source, label?: string): string {
  */
 export function screenHeader(o: ScreenHeaderOptions): string {
   const badges = (o.badges ?? []).map((b) => `<span class="lg-chip">${b}</span>`).join('');
+  const src = o.source ? srcChip(o.source, o.sourceLabel) : '';
   const actions = o.actionsHtml ?? '';
   return (
     '<header class="anim" style="--d:0s">' +
     `<div class="eyebrow"><span class="dot" style="--mc:${o.color}"></span><span class="lbl">${o.eyebrow}</span></div>` +
     '<div class="trow">' +
-    `<h1>${o.title}</h1>${badges}${srcChip(o.source, o.sourceLabel)}` +
+    `<h1>${o.title}</h1>${badges}${src}` +
     `<span class="spacer"></span>${actions}` +
     '</div>' +
     '</header>'
