@@ -2,7 +2,7 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 Policy 頁改版 brainstorming 完成——spec 定案 + 互動示範介面產出並驗證，待使用者驗收後進 writing-plans
+最後更新：2026-07-05 Policy 頁改版 Task 4（三欄骨架+收件匣+三類版型+Grounding bar）實作完成，分支 policy-redesign
 
 ---
 
@@ -61,6 +61,18 @@
 - **實作計畫已寫好**：`docs/superpowers/plans/2026-07-05-policy-redesign.md`（8 tasks：
   generate.ts TDD → 契約+mock JSON TDD → components.ts source optional → 三欄骨架+版型 →
   對話串 → 生成動畫+情報流入 → 綜合對話 → 全站驗收；每 task 檢查點由使用者 commit）。
+- **Task 4 完成**（分支 `policy-redesign`）：重寫 `policy.html`/新建 `policy.css`/重寫
+  `index.ts`——三欄骨架（收件匣/報告對話串/來源清單）+ 三類版型（突發雙案例卡、政策五段、
+  日報四條+建議關注跳轉）+ Grounding 窄 bar + cite 連動 + 來源勾選即時灰列。CSS 遷移逐條對照
+  brief 清單刪重複/前綴 `#s-policy`；過程中撈出一個真實 bug——tokens.css 既有的孿生模組
+  `.gbar{position:absolute;...}`（未加前綴）會外漏污染同名 policy `.gbar`，把 Grounding bar
+  拉出文件流疊到報告內文中間，已於 `#s-policy .gbar` 顯式覆寫 position/top/bottom/opacity/
+  border-radius 修正，headless 截圖驗證前後對照確認。`npx tsc --noEmit` 0 錯、
+  `npx vitest run` 21 PASS、`npm run build` 成功；MCP 內建瀏覽器工具（chrome-devtools/
+  playwright）皆回報 profile 被鎖（多個並行 session 佔用），改用獨立 headless Chrome
+  （`--remote-debugging-port` + 專屬 user-data-dir）自寫 CDP 腳本跑完 brief 驗收清單
+  1-6 全數逐項驗證含互動（切換條目/勾選來源/cite hover-click/LLM 切換 toast），
+  console 全程乾淨。Task 5（對話串 chips/提問）待下一輪。
   待使用者選擇執行方式（subagent-driven / inline）後開工。
 
 **（以下為已完成的前一輪工作）**

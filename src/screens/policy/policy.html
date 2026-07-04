@@ -1,22 +1,32 @@
-<div class="cols">
-  <div class="report lg anim" data-lg style="--d:.1s">
-    <div class="topic">
-      <span class="tlbl">議題</span>
-      <span class="q">__TOPIC__</span>
+<div class="pcols">
+  <aside class="inbox lg lg-static anim" style="--d:.08s" aria-label="情報收件匣">
+    <div class="cap">情報收件匣<button class="simbtn" id="simBtn" title="模擬新情報偵測流入">模擬偵測</button></div>
+    <div id="inboxList" role="list"></div>
+  </aside>
+
+  <section class="report chatcol lg anim" data-lg style="--d:.12s">
+    <div class="rhead">
+      <h2 id="rTitle"></h2>
       <button class="lg lg-btn lg-btn--accent lg-btn--sm" data-lg id="genBtn">重新生成</button>
     </div>
-    <div id="reportBody">
-      <!--SECTIONS-->
+    <div class="gbar" id="gBar" title="Grounding 事實基礎驗證">
+      <span class="glbl">GROUNDING</span>
+      <span class="gtrack"><i id="gFill"></i></span>
+      <span class="gval" id="gVal">--%</span>
+      <span class="gnote2" id="gNote"></span>
     </div>
-  </div>
-  <div class="stack">
-    <div class="panel lg lg-static anim" style="--d:.15s;display:flex;gap:16px;align-items:center;">
-      <div class="lg lg-gauge" data-lg data-lg-profile="circle" data-lg-value="__GROUNDING__" data-lg-unit="%" data-lg-label="Grounding"></div>
-      <div style="font-size:12.5px" class="mut">__GNOTE__</div>
+    <div class="thread" id="thread"></div>
+    <div class="qchips" id="qchips"></div>
+    <div class="inrow">
+      <input id="qinput" type="text" placeholder="就此情報提問，回答皆附 iMarine 來源引用…" aria-label="提問輸入">
+      <button class="lg lg-btn lg-btn--accent lg-btn--sm" data-lg id="qsend">送出</button>
     </div>
-    <div class="panel lg lg-static anim" style="--d:.2s">
-      <h4>引用來源 <span class="lg-badge">__SRCCOUNT__</span></h4>
-      <!--SOURCES-->
+  </section>
+
+  <aside class="stack anim" style="--d:.16s">
+    <div class="panel lg lg-static" id="srcPanel">
+      <h4>來源 <span class="lg-badge" id="srcCount">0</span></h4>
+      <div id="srcList"></div>
     </div>
-  </div>
+  </aside>
 </div>

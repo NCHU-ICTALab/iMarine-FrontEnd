@@ -1,0 +1,176 @@
+/* Policy screen 樣式 — 自 docs/preview/preview-policy-redesign.html 第二個「Policy 頁改版
+   mockup 專用樣式」style 區塊逐字移植，選擇器一律前綴 #s-policy 定界。
+   已刪除：mockup 專用引導層（:root 變數／html,body／#harbor／.glowfx／#veil／.anim+keyframes rise／
+   .mockrail／main／.pscreen／.swrap／.eyebrow／.trow／.lg-chip／.src／.mut／.mono，皆由 tokens.css
+   提供）；已無使用的舊儀表殘留（.rmeta／#reportBody.fade／.gaugebox／.gnote，tokens.css 的
+   #reportBody/.skl 與中欄 gbar 已取代其功能）；與 tokens.css 重複的基礎規則（.panel／.report／
+   .report h3／.report p／.cite／.srcrow 基礎與 .hl）不重複定義，僅保留本頁新增的差異部分。 */
+
+/* LLM 接口切換（screenHeader actionsHtml 位置） */
+#s-policy .llmswitch{display:flex;gap:6px;padding:6px;border-radius:14px;}
+#s-policy .lbtn{font-size:12px;padding:6px 16px;border-radius:10px;border:1px solid transparent;cursor:pointer;
+  background:transparent;color:var(--ink-60);font-family:inherit;letter-spacing:.04em;transition:.2s;}
+#s-policy .lbtn:hover{color:var(--ink-90);}
+#s-policy .lbtn.on{color:#38BDF8;border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.08);}
+#s-policy .lbtn:focus-visible{outline:2px solid #38BDF8;outline-offset:2px;}
+
+/* 三欄 */
+#s-policy .pcols{display:grid;grid-template-columns:215px 1.62fr .95fr;gap:14px;align-items:start;}
+#s-policy .stack{display:flex;flex-direction:column;gap:14px;}
+
+/* 左欄：情報收件匣（極簡：色點＋標題） */
+#s-policy .inbox{padding:14px 10px;border-radius:18px;}
+#s-policy .inbox .cap{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-40);
+  font-family:var(--mono);padding:0 8px 8px;display:flex;align-items:center;}
+#s-policy .simbtn{margin-left:auto;font-size:9px;font-family:var(--mono);letter-spacing:.08em;padding:2px 9px;
+  border-radius:999px;border:1px solid var(--hair);color:var(--ink-40);background:transparent;
+  cursor:pointer;transition:color .25s var(--ease),border-color .25s var(--ease);}
+#s-policy .simbtn:hover{color:var(--cyan);border-color:rgba(56,189,248,.45);}
+#s-policy .simbtn:focus-visible{outline:2px solid #38BDF8;outline-offset:2px;}
+/* 綜合對話固定入口 */
+#s-policy .gib .idot{background:linear-gradient(135deg,var(--lg-accent),var(--cyan));box-shadow:0 0 8px rgba(56,189,248,.6);}
+#s-policy .ibsep{border:none;border-top:1px solid var(--hair);margin:6px 4px 8px;}
+#s-policy .ib{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border:none;border-radius:11px;
+  background:transparent;color:var(--ink-60);font-size:12.5px;line-height:1.45;cursor:pointer;
+  font-family:inherit;text-align:left;transition:background .25s var(--ease),color .25s var(--ease);}
+#s-policy .ib:hover{background:rgba(255,255,255,.06);color:var(--ink-90);}
+#s-policy .ib.on{background:rgba(56,189,248,.1);color:var(--ink-90);}
+#s-policy .ib .idot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--c,#38BDF8);box-shadow:0 0 8px var(--c,#38BDF8);}
+#s-policy .ib:focus-visible{outline:2px solid #38BDF8;outline-offset:2px;}
+/* 模擬情報流入：滑入動畫 + 未讀圓點 */
+#s-policy .ib.slidein{animation:ibin .55s var(--ease) both;}
+@keyframes ibin{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:none;}}
+@media(prefers-reduced-motion:reduce){#s-policy .ib.slidein{animation:none;}}
+#s-policy .ib .udot{width:7px;height:7px;border-radius:50%;flex:none;margin-left:auto;
+  background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 1.4s ease-in-out infinite;}
+@media(prefers-reduced-motion:reduce){#s-policy .ib .udot{animation:none;}}
+
+/* 中欄：報告頭 + Grounding 窄橫向 bar */
+#s-policy .rhead{display:flex;align-items:center;gap:12px;}
+#s-policy .rhead h2{font-size:17.5px;margin:0;flex:1;min-width:0;letter-spacing:-.01em;}
+/* position/top/bottom/border-radius/opacity 顯式覆寫：tokens.css 已有同名 .gbar（孿生甘特填色條，未加前綴）
+   position:absolute;top:0;bottom:0;不覆寫會讓本頁的 Grounding bar 被拉出文件流、疊在報告內文中間。 */
+#s-policy .gbar{position:static;top:auto;bottom:auto;opacity:1;border-radius:0;
+  display:flex;align-items:center;gap:10px;margin-top:10px;padding-bottom:12px;margin-bottom:14px;
+  border-bottom:1px solid var(--hair);font-family:var(--mono);font-variant-numeric:tabular-nums;}
+#s-policy .gbar .glbl{font-size:9px;letter-spacing:.16em;color:var(--ink-40);flex:none;}
+#s-policy .gbar .gtrack{flex:none;width:180px;height:4px;border-radius:4px;background:rgba(255,255,255,.08);
+  overflow:hidden;position:relative;}
+#s-policy .gbar .gtrack i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:4px;
+  background:linear-gradient(90deg,var(--lg-accent),var(--cyan));transition:width .8s var(--ease);}
+#s-policy .gbar .gval{font-size:11px;color:var(--ink-60);flex:none;}
+#s-policy .gbar .gnote2{font-size:10px;color:var(--ink-40);letter-spacing:.03em;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+@media(prefers-reduced-motion:reduce){#s-policy .gbar .gtrack i{transition:none;}}
+#s-policy .report h3:first-of-type{margin-top:0;}
+#s-policy .report ol{margin:0 0 8px;padding-left:22px;color:var(--ink-60);}
+#s-policy .report ol li{margin-bottom:4px;}
+
+/* 突發：歷史相似案例卡 */
+#s-policy .cases{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 8px;}
+#s-policy .cases.one{grid-template-columns:1fr;}
+#s-policy .case{padding:12px 14px;border-radius:13px;border:1px solid var(--hair);background:rgba(255,255,255,.04);}
+#s-policy .case b{display:block;font-size:13px;margin-bottom:2px;}
+#s-policy .case .dur{font-size:10.5px;font-family:var(--mono);color:var(--ink-40);letter-spacing:.05em;display:block;margin-bottom:6px;}
+#s-policy .case p{margin:0;font-size:12px;color:var(--ink-60);line-height:1.65;}
+#s-policy .case p b2,#s-policy .case .k{color:var(--ink-40);font-size:11px;font-family:var(--mono);}
+
+/* 日報 */
+#s-policy .ditems{margin:0 0 10px;padding-left:22px;color:var(--ink-60);}
+#s-policy .ditems li{margin-bottom:7px;}
+#s-policy .watch{margin-top:14px;padding-top:12px;border-top:1px solid var(--hair);font-size:13px;color:var(--ink-60);}
+#s-policy .watch .wlbl{color:var(--ink-40);font-family:var(--mono);font-size:11px;letter-spacing:.08em;margin-right:8px;}
+#s-policy .wlink{background:none;border:none;padding:0;font:inherit;font-size:13px;color:var(--cyan);cursor:pointer;
+  border-bottom:1px dashed rgba(56,189,248,.5);}
+#s-policy .wlink:hover{border-bottom-style:solid;}
+#s-policy .wlink:focus-visible{outline:2px solid #38BDF8;outline-offset:2px;}
+
+/* 生成步驟區（看得見 AI 在工作） */
+#s-policy #steps{padding:6px 2px 2px;}
+#s-policy .step{display:flex;align-items:center;gap:10px;padding:7px 4px;font-size:12.5px;color:var(--ink-40);
+  font-family:var(--mono);letter-spacing:.02em;transition:color .3s var(--ease);}
+#s-policy .step .sdot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14);flex:none;transition:.3s;}
+#s-policy .step.run{color:var(--ink-90);}
+#s-policy .step.run .sdot{background:var(--cyan);box-shadow:0 0 9px var(--cyan);animation:pulse 1s ease-in-out infinite;}
+#s-policy .step.done{color:var(--ink-60);}
+#s-policy .step.done .sdot{background:var(--lg-accent);box-shadow:0 0 6px rgba(53,224,166,.5);}
+@keyframes pulse{50%{opacity:.45;}}
+@media(prefers-reduced-motion:reduce){#s-policy .step.run .sdot{animation:none;}}
+#s-policy .genin{animation:secin .55s var(--ease) both;animation-delay:var(--gd,0s);}
+@keyframes secin{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+@media(prefers-reduced-motion:reduce){#s-policy .genin{animation:none;}}
+
+/* 右欄：來源清單（勾選與引用合一；勾選框 hover 面板才浮現） */
+#s-policy .srcrow .schk{appearance:none;width:14px;height:14px;margin:0;border-radius:4px;flex:none;align-self:center;
+  border:1px solid rgba(255,255,255,.25);background:transparent;cursor:pointer;position:relative;
+  opacity:0;transition:opacity .25s var(--ease),background .15s,border-color .15s;}
+#s-policy #srcPanel:hover .schk,#s-policy .srcrow .schk:focus-visible{opacity:1;}
+#s-policy .srcrow .schk:checked{background:rgba(56,189,248,.25);border-color:var(--cyan);}
+#s-policy .srcrow .schk:checked::after{content:'';position:absolute;inset:3px;border-radius:2px;background:var(--cyan);}
+#s-policy .srcrow .schk:focus-visible{outline:2px solid #38BDF8;outline-offset:2px;}
+/* 綜合對話：來源分組摺疊 + 搜尋 */
+#s-policy .ssearch{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid var(--hair);
+  border-radius:10px;color:var(--ink-90);padding:7px 11px;font-size:12px;font-family:inherit;
+  outline:none;margin-bottom:8px;transition:border-color .25s var(--ease);}
+#s-policy .ssearch::placeholder{color:var(--ink-40);}
+#s-policy .ssearch:focus{border-color:rgba(56,189,248,.5);}
+#s-policy .sghead{display:flex;align-items:center;gap:8px;padding:8px 6px;cursor:pointer;border-radius:8px;
+  font-size:12px;color:var(--ink-60);transition:background .25s var(--ease);user-select:none;}
+#s-policy .sghead:hover{background:rgba(255,255,255,.05);color:var(--ink-90);}
+#s-policy .sghead.hl{background:rgba(56,189,248,.13);}
+#s-policy .sghead .caret{font-size:9px;color:var(--ink-40);transition:transform .25s var(--ease);flex:none;}
+#s-policy .sghead .caret.open{transform:rotate(90deg);}
+#s-policy .sghead .gname{flex:1;min-width:0;}
+#s-policy .sghead .gcnt{font-size:10px;font-family:var(--mono);color:var(--ink-40);font-variant-numeric:tabular-nums;}
+#s-policy .sghead .gchk{appearance:none;width:14px;height:14px;margin:0;border-radius:4px;flex:none;
+  border:1px solid rgba(255,255,255,.25);background:transparent;cursor:pointer;position:relative;
+  transition:background .15s,border-color .15s;}
+#s-policy .sghead .gchk:checked{background:rgba(56,189,248,.25);border-color:var(--cyan);}
+#s-policy .sghead .gchk:checked::after{content:'';position:absolute;inset:3px;border-radius:2px;background:var(--cyan);}
+#s-policy .sghead .gchk:indeterminate{border-color:var(--cyan);}
+#s-policy .sghead .gchk:indeterminate::after{content:'';position:absolute;left:3px;right:3px;top:5.5px;height:2px;
+  border-radius:2px;background:var(--cyan);}
+#s-policy .sghead .gchk:focus-visible{outline:2px solid #38BDF8;outline-offset:2px;}
+#s-policy .sgbody{padding-left:6px;}
+#s-policy .sgbody .srcrow{padding-top:7px;padding-bottom:7px;}
+#s-policy .srcrow.off .no,#s-policy .srcrow.off .sname{color:var(--ink-40);}
+#s-policy .srcrow.off .sname{text-decoration:none;opacity:.65;}
+#s-policy .srcrow .skip{font-size:9.5px;font-family:var(--mono);color:var(--ink-40);border:1px solid var(--hair);
+  border-radius:999px;padding:0 7px;margin-left:6px;letter-spacing:.06em;}
+
+/* 中欄：對話串（NotebookLM 式） */
+#s-policy .chatcol{display:flex;flex-direction:column;height:calc(100vh - 208px);min-height:480px;}
+#s-policy .thread{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:2px 2px 6px;scrollbar-width:thin;
+  display:flex;flex-direction:column;gap:12px;}
+#s-policy .msg{max-width:100%;}
+#s-policy .msg.user{align-self:flex-end;max-width:78%;padding:9px 14px;border-radius:14px 14px 4px 14px;
+  background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);font-size:13.5px;color:var(--ink-90);}
+#s-policy .msg.ai{align-self:flex-start;max-width:92%;padding:11px 14px;border-radius:14px 14px 14px 4px;
+  background:rgba(255,255,255,.045);border:1px solid var(--hair);font-size:13.5px;}
+#s-policy .msg.ai p{margin:0;color:var(--ink-60);}
+#s-policy .msg .mfoot{margin-top:7px;padding-top:6px;border-top:1px solid var(--hair);font-size:10px;
+  font-family:var(--mono);color:var(--ink-40);letter-spacing:.04em;}
+#s-policy .msg.thinking{color:var(--ink-40);font-family:var(--mono);font-size:12px;display:flex;gap:9px;align-items:center;}
+#s-policy .msg.thinking .sdot{width:8px;height:8px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 8px var(--cyan);animation:pulse 1s ease-in-out infinite;flex:none;}
+@media(prefers-reduced-motion:reduce){#s-policy .msg.thinking .sdot{animation:none;}}
+/* 報告產出卡（對話中的第一則） */
+#s-policy .msg.reportcard{align-self:stretch;max-width:100%;padding:14px 16px;border-radius:14px;
+  background:rgba(255,255,255,.035);border:1px solid var(--hair);}
+#s-policy .msg.reportcard .mhead{font-size:10px;font-family:var(--mono);letter-spacing:.14em;color:var(--ink-40);
+  text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:7px;}
+#s-policy .msg.reportcard .mhead i{width:6px;height:6px;border-radius:50%;background:#38BDF8;box-shadow:0 0 7px #38BDF8;}
+/* 建議追問 chips + 輸入列 */
+#s-policy .qchips{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 0;}
+#s-policy .qchip{font-size:12px;padding:5px 14px;border-radius:999px;border:1px solid var(--hair);color:var(--ink-60);
+  background:transparent;cursor:pointer;font-family:inherit;transition:color .25s var(--ease),border-color .25s var(--ease);}
+#s-policy .qchip:hover{color:var(--cyan);border-color:rgba(56,189,248,.45);}
+#s-policy .qchip:focus-visible{outline:2px solid #38BDF8;outline-offset:2px;}
+#s-policy .inrow{display:flex;gap:10px;margin-top:10px;}
+#s-policy .inrow input{flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid var(--hair);border-radius:12px;
+  color:var(--ink-90);padding:10px 14px;font-size:13.5px;font-family:inherit;outline:none;
+  transition:border-color .25s var(--ease);}
+#s-policy .inrow input::placeholder{color:var(--ink-40);}
+#s-policy .inrow input:focus{border-color:rgba(56,189,248,.5);}
+
+@media(max-width:1100px){#s-policy .pcols{grid-template-columns:180px 1.5fr 1fr;}}
