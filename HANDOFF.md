@@ -2,11 +2,29 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-04 全站複審最終修正波（8 項）完成 — tsc/vitest/build 三者皆綠燈，Chromium 已驗證
+最後更新：2026-07-04 Twin 頁原生化改版 spec 定案（等使用者複審後進實作計畫）
 
 ---
 
 ## 1. 目前狀態
+
+**Twin 頁原生化改版：brainstorm + 調研 + 互動 mockup 完成，spec 已寫出待使用者複審。**
+- 動機：現行 iframe 嵌 LiDAR 有兩個根本問題——demo 要多起一個 server（埠 5174）、
+  LiDAR 自帶戰情室 UI 與本 repo 四張沙盤浮動面板堆疊打架。
+- 定案方向（全部經使用者逐項確認）：LiDAR 引擎+場景+資料**整包搬進本 repo 原生化**
+  （方案 A，比照 Carbon 搬入先例，上游唯讀）；UI 重做為**雙分頁戰情室**（即時回放＝
+  過去 24hr 真實 AIS 回放／未來推演＝沙盤 mock），**只有右 rail**（無左 rail、無標頭）、
+  一條底部時間軸（語意隨分頁切換）、船型篩選兩分頁共用；納入案例調研三功能：航跡密度
+  圖層（學 MPA 熱圖）、點船資訊 chip（學 Corpus Christi OPTICS）、視角預設運鏡（同前）。
+- 資料盤點：LiDAR 的 423MB `models/` 是離線管線素材**不搬**；runtime 只需 ~8.5MB
+  （4.6MB 單日航跡 443 艘×24.2hr + 2.1MB 航照底圖 + 1.3MB 船模點雲 + 零頭）。
+- 產出：spec `docs/superpowers/specs/2026-07-04-twin-native-redesign-design.md`（含檔案
+  結構、資料清單、分頁行為表、三功能規格、生命週期、驗收標準）；互動 mockup
+  `docs/preview/preview-twin-redesign.html`（自含 Kit，v4，兩分頁/篩選/密度/點船/視角
+  全部可操作，headless Chromium 驗證 console 乾淨）。
+- 下一步：使用者複審 spec → writing-plans 拆實作 task → 動工。
+
+**（以下為既有進度記錄）**
 
 **全站複審最終修正波（8 項，接續 Task 12 之後）完成。**
 - Fix 1（重要，真缺陷）：`src/main.ts` 全域 `keydown` 導覽鍵（`0`/`1-6`/`Enter`）先前未檢查
