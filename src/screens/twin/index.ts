@@ -8,7 +8,7 @@ import type { Screen } from '../types';
 import template from './twin.html?raw';
 import './twin.css';
 import { initTwinScene, nowMs, type TwinScene, type ViewPreset } from './scene-init';
-import { initPanels } from './panels';
+import { initPanels, initFuturePanels } from './panels';
 import { initTimeline } from './timeline';
 
 type TabMode = 'replay' | 'future';
@@ -40,6 +40,8 @@ const s: Screen = {
     const timeline = initTimeline(el, scene, panels, modeApi);
     stopPlayback = timeline.stop;
     panels.onFilterChange(() => panels.renderTrend(timeline.currentReplayMs()));
+
+    initFuturePanels(el, ctx, panels, timeline);
 
     // 視角預設
     el.querySelectorAll<HTMLButtonElement>('.vbtn').forEach((btn) => {

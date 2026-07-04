@@ -1,7 +1,8 @@
 /* 右 rail 面板：資料綁定與渲染。版面 markup 在 twin.html，本檔只填內容與掛事件。 */
 import type { ScreenCtx } from '../types';
-import { SHIP_CATEGORIES, SHIP_CATEGORY_COLORS, type ShipCategory } from './palette';
-import { inPortAt, categoryCounts, fromMs, toMs, type TwinScene } from './scene-init';
+import { SHIP_CATEGORIES, SHIP_CATEGORY_COLORS, shipCategoryIndex, type ShipCategory } from './palette';
+import { inPortAt, categoryCounts, occupancy, capturedAtMs, fromMs, toMs, type TwinScene } from './scene-init';
+import type { TimelineApi } from './timeline';
 
 const rgb = (i: number, a = 1) =>
   `rgba(${SHIP_CATEGORY_COLORS[i][0]},${SHIP_CATEGORY_COLORS[i][1]},${SHIP_CATEGORY_COLORS[i][2]},${a})`;
@@ -64,4 +65,94 @@ export function initPanels(el: HTMLElement, ctx: ScreenCtx, scene: TwinScene): P
 
   void ctx; // Task 7 用 ctx.ui.toast
   return { renderTrend, enabled, onFilterChange: (fn) => filterListeners.push(fn) };
+}
+
+// ── 未來推演面板（情境/甘特/KPI）。追加於 panels.ts；由 index.ts 在 initTimeline 之後呼叫。──
+export function initFuturePanels(
+  el: HTMLElement, ctx: ScreenCtx, panels: PanelsApi, timeline: TimelineApi,
+): void {
+  // 情境切換（mock 係數；文案沿用既有 toast）
+  let scnFactor = 1, scnName = '基準情境';
+  const kpiScn = el.querySelector<HTMLElement>('#kpiScn')!;
+  el.querySelectorAll<HTMLButtonElement>('.scn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.scn').forEach((x) => x.classList.toggle('on', x === btn));
+      scnFactor = parseFloat(btn.dataset.f!); scnName = btn.textContent!;
+      kpiScn.textContent = scnName;
+      updateKpi();
+      ctx.ui.toast({ title: '情境已套用', message: `「${scnName}」重新推演未來 24 小時` });
+    });
+  });
+
+  // 泊位甘特：真實佔用區間（TWPort 快照），軸 = capturedAtMs 起 24 小時。
+  // 窗範圍資料驅動：挑重疊區間數最大的連續 8 泊位（本快照實測為 63-70，15 筆；
+  // 原 mockup 的 108-115 實查僅 108-110 有資料，寫死會有 5 條空軌，故改為動態）。
+  const DAY = 24 * 3600_000;
+  const live = occupancy.filter((it) => it.endMs > capturedAtMs && it.startMs < capturedAtMs + DAY);
+  const byNo = new Map<number, number>();
+  live.forEach((it) => byNo.set(it.berthNo, (byNo.get(it.berthNo) ?? 0) + 1));
+  const allNos = [...byNo.keys()];
+  let lo = Math.min(...allNos);
+  {
+    let bestC = -1;
+    for (let s0 = Math.min(...allNos); s0 <= Math.max(...allNos) - 7; s0++) {
+      let c = 0;
+      for (let n = s0; n < s0 + 8; n++) c += byNo.get(n) ?? 0;
+      if (c > bestC) { bestC = c; lo = s0; }
+    }
+  }
+  el.querySelector<HTMLElement>('#gTag')!.textContent = `${lo}-${lo + 7}`;
+  const gantt = el.querySelector<HTMLElement>('#gantt')!;
+  const gnow = el.querySelector<HTMLElement>('#gnow')!;
+  for (let no = lo; no < lo + 8; no++) {
+    const bars = live
+      .filter((it) => it.berthNo === no)
+      .map((it) => {
+        const a = Math.max(0, (it.startMs - capturedAtMs) / DAY);
+        const b = Math.min(1, (it.endMs - capturedAtMs) / DAY);
+        const ci = shipCategoryIndex(it.vessel.shipType);
+        return `<div class="gbar" data-cat="${ci}" style="left:${a * 100}%;width:${(b - a) * 100}%;background:rgba(${SHIP_CATEGORY_COLORS[ci].join(',')},1)"></div>`;
+      }).join('');
+    const row = document.createElement('div');
+    row.className = 'grow_';
+    row.innerHTML = `<span>${no}</span><div class="gtrack">${bars}</div>`;
+    gantt.appendChild(row);
+  }
+  function dimGantt(): void { // 被濾掉船種的 bar 淡化（不移除）
+    gantt.querySelectorAll<HTMLElement>('.gbar').forEach((bar) => {
+      const name = SHIP_CATEGORIES[+bar.dataset.cat!];
+      bar.style.opacity = panels.enabled.has(name) ? '.85' : '.12';
+    });
+  }
+  panels.onFilterChange(() => { dimGantt(); updateKpi(); });
+
+  // KPI 在港船數（推演值 = 真實曲線基底 × 情境係數；彈簧數字）
+  const kpiCount = el.querySelector<HTMLElement>('#kpiCount')!;
+  const kpiT = el.querySelector<HTMLElement>('#kpiT')!;
+  let shown = 0, target = 0, tick = 0;
+  function updateKpi(): void {
+    const win = toMs - fromMs;
+    const baseMs = fromMs + (((timeline.frozenMs() - fromMs) + timeline.currentFutureMin() * 60_000) % win);
+    target = Math.max(0, Math.round(inPortAt(baseMs, panels.enabled) * scnFactor));
+    if (tick) return;
+    const step = () => {
+      shown += (target - shown) * 0.18;
+      if (Math.abs(target - shown) < 0.05) { shown = target; kpiCount.textContent = String(target); tick = 0; return; }
+      kpiCount.textContent = String(Math.round(shown));
+      tick = requestAnimationFrame(step);
+    };
+    tick = requestAnimationFrame(step);
+  }
+
+  // 推演軸 scrub → 現在線 + KPI 時刻
+  timeline.onScrub((m) => {
+    if (m !== 'future') return;
+    const f = timeline.currentFutureMin() / 1440;
+    gnow.style.left = `calc(32px + ${f} * (100% - 32px))`; // 32px = 泊位編號欄寬
+    const min = timeline.currentFutureMin();
+    kpiT.textContent = `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(Math.round(min % 60)).padStart(2, '0')}`;
+    updateKpi();
+  });
+
+  updateKpi(); dimGantt();
 }
