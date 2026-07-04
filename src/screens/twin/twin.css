@@ -52,6 +52,7 @@ body[data-tmode="future"] #s-twin [data-mode-panel="future"]{display:block;}
 #s-twin .scnrow{display:flex;gap:8px;flex-wrap:wrap;}
 
 /* 泊位甘特（.gantt/.grow_/.gtrack/.gbar/.gaxis 沿用 tokens.css 既有規則） */
+#s-twin #gantt{position:relative;}
 #s-twin .gaxis{padding-left:32px;}
 #s-twin #gnow{position:absolute;top:-2px;bottom:-2px;width:1.5px;background:var(--lg-accent);
   box-shadow:0 0 6px var(--lg-accent);left:32px;transition:left .1s linear;pointer-events:none;z-index:1;}
