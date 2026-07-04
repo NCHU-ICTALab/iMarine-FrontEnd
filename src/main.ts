@@ -22,7 +22,7 @@ const ctx: ScreenCtx = {
   data: {
     ...createMockExchange(),
     carbon: createCarbonProvider(env.VITE_CARBON_API),
-    twin: createTwinProvider(env.VITE_TWIN_URL),
+    twin: createTwinProvider(),
   },
   ui: {
     toast: (o) => window.LiquidGlass.toast(o),

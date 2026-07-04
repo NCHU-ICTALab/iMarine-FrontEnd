@@ -17,5 +17,5 @@ export interface ScreenCtx {
 export interface Screen {
   mount(el: HTMLElement, ctx: ScreenCtx): void | Promise<void>; // 每 screen 只呼叫一次（首次進入）
   show?(): void; // 每次切入時呼叫（含首次，於 mount 之後）
-  hide?(): void; // 切出時呼叫；DOM 保留（spec 第 9 節：twin iframe 離開時不銷毀）
+  hide?(): void; // 切出時呼叫；DOM 保留（spec 第 9 節：twin 頁離開時不銷毀）
 }

@@ -54,5 +54,5 @@ export interface DataExchange {
   epidemic: Provider<EpidemicSnapshot>;
   alert: Provider<AlertSnapshot>;
   carbon: Provider<CarbonSummary> & { base: string };
-  twin: Provider<TwinSnapshot> & { url: string };
+  twin: Provider<TwinSnapshot>;
 }

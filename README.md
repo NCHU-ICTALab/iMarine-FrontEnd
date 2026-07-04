@@ -65,14 +65,7 @@ make api
 
 ### 2.5D 數位孿生（twin）
 
-在 `~/Desktop/LiDAR` 執行：
-
-```
-npm run dev -- --port 5174
-```
-
-啟動後 twin 頁的 iframe 會載入 LiDAR 的 kaohsiung-port 範例場景（對應 `VITE_TWIN_URL`）；
-未啟動時該頁會顯示提示卡，背景仍以點雲場景呈現、不影響其餘頁面操作。
+twin 模組已內建 LiDAR 引擎與真實 AIS/泊位資料，`npm run dev` 即可，無需額外服務。
 
 ## 鍵盤快捷鍵（簡報用）
 
