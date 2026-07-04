@@ -101,6 +101,8 @@
 @media(prefers-reduced-motion:reduce){#s-policy .genin{animation:none;}}
 
 /* 右欄：來源清單（勾選與引用合一；勾選框 hover 面板才浮現） */
+#s-policy .srcrow{padding:10px 8px;}
+#s-policy .srcrow .no{min-width:22px;}
 #s-policy .srcrow .schk{appearance:none;width:14px;height:14px;margin:0;border-radius:4px;flex:none;align-self:center;
   border:1px solid rgba(255,255,255,.25);background:transparent;cursor:pointer;position:relative;
   opacity:0;transition:opacity .25s var(--ease),background .15s,border-color .15s;}
