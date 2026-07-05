@@ -1,8 +1,9 @@
 /* Epidemic screen — 疫情自動追溯（2026-07-05 spec 改版）。
    互動基準：docs/preview/preview-epidemic-redesign.html。
-   本檔為膠合層：規則式評分/時空交叉比對走 ./correlate（單一真相來源，不在此重複定義）；
-   本 task（Task 3）只做靜態骨架渲染（船隊/重點 chip/右欄/管線帶），地圖與泳道容器暫留空
-   （Task 4/5），細胞簡訊模擬偵測按鈕暫不綁定（Task 6/7）。 */
+   本檔為膠合層：規則式評分/時空交叉比對走 ./correlate、Mapbox 地圖走 ./worldmap
+   （皆單一真相來源，不在此重複定義）。Task 3 靜態骨架 + Task 4 地圖（選中船航線/熱點/
+   港口/船位/fitBounds，見 select() 尾端與 mount()/show()）已完成；泳道游標容器暫留空
+   （Task 5），細胞簡訊模擬偵測按鈕暫不綁定（Task 6/7）。 */
 import type { Screen } from '../types';
 import type {
   EpidemicSnapshot,
@@ -11,6 +12,7 @@ import type {
   EpidemicEvent,
 } from '../../data/types';
 import { scoreVessel, computeHits, type RiskTier } from './correlate';
+import { createWorldMap, type WorldMap } from './worldmap';
 import { screenHeader } from '../../ui/components';
 import template from './epidemic.html?raw';
 import './epidemic.css';
@@ -28,9 +30,12 @@ let cursorDay = 0;
 let timeRange: EpidemicSnapshot['timeRange'] = { startDate: '', endDate: '', startDay: 0, now: 0 };
 let inflowPool: EpidemicSnapshot['inflowPool'] = [];
 let sectionEl: HTMLElement;
+let map: WorldMap;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string): T =>
   sectionEl.querySelector(sel) as T;
+
+const current = (): FleetVessel => fleet.find((v) => v.id === curId)!;
 
 const SRC: Record<EpidemicEvent['source'], { name: string; c: string }> = {
   who: { name: 'WHO', c: '#F0648C' },
@@ -138,6 +143,7 @@ function select(id: string): void {
   renderKeyRow(v);
   renderRight(v);
   renderPipe();
+  if (map.ready) map.renderVessel(v, computeHits(v.ports, v.events));
 }
 
 const s: Screen = {
@@ -165,7 +171,14 @@ const s: Screen = {
       }) +
       template +
       '</div>';
+    map = createWorldMap($('#epiMap'), () => {
+      if (curId) map.renderVessel(current(), computeHits(current().ports, current().events));
+    });
     select(sortedFleet()[0].id);
+  },
+  show() {
+    map.resize();
+    if (curId) map.renderVessel(current(), computeHits(current().ports, current().events));
   },
 };
 export default s;
