@@ -625,6 +625,16 @@
 
 ## 4. 下一步（依序）
 
+**目前的下一步（2026-07-05 起）：重構「短時微氣候 · 即時派工建議」頁（`dispatch`）。**
+- 現況：dispatch 為 mock 頁（`src/screens/dispatch/{index.ts,dispatch.html,heat.ts}`），
+  熱區 canvas + 預測時間軸滑桿 + 派工建議卡 + 風速折線圖，資料走 `src/data/mock/dispatch.json`。
+- 開工前先 `brainstorming` 問清重構方向（比照 policy/twin 前例：先定 spec + 互動 mockup 驗收，
+  再 writing-plans → subagent-driven 實作）。報告書 v6 對本模組的定位＝ConvLSTM 短時微氣候預測
+  + 差異化作業可行性（如「散裝下午 1 點前停工、油品延長至 2 點半但加派監控」）。
+- policy 頁改版已於 2026-07-05 完成並合併回 main（見第 1 節）。
+
+（以下為 shell 建置期的歷史步驟，皆已完成）
+
 1. ~~使用者審閱 spec（已通過 2026-07-03）~~ 完成
 2. ~~實作計畫：`docs/superpowers/plans/2026-07-03-frontend-shell.md`（12 tasks，每 task 結尾為檢查點、由使用者 commit）~~ 完成
 3. ~~Task 1：建 Vite 專案骨架 + 複製 Kit 兩檔 + 點雲港口背景系統~~ 完成
