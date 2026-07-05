@@ -40,6 +40,7 @@ let map: WorldMap;
 let swimEls: SwimlaneEls;
 let autoFlowArmed = false; // 9s 自動流入計時器只武裝一次（比照 policy 既有慣例）
 let autoFlowTimer: ReturnType<typeof setTimeout> | null = null;
+let pipeTimer: ReturnType<typeof setTimeout> | null = null;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string): T =>
   sectionEl.querySelector(sel) as T;
@@ -169,17 +170,24 @@ function playPipe(): void {
     renderPipe();
     return;
   }
+  if (pipeTimer) {
+    clearTimeout(pipeTimer);
+    pipeTimer = null;
+  }
   pipe.forEach((stage) => {
     stage._state = 'wait';
   });
   renderPipe();
   let i = 0;
   const seq = (): void => {
-    if (i >= pipe.length) return;
+    if (i >= pipe.length) {
+      pipeTimer = null;
+      return;
+    }
     pipe[i]._state = pipe[i].run ? 'run' : 'done';
     renderPipe();
     i++;
-    setTimeout(seq, 360);
+    pipeTimer = setTimeout(seq, 360);
   };
   seq();
 }
@@ -388,6 +396,10 @@ const s: Screen = {
     if (autoFlowTimer) {
       clearTimeout(autoFlowTimer);
       autoFlowTimer = null;
+    }
+    if (pipeTimer) {
+      clearTimeout(pipeTimer);
+      pipeTimer = null;
     }
   },
 };
