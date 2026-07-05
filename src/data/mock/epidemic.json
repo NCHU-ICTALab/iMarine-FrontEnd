@@ -1,22 +1,112 @@
 {
-  "ship": "SHIN KUANG 168",
-  "risk": 72,
-  "level": "橙級 · 限制登輪",
-  "factors": [
-    { "name": "靠港天數", "value": 64 },
-    { "name": "來源強度", "value": 85 },
-    { "name": "距離因子", "value": 52 }
+  "timeRange": { "startDate": "06-19", "endDate": "07-02", "startDay": 0, "now": 13 },
+  "pipeline": [
+    { "key": "crawl", "label": "爬取情資", "count": "42", "detail": ["WHO 通報 6", "疾管署公告 4", "國際新聞 32", "來源：who.int / cdc.gov.tw"] },
+    { "key": "track", "label": "重建航跡", "count": "443", "detail": ["進高雄港船 443 艘", "AIS 軌跡點 128k", "過去 14 天窗口"] },
+    { "key": "match", "label": "時空比對", "count": "7", "run": true, "detail": ["命中 7 筆", "rose 重疊 3", "amber 潛伏窗 4"] },
+    { "key": "score", "label": "規則評分", "count": "", "detail": ["IHR 規則 5 條", "靠港天數 × 來源強度 × 距離因子"] },
+    { "key": "sms", "label": "細胞簡訊", "count": "", "detail": ["待推播 · 橙級以上自動草擬"] }
   ],
-  "ports": [
-    { "name": "馬尼拉", "date": "06-19", "note": "離港", "mark": "dim" },
-    { "name": "香港", "date": "06-24", "note": "疫情通報 +2d", "mark": "rose" },
-    { "name": "基隆", "date": "06-28", "note": "", "mark": "dim" },
-    { "name": "高雄 108", "date": "07-02", "note": "在泊", "mark": "amber" }
+  "fleet": [
+    {
+      "id": "h217", "name": "HORIZON 217",
+      "factors": { "dwellDays": 64, "sourceStrength": 85, "distanceFactor": 52 },
+      "ports": [
+        { "name": "馬尼拉", "dayIn": 0, "dayOut": 0 },
+        { "name": "香港", "dayIn": 3, "dayOut": 5 },
+        { "name": "高雄", "dayIn": 13, "dayOut": 13, "berthed": true }
+      ],
+      "events": [{ "id": "e1", "port": "香港", "day": 4, "source": "who", "label": "呼吸道群聚" }],
+      "intel": [
+        { "source": "who", "text": "香港 · 呼吸道群聚 06-22", "hit": true },
+        { "source": "cdc", "text": "港澳旅遊疫情建議 L1", "hit": true },
+        { "source": "news", "text": "港區門診異常上升", "hit": false }
+      ],
+      "advice": ["登輪限縮檢疫+領航", "N95 + 面罩", "接觸名單建檔", "離船 14d 自主管理"],
+      "sms": "HORIZON 217 抵高雄108 · 橙級 · 限制登輪"
+    },
+    {
+      "id": "m9", "name": "MERIDIAN 9",
+      "factors": { "dwellDays": 66, "sourceStrength": 58, "distanceFactor": 50 },
+      "ports": [
+        { "name": "新加坡", "dayIn": 1, "dayOut": 3 },
+        { "name": "馬六甲", "dayIn": 6, "dayOut": 6 },
+        { "name": "高雄", "dayIn": 13, "dayOut": 13, "berthed": true }
+      ],
+      "events": [{ "id": "e2", "port": "新加坡", "day": 8, "source": "news", "label": "離港後通報" }],
+      "intel": [
+        { "source": "news", "text": "新加坡 · 離港後 5d 通報", "hit": true },
+        { "source": "who", "text": "東南亞監測中", "hit": false }
+      ],
+      "advice": ["加強體溫量測", "手部消毒", "接觸名單建檔"],
+      "sms": "MERIDIAN 9 抵高雄64 · 黃級 · 加強防護"
+    },
+    {
+      "id": "n88", "name": "NORDIC 88",
+      "factors": { "dwellDays": 50, "sourceStrength": 42, "distanceFactor": 30 },
+      "ports": [
+        { "name": "釜山", "dayIn": 2, "dayOut": 4 },
+        { "name": "那霸", "dayIn": 8, "dayOut": 8 },
+        { "name": "高雄", "dayIn": 13, "dayOut": 13, "berthed": true }
+      ],
+      "events": [],
+      "intel": [{ "source": "who", "text": "釜山 · 目前無異常", "hit": false }],
+      "advice": ["例行體溫量測", "手部消毒"],
+      "sms": "NORDIC 88 抵高雄70 · 黃級 · 加強防護"
+    },
+    {
+      "id": "pd", "name": "PACIFIC DAWN",
+      "factors": { "dwellDays": 25, "sourceStrength": 15, "distanceFactor": 18 },
+      "ports": [
+        { "name": "香港", "dayIn": 1, "dayOut": 2 },
+        { "name": "高雄", "dayIn": 13, "dayOut": 13, "berthed": true }
+      ],
+      "events": [],
+      "intel": [{ "source": "who", "text": "沿途無通報", "hit": false }],
+      "advice": ["例行量測"],
+      "sms": "PACIFIC DAWN 抵高雄55 · 綠級 · 正常"
+    },
+    {
+      "id": "bh", "name": "BLUE HERON",
+      "factors": { "dwellDays": 20, "sourceStrength": 8, "distanceFactor": 12 },
+      "ports": [
+        { "name": "廈門", "dayIn": 5, "dayOut": 6 },
+        { "name": "高雄", "dayIn": 13, "dayOut": 13, "berthed": true }
+      ],
+      "events": [],
+      "intel": [{ "source": "who", "text": "沿途無通報", "hit": false }],
+      "advice": ["例行量測"],
+      "sms": "BLUE HERON 抵高雄40 · 綠級 · 正常"
+    }
   ],
-  "advice": [
-    "登輪人員限縮至檢疫 + 領航必要人力",
-    "N95 + 面罩 · 接觸名單自動建檔",
-    "離船後 14 天健康自主管理"
-  ],
-  "reference": "2022-01 高雄港新光輪事件：港埠維修工人為本土起始端，擴散 70+ 人確診。本模組即為此情境之回溯比對雛形。"
+  "inflowPool": [
+    {
+      "kind": "escalate",
+      "targetId": "n88",
+      "event": { "id": "e3", "port": "釜山", "day": 3, "source": "who", "label": "呼吸道群聚" },
+      "factors": { "dwellDays": 50, "sourceStrength": 82, "distanceFactor": 58 },
+      "intel": { "source": "who", "text": "釜山 · 呼吸道群聚 06-21", "hit": true },
+      "toast": "偵測到新通報 · 釜山，NORDIC 88 升級橙級"
+    },
+    {
+      "kind": "newship",
+      "toast": "新進港船 · CORAL EXPRESS 紅級",
+      "vessel": {
+        "id": "coral", "name": "CORAL EXPRESS",
+        "factors": { "dwellDays": 80, "sourceStrength": 88, "distanceFactor": 85 },
+        "ports": [
+          { "name": "香港", "dayIn": 2, "dayOut": 5 },
+          { "name": "廈門", "dayIn": 9, "dayOut": 9 },
+          { "name": "高雄", "dayIn": 13, "dayOut": 13, "berthed": true }
+        ],
+        "events": [{ "id": "e4", "port": "香港", "day": 3, "source": "who", "label": "呼吸道群聚" }],
+        "intel": [
+          { "source": "who", "text": "香港 · 呼吸道群聚 06-22", "hit": true },
+          { "source": "cdc", "text": "港澳建議 L1", "hit": true }
+        ],
+        "advice": ["禁止一般登輪", "僅檢疫登輪 全套 PPE", "接觸名單即時建檔", "離船 14d 健康管理"],
+        "sms": "CORAL EXPRESS 抵高雄108 · 紅級 · 禁止登輪"
+      }
+    }
+  ]
 }

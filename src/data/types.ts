@@ -97,11 +97,25 @@ export interface EpidemicFactors { dwellDays: number; sourceStrength: number; di
 export interface EpidemicPort { name: string; dayIn: number; dayOut: number; berthed?: boolean }
 export interface EpidemicEvent { id: string; port: string; day: number; source: 'who' | 'cdc' | 'news'; label: string }
 
+export interface EpidemicIntel { source: 'who' | 'cdc' | 'news'; text: string; hit: boolean }
+export interface EpidemicPipelineStage { key: string; label: string; count: string; run?: boolean; detail: string[] }
+export interface EpidemicVessel {
+  id: string; name: string;
+  factors: EpidemicFactors;
+  ports: EpidemicPort[];        // 末站必為 '高雄' berthed
+  events: EpidemicEvent[];
+  intel: EpidemicIntel[];
+  advice: string[];
+  sms: string;
+}
+export type EpidemicInflow =
+  | { kind: 'escalate'; targetId: string; event: EpidemicEvent; factors: EpidemicFactors; intel: EpidemicIntel; toast: string }
+  | { kind: 'newship'; vessel: EpidemicVessel; toast: string };
 export interface EpidemicSnapshot {
-  ship: string; risk: number; level: string;
-  factors: { name: string; value: number }[];
-  ports: { name: string; date: string; note: string; mark: 'dim' | 'rose' | 'amber' }[];
-  advice: string[]; reference: string;
+  timeRange: { startDate: string; endDate: string; startDay: number; now: number };
+  pipeline: EpidemicPipelineStage[];
+  fleet: EpidemicVessel[];
+  inflowPool: EpidemicInflow[];
 }
 
 export interface AlertSnapshot {
