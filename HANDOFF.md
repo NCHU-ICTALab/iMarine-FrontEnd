@@ -2,35 +2,51 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Dispatch 頁改版 brainstorming 完成：spec 定稿 + 互動示範頁（36 斷言全 PASS）待使用者實機檢查
+最後更新：2026-07-05 Dispatch 頁改版 SDD 7 tasks 全部完成並通過逐 task review，全站驗收綠燈，待最終 whole-branch review + 使用者實機驗收/合併
 
 ---
 
 ## 1. 目前狀態
 
-**Dispatch 頁改版：brainstorming 完成，spec + 互動示範頁已產出，待使用者實機檢查後進 writing-plans。**
-- 兩份調研（皆由 subagent 網路調研完成，重點已沉澱進 spec）：
-  (1) 港口作業天氣規範——法定強風 10 m/s（勞動部函釋 0042784）、高雄港風災防救要點
-  7 級全港停工/5 級浮筒淨空/警戒加纜 5/7 條/危險品船出港、起重機 30 m/s 錨定線、
-  穀物見雨即停（WWD 慣例）、油品雷電紅線（ISGOTT Ch.16）、CWA 雨量分級；
-  (2) UI/UX 參考——StormGeo per-operation 紅黃綠矩陣、Apple Weather 一句話結論、
-  Yahoo!天気雙資料源同軸縫合、三級燈號色彩紀律。
-- 關鍵事實修正（推翻舊 mock 頁假設）：ConvLSTM 對未來 90 分鐘輸出**單一預測**
-  （全港區彙總：六級雨量分級 + 蒲福風級 + 10min 平均 + 陣風），無逐 10 分鐘序列、
-  無空間網格 → 舊「拖時間軸看熱區網格」互動與熱區 canvas（heat.ts）廢棄。
-- 設計定案（視覺 companion 四方向比選 → D 混血 → v2/v3/v4 三輪迭代，v5 手動更新鈕
-  提案被否決退回 v4）：hero 三塊（風險色大字塊/一句話結論+複合時間軸 slider/更新進度環
-  10:00 自動倒數）+ 七列作業燈號矩陣（ConvLSTM 寬欄含動作字 + CWA +3h/+6h 窄欄純色，
-  列點擊展開規則依據含官方/慣例徽章）+ 右欄派工指令卡（含綁解纜「加派」型綠卡）；
-  demo 互動四種：三情境切換（stable/rain/typhoon）、時間軸游標（泡泡+欄標頭連動）、
-  逐列驗規則、模型更新倒數。
-- spec：`docs/superpowers/specs/2026-07-05-dispatch-redesign-design.md`（決策表、資料契約
-  DispatchScenario、規則庫 15 條含條號出處、三情境劇本、互動規格、檔案結構、驗收標準）。
-- 互動示範：`docs/preview/preview-dispatch-redesign.html`（自含 Kit，比照 policy 前例組裝；
-  headless Chrome + CDP 驗證 36 斷言全 PASS、console 零錯誤；涵蓋三情境切換/規則展開單列
-  互斥/時間軸三段泡泡與欄標頭連動/推論動畫與取消/toast）。修正一個真問題：時間軸
-  `setPointerCapture` 對合成事件拋 NotFoundError，已加 try/catch 防禦。
-- 下一步：使用者實機檢查示範頁 + spec → writing-plans → SDD 實作。
+**Dispatch 頁改版：SDD 實作完成（7 tasks 全數逐 task review 通過），全站驗收綠燈，分支 `dispatch-redesign`（自 main，baseline `a43f249`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
+- 動機：舊 dispatch mock 頁的核心假設與真實系統不符——ConvLSTM 對未來 90 分鐘輸出的是
+  **單一預測**（全港區彙總：六級雨量分級 + 蒲福風級 + 10min 平均 + 陣風），無逐 10 分鐘序列、
+  無空間網格；舊頁的「拖時間軸看熱區網格」與熱區 canvas（heat.ts）因此廢棄。
+- 定案版面（視覺 companion 四方向比選 → D 混血 → v2/v3/v4 迭代，v5 手動更新鈕提案被否決退回
+  v4）：hero 三塊（風險色大字塊 / 一句話結論 + 複合時間軸 slider / 更新進度環 10:00 自動倒數）
+  + 七列作業燈號矩陣（ConvLSTM 寬欄含動作字 + CWA +3h/+6h 窄欄純色，列點擊原位展開規則依據含
+  官方/慣例徽章）+ 右欄派工指令卡（含綁解纜「加派」型綠卡）。三情境 stable/rain/typhoon。
+- 成果檔案：`src/screens/dispatch/{index.ts 重寫,dispatch.html 重寫,dispatch.css 新增,
+  conclusion.ts 新增}` + 刪 `heat.ts` + `src/data/types.ts`（DispatchSnapshot 改三情境結構）
+  + `src/data/mock/dispatch.json`（全面改寫成三情境，逐字轉錄自已驗收 preview）+
+  `tests/{dispatch-conclusion.test.ts,dispatch-mock.test.ts}` 新增（+`mock.test.ts` 一個
+  pre-existing 案例隨契約改版更新）+ `src/ui/tokens.css`（刪舊派工段）。
+- **SDD 7 tasks（每個獨立 code review 皆 Spec ✅ + Quality Approved）**：
+  (1) conclusion.ts parseConclusion（{{stop:}}→<em>、{{add:}}→<u>）TDD；
+  (2) 資料契約三情境 + mock JSON 逐字轉錄 + 刪 heat.ts + 降過渡殼 TDD；
+  (3) 版面骨架 + dispatch.css（自 preview 逐條轉錄、全 #s-dispatch 前綴）+ 靜態渲染 + tokens.css 清舊；
+  (4) 情境切換 + 規則展開（單列互斥）；(5) 時間軸游標（三段泡泡 + 欄標頭連動 + 鍵盤隔離）；
+  (6) 模型更新倒數（10:00 自動 + 推論動畫 + show/hide 生命週期 + reduced-motion + DEV-only 測試鉤）；
+  (7) 全站驗收 + 本文件收尾。
+- **驗收（誠實分野）**：三綠燈全過（tsc 0 / vitest 9 檔 29 tests 全綠 / build ok，DEV 鉤 grep dist=0）。
+  控制器每個互動 task 皆以 headless Chrome + CDP 實機逐項驗證（Task3 靜態 8 斷言、Task4 情境+規則
+  21、Task5 時間軸+鍵盤 12、Task6 倒數+生命週期+RM 17、Task7 七頁全站+整合+demo 動線 18），
+  合計 76 斷言全 PASS、console 全程零錯誤；三情境（含 typhoon 玫紅態規則展開）截圖存證於 scratch。
+  demo 前建議真 Chrome 再人工 click-through 一輪（拖時間軸/切情境/點列展開的手感）。
+- 關鍵設計事實與規則庫依據見 `docs/superpowers/specs/2026-07-05-dispatch-redesign-design.md`
+  （決策表 / 資料契約 DispatchScenario / 規則庫 15 條含官方條號出處 / 三情境劇本 / 互動規格 /
+  驗收標準）；實作計畫 `docs/superpowers/plans/2026-07-05-dispatch-redesign.md`（7 tasks）；
+  視覺/互動基準 `docs/preview/preview-dispatch-redesign.html`（36 CDP 斷言已驗收）。
+- **下一步**：最終 whole-branch review（opus）→ 使用者實機驗收 → finishing（決定合併方式，
+  比照 policy 前例可能本地合併回 main、未 push）。
+
+**（以下為 Dispatch 改版 brainstorming 歷程記錄，實作見上）**
+- 兩份 subagent 網路調研沉澱進 spec：(1) 港口作業天氣規範（法定強風 10 m/s 勞動部函釋 0042784、
+  高雄港風災防救要點 7 級全港停工/5 級浮筒淨空/警戒加纜 5/7 條/危險品船出港、起重機 30 m/s
+  錨定線、穀物見雨即停 WWD 慣例、油品雷電紅線 ISGOTT Ch.16、CWA 雨量分級）；(2) UI/UX 參考
+  （StormGeo per-operation 紅黃綠矩陣、Apple Weather 一句話結論、Yahoo!天気雙資料源同軸縫合）。
+- preview 迭代修正一個真問題：時間軸 `setPointerCapture` 對合成 pointer 事件拋 NotFoundError，
+  已加 try/catch 防禦（實作 Task 5 帶入）。
 
 **（以下為前一輪已完成工作）**
 
@@ -651,11 +667,14 @@
 
 ## 4. 下一步（依序）
 
-**目前的下一步（2026-07-05 起）：dispatch 頁改版——brainstorming 已完成（見第 1 節）。**
-1. 使用者實機檢查 `docs/preview/preview-dispatch-redesign.html` 與 spec，回饋修訂（如有）。
-2. 通過後 → `writing-plans` 寫實作計畫（`docs/superpowers/plans/`）→ SDD 逐 task 實作
-   （每 task 檢查點由使用者 commit）。
+**目前的下一步（2026-07-05 起）：dispatch 頁改版 SDD 實作已完成（7 tasks，見第 1 節），剩收尾。**
+1. 最終 whole-branch review（opus）——分支 `dispatch-redesign` 全 diff 複審。
+2. 使用者實機驗收（真 Chrome 人工 click-through：切三情境 / 點列展開規則 / 拖時間軸跨分界 /
+   等或手動觸發模型更新）。
+3. finishing：決定合併方式（比照 policy 前例可能本地合併回 main、未 push）。
 - policy 頁改版已於 2026-07-05 完成並合併回 main（見第 1 節）。
+- 六大功能頁改版進度：carbon(live)/twin(live 原生)/policy(已改版)/**dispatch(本輪改版完成)**；
+  尚餘 epidemic、alert 仍為初版 mock 佔位頁（未來若要比照 policy/dispatch 做深度改版再各自 brainstorming）。
 
 （以下為 shell 建置期的歷史步驟，皆已完成）
 
