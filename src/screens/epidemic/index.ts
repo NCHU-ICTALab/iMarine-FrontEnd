@@ -2,8 +2,9 @@
    互動基準：docs/preview/preview-epidemic-redesign.html。
    本檔為膠合層：規則式評分/時空交叉比對走 ./correlate、Mapbox 地圖走 ./worldmap、
    Epi-Gantt 泳道走 ./swimlane（皆單一真相來源，不在此重複定義）。Task 3 靜態骨架 +
-   Task 4 地圖 + Task 5 泳道（select() 全連動：地圖/泳道/右欄同步、游標歸位 now）已完成；
-   時間游標拖曳/鍵盤（Task 6）、細胞簡訊模擬偵測按鈕（Task 7）暫不綁定。 */
+   Task 4 地圖 + Task 5 泳道（select() 全連動：地圖/泳道/右欄同步、游標歸位 now）+
+   Task 6 時間游標（拖曳/點擊/鍵盤，船沿真實航線插值 + 命中脈衝）已完成；
+   細胞簡訊模擬偵測按鈕（Task 7）暫不綁定。 */
 import type { Screen } from '../types';
 import type {
   EpidemicSnapshot,
@@ -11,7 +12,7 @@ import type {
   EpidemicPipelineStage,
   EpidemicEvent,
 } from '../../data/types';
-import { scoreVessel, computeHits, type RiskTier } from './correlate';
+import { scoreVessel, computeHits, type RiskTier, type Hit } from './correlate';
 import { createWorldMap, type WorldMap } from './worldmap';
 import { renderSwimlane, dayToX, type SwimlaneEls } from './swimlane';
 import { screenHeader } from '../../ui/components';
@@ -154,6 +155,88 @@ function select(id: string): void {
   positionCursor();
 }
 
+function cursorToDay(clientX: number): number {
+  const r = swimEls.sl.getBoundingClientRect();
+  const w = r.width - 62;
+  let x = clientX - r.left - 62;
+  x = Math.max(0, Math.min(w, x));
+  return timeRange.startDay + (x / w) * (timeRange.now - timeRange.startDay);
+}
+
+function pulseHit(h: Hit): void {
+  const w = swimEls.sl.clientWidth - 62;
+  const p = document.createElement('div');
+  p.className = 'hitpulse act';
+  p.style.cssText = `left:${62 + dayToX(h.markerDay, w, timeRange)}px;top:22px;box-shadow:0 0 0 0 ${h.type === 'rose' ? '#F0648C' : '#F5A54A'}`;
+  swimEls.sl.appendChild(p);
+  setTimeout(() => p.remove(), 520);
+}
+
+function setCursor(day: number): void {
+  const v = current();
+  if (!v) return;
+  const prev = cursorDay;
+  cursorDay = Math.max(timeRange.startDay, Math.min(timeRange.now, day));
+  map.setShipAt(v, cursorDay);
+  positionCursor();
+  computeHits(v.ports, v.events).forEach((h) => {
+    if ((prev - h.markerDay) * (cursorDay - h.markerDay) <= 0 && Math.abs(cursorDay - h.markerDay) < 0.7) {
+      pulseHit(h);
+    }
+  });
+}
+
+function bindCursor(): void {
+  const cursorEl = $('#epiCursor');
+  let dragging = false;
+  const startDrag = (e: PointerEvent): void => {
+    dragging = true;
+    try {
+      cursorEl.setPointerCapture(e.pointerId);
+    } catch {
+      /* 合成事件無 active pointer 會拋 NotFoundError，preview/dispatch 皆有此坑，吞掉即可 */
+    }
+  };
+  window.addEventListener('pointermove', (e) => {
+    if (dragging) setCursor(cursorToDay(e.clientX));
+  });
+  window.addEventListener('pointerup', (e) => {
+    dragging = false;
+    try {
+      cursorEl.releasePointerCapture(e.pointerId);
+    } catch {
+      /* 同上 */
+    }
+  });
+  cursorEl.addEventListener('pointerdown', startDrag);
+  swimEls.sl.addEventListener('pointerdown', (e) => {
+    if (e.target !== cursorEl) {
+      setCursor(cursorToDay(e.clientX));
+      startDrag(e);
+    }
+  });
+  cursorEl.addEventListener('keydown', (e) => {
+    const step = (timeRange.now - timeRange.startDay) / 26;
+    if (e.key === 'ArrowLeft') {
+      setCursor(cursorDay - step);
+      e.preventDefault();
+      e.stopPropagation();
+    } else if (e.key === 'ArrowRight') {
+      setCursor(cursorDay + step);
+      e.preventDefault();
+      e.stopPropagation();
+    } else if (e.key === 'Home') {
+      setCursor(timeRange.startDay);
+      e.preventDefault();
+      e.stopPropagation();
+    } else if (e.key === 'End') {
+      setCursor(timeRange.now);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+}
+
 const s: Screen = {
   async mount(el, ctx) {
     sectionEl = el;
@@ -191,6 +274,7 @@ const s: Screen = {
     });
     renderPipe();
     select(sortedFleet()[0].id);
+    bindCursor();
   },
   show() {
     map.resize();
