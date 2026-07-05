@@ -2,11 +2,37 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Policy 頁改版 8 tasks + 最終 whole-branch review + 複審修正波全數完成，已本地合併回 main（fast-forward，未 push），feature 分支已刪
+最後更新：2026-07-05 Dispatch 頁改版 brainstorming 完成：spec 定稿 + 互動示範頁（36 斷言全 PASS）待使用者實機檢查
 
 ---
 
 ## 1. 目前狀態
+
+**Dispatch 頁改版：brainstorming 完成，spec + 互動示範頁已產出，待使用者實機檢查後進 writing-plans。**
+- 兩份調研（皆由 subagent 網路調研完成，重點已沉澱進 spec）：
+  (1) 港口作業天氣規範——法定強風 10 m/s（勞動部函釋 0042784）、高雄港風災防救要點
+  7 級全港停工/5 級浮筒淨空/警戒加纜 5/7 條/危險品船出港、起重機 30 m/s 錨定線、
+  穀物見雨即停（WWD 慣例）、油品雷電紅線（ISGOTT Ch.16）、CWA 雨量分級；
+  (2) UI/UX 參考——StormGeo per-operation 紅黃綠矩陣、Apple Weather 一句話結論、
+  Yahoo!天気雙資料源同軸縫合、三級燈號色彩紀律。
+- 關鍵事實修正（推翻舊 mock 頁假設）：ConvLSTM 對未來 90 分鐘輸出**單一預測**
+  （全港區彙總：六級雨量分級 + 蒲福風級 + 10min 平均 + 陣風），無逐 10 分鐘序列、
+  無空間網格 → 舊「拖時間軸看熱區網格」互動與熱區 canvas（heat.ts）廢棄。
+- 設計定案（視覺 companion 四方向比選 → D 混血 → v2/v3/v4 三輪迭代，v5 手動更新鈕
+  提案被否決退回 v4）：hero 三塊（風險色大字塊/一句話結論+複合時間軸 slider/更新進度環
+  10:00 自動倒數）+ 七列作業燈號矩陣（ConvLSTM 寬欄含動作字 + CWA +3h/+6h 窄欄純色，
+  列點擊展開規則依據含官方/慣例徽章）+ 右欄派工指令卡（含綁解纜「加派」型綠卡）；
+  demo 互動四種：三情境切換（stable/rain/typhoon）、時間軸游標（泡泡+欄標頭連動）、
+  逐列驗規則、模型更新倒數。
+- spec：`docs/superpowers/specs/2026-07-05-dispatch-redesign-design.md`（決策表、資料契約
+  DispatchScenario、規則庫 15 條含條號出處、三情境劇本、互動規格、檔案結構、驗收標準）。
+- 互動示範：`docs/preview/preview-dispatch-redesign.html`（自含 Kit，比照 policy 前例組裝；
+  headless Chrome + CDP 驗證 36 斷言全 PASS、console 零錯誤；涵蓋三情境切換/規則展開單列
+  互斥/時間軸三段泡泡與欄標頭連動/推論動畫與取消/toast）。修正一個真問題：時間軸
+  `setPointerCapture` 對合成事件拋 NotFoundError，已加 try/catch 防禦。
+- 下一步：使用者實機檢查示範頁 + spec → writing-plans → SDD 實作。
+
+**（以下為前一輪已完成工作）**
 
 **Policy 頁改版：實作完成並已合併回 main（本地，未 push）。**
 - SDD 執行 8 個 task（generate.ts TDD → 契約+mock JSON TDD → components.ts source optional →
@@ -625,12 +651,10 @@
 
 ## 4. 下一步（依序）
 
-**目前的下一步（2026-07-05 起）：重構「短時微氣候 · 即時派工建議」頁（`dispatch`）。**
-- 現況：dispatch 為 mock 頁（`src/screens/dispatch/{index.ts,dispatch.html,heat.ts}`），
-  熱區 canvas + 預測時間軸滑桿 + 派工建議卡 + 風速折線圖，資料走 `src/data/mock/dispatch.json`。
-- 開工前先 `brainstorming` 問清重構方向（比照 policy/twin 前例：先定 spec + 互動 mockup 驗收，
-  再 writing-plans → subagent-driven 實作）。報告書 v6 對本模組的定位＝ConvLSTM 短時微氣候預測
-  + 差異化作業可行性（如「散裝下午 1 點前停工、油品延長至 2 點半但加派監控」）。
+**目前的下一步（2026-07-05 起）：dispatch 頁改版——brainstorming 已完成（見第 1 節）。**
+1. 使用者實機檢查 `docs/preview/preview-dispatch-redesign.html` 與 spec，回饋修訂（如有）。
+2. 通過後 → `writing-plans` 寫實作計畫（`docs/superpowers/plans/`）→ SDD 逐 task 實作
+   （每 task 檢查點由使用者 commit）。
 - policy 頁改版已於 2026-07-05 完成並合併回 main（見第 1 節）。
 
 （以下為 shell 建置期的歷史步驟，皆已完成）
