@@ -1,9 +1,9 @@
 /* Epidemic screen — 疫情自動追溯（2026-07-05 spec 改版）。
    互動基準：docs/preview/preview-epidemic-redesign.html。
-   本檔為膠合層：規則式評分/時空交叉比對走 ./correlate、Mapbox 地圖走 ./worldmap
-   （皆單一真相來源，不在此重複定義）。Task 3 靜態骨架 + Task 4 地圖（選中船航線/熱點/
-   港口/船位/fitBounds，見 select() 尾端與 mount()/show()）已完成；泳道游標容器暫留空
-   （Task 5），細胞簡訊模擬偵測按鈕暫不綁定（Task 6/7）。 */
+   本檔為膠合層：規則式評分/時空交叉比對走 ./correlate、Mapbox 地圖走 ./worldmap、
+   Epi-Gantt 泳道走 ./swimlane（皆單一真相來源，不在此重複定義）。Task 3 靜態骨架 +
+   Task 4 地圖 + Task 5 泳道（select() 全連動：地圖/泳道/右欄同步、游標歸位 now）已完成；
+   時間游標拖曳/鍵盤（Task 6）、細胞簡訊模擬偵測按鈕（Task 7）暫不綁定。 */
 import type { Screen } from '../types';
 import type {
   EpidemicSnapshot,
@@ -13,6 +13,7 @@ import type {
 } from '../../data/types';
 import { scoreVessel, computeHits, type RiskTier } from './correlate';
 import { createWorldMap, type WorldMap } from './worldmap';
+import { renderSwimlane, dayToX, type SwimlaneEls } from './swimlane';
 import { screenHeader } from '../../ui/components';
 import template from './epidemic.html?raw';
 import './epidemic.css';
@@ -31,6 +32,7 @@ let timeRange: EpidemicSnapshot['timeRange'] = { startDate: '', endDate: '', sta
 let inflowPool: EpidemicSnapshot['inflowPool'] = [];
 let sectionEl: HTMLElement;
 let map: WorldMap;
+let swimEls: SwimlaneEls;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string): T =>
   sectionEl.querySelector(sel) as T;
@@ -134,16 +136,22 @@ function renderPipe(): void {
   });
 }
 
+function positionCursor(): void {
+  const w = swimEls.sl.clientWidth - 62;
+  $('#epiCursor').style.left = `${62 + dayToX(cursorDay, w, timeRange)}px`;
+}
+
 function select(id: string): void {
-  const v = fleet.find((x) => x.id === id);
-  if (!v) return;
   curId = id;
   cursorDay = timeRange.now;
+  const v = current();
   renderFleet();
-  renderKeyRow(v);
+  const hits = computeHits(v.ports, v.events);
+  if (map.ready) map.renderVessel(v, hits);
+  renderSwimlane(swimEls, v, hits, timeRange);
   renderRight(v);
-  renderPipe();
-  if (map.ready) map.renderVessel(v, computeHits(v.ports, v.events));
+  renderKeyRow(v);
+  positionCursor();
 }
 
 const s: Screen = {
@@ -171,14 +179,31 @@ const s: Screen = {
       }) +
       template +
       '</div>';
+    swimEls = {
+      berth: $('#epiBerth'),
+      evt: $('#epiEvt'),
+      hit: $('#epiHit'),
+      axis: $('#epiAxis'),
+      sl: $('#epiSl'),
+    };
     map = createWorldMap($('#epiMap'), () => {
       if (curId) map.renderVessel(current(), computeHits(current().ports, current().events));
     });
+    renderPipe();
     select(sortedFleet()[0].id);
   },
   show() {
     map.resize();
-    if (curId) map.renderVessel(current(), computeHits(current().ports, current().events));
+    if (curId) {
+      // section 從 mount() 當下的 display:none 變 .active 後，#epiSl 才有真實
+      // clientWidth；swimlane 與地圖一樣，首次 show() 前用 0 寬算出的泳道座標
+      // 是錯的，故比照 map.resize() 的既有慣例在此重繪一次（同 M-t4-1 的成因）。
+      const v = current();
+      const hits = computeHits(v.ports, v.events);
+      map.renderVessel(v, hits);
+      renderSwimlane(swimEls, v, hits, timeRange);
+      positionCursor();
+    }
   },
 };
 export default s;
