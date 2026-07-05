@@ -3,9 +3,10 @@
    本檔為膠合層：規則式評分/時空交叉比對走 ./correlate、Mapbox 地圖走 ./worldmap、
    Epi-Gantt 泳道走 ./swimlane（皆單一真相來源，不在此重複定義）。Task 3 靜態骨架 +
    Task 4 地圖 + Task 5 泳道（select() 全連動：地圖/泳道/右欄同步、游標歸位 now）+
-   Task 6 時間游標（拖曳/點擊/鍵盤，船沿真實航線插值 + 命中脈衝）已完成；
-   細胞簡訊模擬偵測按鈕（Task 7）暫不綁定。 */
-import type { Screen } from '../types';
+   Task 6 時間游標（拖曳/點擊/鍵盤，船沿真實航線插值 + 命中脈衝）+
+   Task 7 管線進場動畫（playPipe）+ 點階段看來源（.pdetail）+ 模擬偵測
+   （池兩發 escalate/newship + 池盡重置 + 9s 自動流入）+ show/hide 生命週期已完成。 */
+import type { Screen, ScreenCtx } from '../types';
 import type {
   EpidemicSnapshot,
   EpidemicVessel,
@@ -26,14 +27,19 @@ type FleetVessel = EpidemicVessel & { _unread?: boolean };
 type PipeStage = EpidemicPipelineStage & { _state?: 'wait' | 'run' | 'done' };
 
 let fleet: FleetVessel[] = [];
+let fleet0: FleetVessel[] = []; // 池盡重置用的初始船隊複本；mount() 當下、任何 inflow 操作前捕捉
 let pipe: PipeStage[] = [];
 let curId: string | null = null;
 let cursorDay = 0;
 let timeRange: EpidemicSnapshot['timeRange'] = { startDate: '', endDate: '', startDay: 0, now: 0 };
 let inflowPool: EpidemicSnapshot['inflowPool'] = [];
+let inflowIdx = 0;
 let sectionEl: HTMLElement;
+let sCtx: ScreenCtx;
 let map: WorldMap;
 let swimEls: SwimlaneEls;
+let autoFlowArmed = false; // 9s 自動流入計時器只武裝一次（比照 policy 既有慣例）
+let autoFlowTimer: ReturnType<typeof setTimeout> | null = null;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string): T =>
   sectionEl.querySelector(sel) as T;
@@ -128,6 +134,19 @@ function renderPipe(): void {
     el2.innerHTML =
       `<span class="plamp ${st}"></span>${stage.label}` +
       (stage.count ? ` <span class="pcount ${stage.run ? 'hit' : ''}">${stage.count}</span>` : '');
+    const det = document.createElement('div');
+    det.className = 'pdetail';
+    det.innerHTML = stage.detail
+      .map((d) => (d.startsWith('來源') ? `<a href="#">${d}</a>` : `<div>${d}</div>`))
+      .join('');
+    el2.appendChild(det);
+    el2.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.pdetail').forEach((d) => {
+        if (d !== det) d.classList.remove('show');
+      });
+      det.classList.toggle('show');
+    });
     el.appendChild(el2);
     if (i < pipe.length - 1) {
       const f = document.createElement('div');
@@ -135,6 +154,34 @@ function renderPipe(): void {
       el.appendChild(f);
     }
   });
+}
+document.body.addEventListener('click', () => {
+  document.querySelectorAll('.pdetail').forEach((d) => d.classList.remove('show'));
+});
+
+function playPipe(): void {
+  const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (rm) {
+    pipe.forEach((stage) => {
+      stage._state = stage.run ? 'run' : 'done';
+    });
+    pipe[4]._state = 'wait';
+    renderPipe();
+    return;
+  }
+  pipe.forEach((stage) => {
+    stage._state = 'wait';
+  });
+  renderPipe();
+  let i = 0;
+  const seq = (): void => {
+    if (i >= pipe.length) return;
+    pipe[i]._state = pipe[i].run ? 'run' : 'done';
+    renderPipe();
+    i++;
+    setTimeout(seq, 360);
+  };
+  seq();
 }
 
 function positionCursor(): void {
@@ -237,13 +284,43 @@ function bindCursor(): void {
   });
 }
 
+/* ── 模擬偵測：池兩發（escalate/newship）+ 池盡重置 ── */
+function simulate(): void {
+  if (inflowIdx >= inflowPool.length) {
+    fleet = fleet0.map((v) => ({ ...v }));
+    inflowIdx = 0;
+    if (curId && !fleet.find((x) => x.id === curId)) curId = sortedFleet()[0].id;
+    renderFleet();
+    sCtx.ui.toast({ title: '疫情自動追溯', message: '模擬池重置 · 回到初始船隊' });
+    if (curId) select(curId);
+    return;
+  }
+  const f = inflowPool[inflowIdx++];
+  if (f.kind === 'escalate') {
+    const v = fleet.find((x) => x.id === f.targetId)!;
+    v.factors = f.factors;
+    v.events = [...v.events, f.event];
+    v.intel = [f.intel, ...v.intel.filter((i) => i.hit)];
+    v._unread = v.id !== curId;
+    renderFleet();
+    if (v.id === curId) select(v.id);
+  } else if (f.kind === 'newship') {
+    fleet = [{ ...f.vessel, _unread: true }, ...fleet];
+    renderFleet();
+  }
+  sCtx.ui.toast({ title: '疫情自動追溯', message: f.toast });
+}
+
 const s: Screen = {
   async mount(el, ctx) {
     sectionEl = el;
+    sCtx = ctx;
     const snap: EpidemicSnapshot = await ctx.data.epidemic.snapshot();
     fleet = snap.fleet.map((v) => ({ ...v }));
-    // 靜態管線狀態（比照 preview reduced-motion 終態：末站待推播、其餘依 run 旗標 done/run）；
-    // 進場逐格點亮動畫留給 Task 7 的 playPipe()。
+    fleet0 = fleet.map((v) => ({ ...v })); // 池盡重置用的初始複本，須在任何 inflow 操作前捕捉
+    // 靜態管線初值（比照 preview reduced-motion 終態：末站待推播、其餘依 run 旗標 done/run）；
+    // mount() 完成後 router 立即呼叫 show()，playPipe() 會接手播放/改寫這份初值，
+    // 此處只是避免 show() 前那一瞬有未賦值畫面。
     pipe = snap.pipeline.map((stage, i) => ({
       ...stage,
       _state: i === snap.pipeline.length - 1 ? 'wait' : stage.run ? 'run' : 'done',
@@ -275,6 +352,16 @@ const s: Screen = {
     renderPipe();
     select(sortedFleet()[0].id);
     bindCursor();
+    $('#epiSim').addEventListener('click', simulate);
+    // 本頁 active 時的視窗 resize（對齊 dispatch/twin 定案手法）
+    window.addEventListener('resize', () => {
+      if (!sectionEl.classList.contains('active')) return;
+      map.resize();
+      if (curId) {
+        const v = current();
+        renderSwimlane(swimEls, v, computeHits(v.ports, v.events), timeRange);
+      }
+    });
   },
   show() {
     map.resize();
@@ -287,6 +374,20 @@ const s: Screen = {
       map.renderVessel(v, hits);
       renderSwimlane(swimEls, v, hits, timeRange);
       positionCursor();
+    }
+    playPipe();
+    if (!autoFlowArmed) {
+      autoFlowArmed = true;
+      autoFlowTimer = setTimeout(() => {
+        autoFlowTimer = null;
+        if (inflowIdx === 0 && sectionEl.classList.contains('active')) simulate();
+      }, 9000);
+    }
+  },
+  hide() {
+    if (autoFlowTimer) {
+      clearTimeout(autoFlowTimer);
+      autoFlowTimer = null;
     }
   },
 };
