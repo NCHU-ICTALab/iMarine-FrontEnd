@@ -93,6 +93,10 @@ export interface DispatchScenario {
 }
 export interface DispatchSnapshot { scenarios: DispatchScenario[] }  // 固定 3 筆
 
+export interface EpidemicFactors { dwellDays: number; sourceStrength: number; distanceFactor: number }
+export interface EpidemicPort { name: string; dayIn: number; dayOut: number; berthed?: boolean }
+export interface EpidemicEvent { id: string; port: string; day: number; source: 'who' | 'cdc' | 'news'; label: string }
+
 export interface EpidemicSnapshot {
   ship: string; risk: number; level: string;
   factors: { name: string; value: number }[];
