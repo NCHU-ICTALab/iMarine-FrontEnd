@@ -19,6 +19,13 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string): T =>
   sectionEl.querySelector(sel) as T;
 const scn = (): DispatchScenario => scenarios.find((s) => s.id === cur)!;
 
+let openOp: string | null = null;              // 展開中的作業列
+let timers: ReturnType<typeof setTimeout>[] = []; // 進行中的動畫（切情境取消）
+let bubbleRefresh: (() => void) | null = null; // Task 5 指定
+function later(fn: () => void, ms: number): void { timers.push(setTimeout(fn, ms)); }
+function cancelTimers(): void { timers.forEach(clearTimeout); timers = []; }
+let stopInference: () => void = () => {};      // Task 6 覆寫
+
 /* 六級雨量分級 → hero 風險色三態（spec §3：大字塊底色 = 當前風險色） */
 const WXCLS: Record<RainLevel, 'ok' | 'warn' | 'stop'> =
   { 無: 'ok', 小雨: 'ok', 大雨: 'warn', 豪雨: 'stop', 大豪雨: 'stop', 超大豪雨: 'stop' };
@@ -50,6 +57,30 @@ function rowHtml(op: OpRow): string {
 
 function renderMatrix(sc: DispatchScenario): void {
   $('#mxbody').innerHTML = sc.ops.map(rowHtml).join('');
+  openOp = null;
+}
+
+function tagHtml(tag: 'official' | 'industry'): string {
+  return `<span class="tag ${tag === 'official' ? 'o' : 'i'}">${tag === 'official' ? '官方' : '慣例'}</span>`;
+}
+function toggleRow(row: HTMLElement): void {
+  const id = row.getAttribute('data-op')!;
+  sectionEl.querySelector('#mxbody .mexp')?.remove();
+  const prev = sectionEl.querySelector('#mxbody .mrow.open');
+  if (prev) { prev.classList.remove('open'); prev.setAttribute('aria-expanded', 'false'); }
+  if (openOp === id) { openOp = null; return; }   // 再點同列 = 收合
+  openOp = id;
+  row.classList.add('open');
+  row.setAttribute('aria-expanded', 'true');
+  const op = scn().ops.find((o) => o.id === id)!;
+  const exp = document.createElement('div');
+  exp.className = 'mexp';
+  exp.innerHTML = op.rules.map((r, i) =>
+    i === 0
+      ? `<div>${r.text}</div><div class="r">${tagHtml(r.tag)}${r.basis}</div>`
+      : `<div class="r">${tagHtml(r.tag)}${r.text} — ${r.basis}</div>`,
+  ).join('');
+  row.after(exp);
 }
 
 function cardHtml(c: DispatchCard, i: number): string {
@@ -83,6 +114,12 @@ function segctlHtml(): string {
   );
 }
 
+const TOAST: Record<ScenarioId, string> = {
+  stable: '全作業線正常',
+  rain: '3 項作業停工、1 項加派',
+  typhoon: '全港停止作業預備',
+};
+
 const s: Screen = {
   async mount(el, ctx) {
     sectionEl = el;
@@ -101,6 +138,25 @@ const s: Screen = {
       template +
       '</div>';
     renderAll();
+    $('#mxbody').addEventListener('click', (e) => {
+      const row = (e.target as HTMLElement).closest<HTMLElement>('.mrow');
+      if (row) toggleRow(row);
+    });
+    $('#mxbody').addEventListener('keydown', (e) => {
+      const row = (e.target as HTMLElement).closest<HTMLElement>('.mrow');
+      if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleRow(row); }
+    });
+    $('#segctl').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.scbtn');
+      if (!btn || btn.classList.contains('on')) return;
+      cancelTimers();          // 取消進行中的推論動畫（Task 6），不洩漏舊情境內容
+      stopInference();
+      cur = btn.getAttribute('data-scn') as ScenarioId;
+      sectionEl.querySelectorAll('.scbtn').forEach((b) => b.classList.toggle('on', b === btn));
+      renderAll();
+      (bubbleRefresh as (() => void) | null)?.();       // Task 5：泡泡文字跟上新情境
+      sCtx.ui.toast({ title: `已切換情境：${scn().label}`, message: TOAST[cur] });
+    });
   },
 };
 export default s;
