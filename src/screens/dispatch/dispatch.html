@@ -1,24 +1,61 @@
-<div class="cols">
-  <div class="stack">
-    <div class="heatbox anim" style="--d:.1s">
-      <canvas id="heat"></canvas>
-      <div class="legend"><span>弱</span><i style="background:#35E0A6"></i><i style="background:#E9BC63"></i><i style="background:#F5A54A"></i><i style="background:#F0648C"></i><span>強</span></div>
-      <span class="cap" style="position:absolute;top:12px;left:14px;font-size:11px;font-family:var(--mono);letter-spacing:.12em;color:var(--ink-40);z-index:3">降雨機率網格 · 港區 500m</span>
+<div class="hero">
+  <div class="wx ok anim" id="wx" style="--d:.08s">
+    <div class="win" id="wxwin">未來 90 分鐘 · 港區</div>
+    <div class="lvl" id="wxlvl"></div>
+    <div class="sub">
+      <span><b id="wxbf"></b> 蒲福</span>
+      <span><b id="wxavg"></b> m/s 平均</span>
+      <span><b id="wxgust"></b> m/s 陣風</span>
     </div>
-    <div class="panel lg anim" data-lg style="--d:.15s">
-      <div class="lab" style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);color:var(--ink-40);letter-spacing:.1em"><span>預測時間軸</span><span id="dclock">+30 min</span></div>
-      <div class="lg lg-slider" data-lg style="width:100%">
-        <input class="lg-slider__input" id="dispTime" type="range" min="0" max="90" step="10" value="30" aria-label="預測時間軸 0 到 90 分鐘">
+    <div class="met mono" id="wxmet"></div>
+  </div>
+  <div class="concl lg anim" data-lg style="--d:.14s">
+    <div class="line" id="concl"></div>
+    <div class="tlwrap">
+      <div class="tl" id="tl" role="slider" tabindex="0" aria-label="預測時間軸"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="20">
+        <div class="track"><div class="segN"></div><div class="segC"></div></div>
+        <div class="divider"></div>
+        <div class="bubble" id="tlbub"></div>
+        <div class="knob" id="tlknob"></div>
       </div>
-      <div style="font-size:13px;margin-top:6px" class="mut" id="dispRead"></div>
+      <div class="ticks">
+        <span style="left:0">NOW</span>
+        <span class="srcm" style="left:20%">ConvLSTM</span>
+        <span style="left:53%">+90m</span>
+        <span class="srcm" style="left:60%">CWA</span>
+        <span style="left:75%">+3h</span>
+        <span style="right:0">+6h</span>
+      </div>
     </div>
   </div>
-  <div class="stack">
-    <!--SUGGESTIONS-->
-    <div class="lg lg-chart anim" data-lg style="--d:.4s">
-      <div class="lg-chart__head"><h4 class="lg-chart__title">風速預測 m/s · 0-90 min</h4></div>
-      <svg class="lg-chart__svg" data-lg-chart="line" data-lg-points="__WINDS__"
-           data-lg-labels="0,10,20,30,40,50,60,70,80,90"></svg>
+  <div class="cnt lg anim" data-lg id="cnt" style="--d:.2s">
+    <div class="ring" id="ring">
+      <div class="in">
+        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg>
+        <span class="t" id="cntT">10:00</span>
+      </div>
     </div>
+    <span class="lb">模型更新</span>
+  </div>
+</div>
+<div class="dcols">
+  <div class="mx lg anim" data-lg style="--d:.26s">
+    <div class="mhead">
+      <span class="c0"></span>
+      <span class="cn" id="hN">CONVLSTM 0-90 MIN</span>
+      <span class="cc" id="h3">+3H</span>
+      <span class="cc" id="h6">+6H</span>
+    </div>
+    <div id="mxbody"></div>
+    <div class="mlegend">
+      <span><i class="st-ok"></i>可作業</span>
+      <span><i class="st-warn"></i>戒備</span>
+      <span><i class="st-stop"></i>停工</span>
+    </div>
+  </div>
+  <div class="rc anim" style="--d:.34s">
+    <div class="rch"><span>派工指令</span><span class="mono" id="cardn"></span></div>
+    <div id="cards"></div>
   </div>
 </div>
