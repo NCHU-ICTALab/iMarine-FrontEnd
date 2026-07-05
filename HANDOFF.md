@@ -2,13 +2,36 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Policy 頁改版 Task 8（全站驗收 + 文件收尾）完成，8 個 task 全數完成，分支 policy-redesign 待整支複審
+最後更新：2026-07-05 Policy 頁改版 8 tasks + 最終 whole-branch review + 複審修正波全數完成，已本地合併回 main（fast-forward，未 push），feature 分支已刪
 
 ---
 
 ## 1. 目前狀態
 
-**Policy 頁改版（進行中）：設計定案，示範介面待使用者驗收。**
+**Policy 頁改版：實作完成並已合併回 main（本地，未 push）。**
+- SDD 執行 8 個 task（generate.ts TDD → 契約+mock JSON TDD → components.ts source optional →
+  三欄骨架+版型+gbar → 對話串 → 生成動畫+情報流入 → 綜合對話知識庫 → 全站驗收），每 task 皆
+  獨立 code review（Approved 或 Needs-fixes→修正 Approved）；最終 whole-branch review（opus）
+  = Ready to merge（零 Critical/Important）；複審修正波 4 修正（hide() 動畫凍結、@keyframes
+  pulse 改名 pgpulse 防跨頁衝突、gbar-note 去重、cite 對映測試硬化）。
+- 成果：`src/screens/policy/{index.ts,policy.html,policy.css}` 重寫 + `generate.ts` 新增 +
+  `src/data/types.ts` PolicySnapshot 改 briefs/inflow/globalQa discriminated union +
+  `src/data/mock/policy.json` 全面改寫（9 情報 + globalQa）+ `src/ui/components.ts` source 改
+  optional + `tests/policy-generate.test.ts`/`policy-mock.test.ts` 新增。視覺/互動基準為已核可
+  的 `docs/preview/preview-policy-redesign.html`（v7）。
+- 合併：使用者選「本地合併回 main」，fast-forward 到 580f3e4，feature 分支 policy-redesign 已刪，
+  **未 push**（依專案慣例）。
+- **驗收狀態（誠實分野）**：policy 全部測試綠（policy-generate 2/2、policy-mock 4/4）、tsc 0、
+  build ok；全站七頁導覽 console 乾淨；綜合對話模式已用 Playwright 實機截圖確認。互動路徑
+  （點船式互動除外，policy 無 3D）如點 chip 生成/追問/情報流入/搜尋/reduced-motion 由 SDD 過程
+  中 headless CDP 逐項驗證，demo 前建議真 Chrome 再人工 click-through 一輪。
+- **合併後測試殘留（非 policy 缺陷，見第 5 節）**：合併後全套重跑時 `tests/twin-provider.test.ts`
+  的「snapshot 映射…」逾時（Test timed out in 5000ms，非斷言失敗）——twin 舊測試動態載入 4.6MB
+  航跡在機器負載下超過 vitest 預設 5s；本分支未動任何 twin 檔。屬 pre-existing 環境 flaky。
+
+**（以下為 Policy 改版 brainstorming 歷程記錄）**
+
+**Policy 頁改版 brainstorming（已完成，實作見上）：設計定案，示範介面 v7 使用者驗收通過。**
 - 方向（全部經使用者逐項確認）：政策情報中心＝ NotebookLM 三欄骨架 × Perplexity「看得見 AI
   在工作」生成過程。三種情境進同一個收件匣敘事：突發事件決策建議（主秀：紅海航線中斷升級）、
   新政策分析（現有 IMO NZF 五段報告原樣沿用）、routine 日報（07:00 自動生成晨報）；LLM 接口
@@ -636,6 +659,12 @@
 
 ## 5. 已知風險 / 注意
 
+- **twin-provider 測試 flaky（機器負載相關，非 policy 缺陷）**：`tests/twin-provider.test.ts`
+  的「snapshot 映射 72 筆泊位與 443 條真實航跡數」在機器負載高時（如剛跑完 build）會逾時
+  （Test timed out in 5000ms，非斷言失敗）——twin provider 的 `snapshot()` 動態載入 4.6MB
+  航跡 JSON，超過 vitest 預設 5s testTimeout。機器閒置時通常過。若要根治：該 it 案例加第三參
+  數 timeout（如 `20000`）或 `vitest.config` 設 `testTimeout`——屬 twin 檔，動前先問使用者。
+  policy 改版本身測試（policy-generate 2/2、policy-mock 4/4）與其餘皆穩定綠。
 - Liquid Glass 折射只在 Chromium 完整支援，其他瀏覽器自動降級磨砂——demo 機請用 Chrome/Edge。
 - 玻璃需要豐富背景才看得見：文件型頁（carbon/policy）用罩幕壓暗而非純黑。
 - Carbon live 需要先在 PoC repo 起 `make chain` + `make api`，demo 前要有開機 checklist。
