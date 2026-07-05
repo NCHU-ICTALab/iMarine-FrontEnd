@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>疫情自動追溯 · Epidemic 頁改版範例</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../src/ui/liquid-glass.css">
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.js"></script>
+<style>
+  :root{ --rose:#F0648C; --amber:#F5A54A; --gold:#E9BC63; --green:#35E0A6; --cyan:#38BDF8;
+         --ink:#dbe3ec; --ink60:#8b9bad; --ink40:#6b7a8d; --panel:#0d1420; --line:rgba(255,255,255,.08);
+         --mono:ui-monospace,"Geist Mono",monospace; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#070b11;color:var(--ink);font-family:-apple-system,"Noto Sans TC",sans-serif;line-height:1.45;
+       background-image:radial-gradient(80% 60% at 25% 0%,#101a2c,transparent),radial-gradient(70% 50% at 100% 20%,#14101c,transparent);min-height:100vh}
+  .swrap{max-width:1360px;margin:0 auto;padding:26px 24px 60px}
+  .eyebrow{font-size:10px;letter-spacing:.16em;color:var(--rose);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--rose);box-shadow:0 0 10px var(--rose)}
+  .hrow{display:flex;justify-content:space-between;align-items:flex-end;margin:8px 0 16px}
+  .hrow h1{font-size:26px;font-weight:800;margin:5px 0 0;letter-spacing:.01em}
+  .hactions{display:flex;gap:8px;align-items:center}
+  .chip{font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.12);color:var(--ink40)}
+  .chip.src{border-color:rgba(53,224,166,.35);color:var(--green)}
+  .simbtn{font-size:11px;padding:6px 12px;border-radius:8px;border:1px solid rgba(56,189,248,.4);background:rgba(56,189,248,.1);color:var(--cyan);cursor:pointer}
+  .simbtn:hover{background:rgba(56,189,248,.18)}
+  .pipe{display:flex;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 16px;margin-bottom:16px;position:relative}
+  .pstage{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink40);cursor:pointer;white-space:nowrap}
+  .pstage.on{color:#c3d0de}
+  .plamp{width:8px;height:8px;border-radius:50%;flex:none}
+  .plamp.done{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .plamp.run{background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:pl 1s infinite}
+  .plamp.wait{background:#333d4d}
+  @keyframes pl{50%{opacity:.35}}
+  .pflow{flex:1;height:1px;margin:0 12px;background:rgba(255,255,255,.07);position:relative;overflow:hidden}
+  .pflow.lit{background:linear-gradient(90deg,var(--green),var(--cyan))}
+  .pflow.lit::after{content:"";position:absolute;top:0;left:-30%;width:30%;height:100%;background:linear-gradient(90deg,transparent,#fff,transparent);opacity:.5;animation:flow 1.6s infinite}
+  @keyframes flow{to{left:110%}}
+  .pcount{font-family:var(--mono);color:var(--ink40)} .pcount.hit{color:var(--cyan)}
+  .pdetail{position:absolute;top:100%;margin-top:6px;background:#0a1220;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:11px;color:#c3d0de;z-index:20;box-shadow:0 12px 30px rgba(0,0,0,.5);min-width:200px;display:none}
+  .pdetail.show{display:block} .pdetail a{color:var(--ink60);text-decoration:underline;display:block;margin-top:3px;font-size:10px}
+  .grid{display:grid;grid-template-columns:0.72fr 2.9fr 1fr;gap:14px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .cap{font-size:9.5px;letter-spacing:.14em;color:#55606f;text-transform:uppercase;margin-bottom:9px}
+  .frow{display:flex;align-items:center;gap:9px;padding:9px;border-radius:9px;font-size:12px;cursor:pointer;border:1px solid transparent;transition:.2s;position:relative}
+  .frow.dim{opacity:.5}
+  .frow.sel{background:rgba(240,100,140,.1);border-color:rgba(240,100,140,.4);opacity:1}
+  .rdot{width:9px;height:9px;border-radius:50%;flex:none}
+  .fname{flex:1;font-weight:600;letter-spacing:.02em}
+  .fstop{color:var(--ink40);font-size:10px;font-weight:400}
+  .fscore{font-weight:800;font-size:14px;font-family:var(--mono)}
+  .unread{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pl 1.2s infinite}
+  .keyrow{display:flex;gap:9px;flex-wrap:wrap}
+  .kchip{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:10.5px;color:var(--ink60);flex:1;min-width:96px}
+  .kchip b{display:block;font-size:15px;font-family:var(--mono);margin-top:3px;color:#c3d0de}
+  .kchip.hi{border-color:rgba(245,165,74,.45)} .kchip.hi b{color:var(--amber)}
+  .kchip.red{border-color:rgba(240,100,140,.5)} .kchip.red b{color:var(--rose)}
+  /* Mapbox 地圖 */
+  .map{position:relative;width:100%;height:400px;border-radius:9px;overflow:hidden;background:#0a1220}
+  .mapfallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;text-align:center;color:var(--ink40);font-size:12px;padding:20px}
+  .mapfallback code{color:var(--cyan);font-size:11px}
+  .mapboxgl-ctrl-logo,.mapboxgl-ctrl-attrib{opacity:.35}
+  .mk-port{width:9px;height:9px;border-radius:50%;position:relative}
+  .mk-port .l{position:absolute;left:12px;top:-3px;font-size:10px;white-space:nowrap;font-weight:700}
+  .mk-ship{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:13px solid var(--cyan);filter:drop-shadow(0 0 6px var(--cyan))}
+  .sl{position:relative;margin-top:14px;padding-left:62px}
+  .lane{position:relative;height:36px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .lname{position:absolute;left:-62px;top:10px;font-size:9px;color:#55606f;width:58px}
+  .bar{position:absolute;height:15px;top:6px;border-radius:3px;font-size:8.5px;color:#0a1018;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden}
+  .evt{position:absolute;width:10px;height:10px;border-radius:50%;top:8px;transform:translateX(-50%)}
+  .hitline{position:absolute;width:2px;z-index:2}
+  .hitline.rose{background:var(--rose)} .hitline.amber{background:var(--amber)}
+  .hitpulse{position:absolute;width:16px;height:16px;border-radius:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;opacity:0}
+  .hitpulse.act{animation:pulse .5s ease-out}
+  @keyframes pulse{0%{opacity:.9;box-shadow:0 0 0 0 var(--rose)}100%{opacity:0;box-shadow:0 0 0 14px transparent}}
+  .cursor{position:absolute;top:-2px;height:80px;width:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);cursor:ew-resize;z-index:7}
+  .cursor::before{content:"";position:absolute;top:-5px;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--cyan)}
+  .axis{display:flex;justify-content:space-between;font-size:9px;color:#55606f;margin-top:6px;padding-left:62px}
+  .ring{width:62px;height:62px;border-radius:50%;border:3px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--amber);font-family:var(--mono)}
+  .rulerow{display:flex;justify-content:space-between;font-size:11px;padding:6px 0 2px} .rulerow span:first-child{color:var(--ink60)}
+  .meter{height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden}
+  .meter i{display:block;height:100%;border-radius:3px;transition:width .4s}
+  .intel{font-size:11.5px;color:#c3d0de;display:flex;flex-direction:column;gap:9px} .intel .miss{opacity:.5}
+  .actchip{display:inline-block;font-size:11px;padding:5px 9px;border-radius:7px;background:rgba(240,100,140,.09);border:1px solid rgba(240,100,140,.28);color:#f2c0cf;margin:0 5px 5px 0}
+  .sms{background:#0a1526;border:1px solid rgba(56,189,248,.35);border-radius:11px 11px 11px 3px;padding:10px 12px;font-size:12px;color:#cfe0f2}
+  .sms .from{font-size:9px;color:var(--cyan);letter-spacing:.1em;margin-bottom:5px;font-weight:700}
+  .note{max-width:1360px;margin:0 auto;padding:0 24px 40px;color:var(--ink40);font-size:12px} .note code{color:var(--ink60)}
+</style>
+</head>
+<body>
+<div class="swrap">
+  <div class="eyebrow"><span class="dot"></span>港邊人員視角 · MODULE 05</div>
+  <div class="hrow">
+    <h1>疫情自動追溯</h1>
+    <div class="hactions"><span class="chip">AIS × WHO IHR · 規則式評分</span><span class="chip src">● MOCK</span><button class="simbtn" id="simBtn">模擬偵測</button></div>
+  </div>
+  <div class="pipe" id="pipe"></div>
+  <div class="grid">
+    <div class="col"><div class="panel" style="flex:1"><div class="cap">進高雄船隊 · 依風險排序</div><div id="fleet"></div></div></div>
+    <div class="col">
+      <div class="keyrow" id="keyrow"></div>
+      <div class="panel"><div class="cap">Mapbox 真實航線 · 停靠序列 × 疫區（皆進高雄港）</div>
+        <div class="map" id="map"><div class="mapfallback" id="mapfallback">Mapbox 地圖需要 access token<br>把公開 token（<code>pk.…</code>）填入本檔頂部 <code>MAPBOX_TOKEN</code></div></div>
+        <div class="sl" id="sl">
+          <div class="lane"><span class="lname">船舶靠泊</span><div id="berthLane"></div></div>
+          <div class="lane" style="border-bottom:none"><span class="lname">疫情通報</span><div id="evtLane"></div></div>
+          <div id="hitLayer"></div><div class="cursor" id="cursor" tabindex="0"></div>
+        </div>
+        <div class="axis" id="axis"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel"><div class="cap">規則式評分 · WHO IHR</div><div id="score"></div></div>
+      <div class="panel"><div class="cap">多來源情報 · 命中</div><div class="intel" id="intel"></div></div>
+      <div class="panel"><div class="cap">防護動作</div><div id="advice"></div></div>
+      <div class="panel"><div class="cap">細胞簡訊 · 港邊派工</div><div class="sms" id="sms"></div></div>
+    </div>
+  </div>
+</div>
+<div class="note">範例頁（brainstorming 基準）。Mapbox 真實地圖 · 只收進高雄港的船 · 中央放大為主要呈現。四互動：<code>點左欄船列</code>下鑽 · <code>拖曳/←→ 藍色時間游標</code>船沿真實航線移動+命中脈衝 · <code>點管線階段</code>看來源 · <code>模擬偵測</code>演升級/新船/重置。船名皆虛構、無解釋性散文、常態壓灰風險發亮。</div>
+
+<script src="../../src/ui/liquid-glass.js"></script>
+<script>
+/* ⚠️ 把你的 Mapbox 公開 token 貼進這裡（pk.…） */
+const MAPBOX_TOKEN = '__MAPBOX_TOKEN__';
+
+const PORTS={'高雄':[120.30,22.61],'香港':[114.17,22.30],'馬尼拉':[120.97,14.58],'釜山':[129.04,35.10],'新加坡':[103.85,1.29],'馬六甲':[102.25,2.19],'那霸':[127.68,26.21],'廈門':[118.08,24.48]};
+const TR={startDay:0,now:13,startDate:'06-19',endDate:'07-02',labels:['06-19','06-24','06-28','07-02']};
+const LEVELS=[{min:80,tier:'red',label:'紅級 · 禁止登輪',color:'#F0648C'},{min:60,tier:'orange',label:'橙級 · 限制登輪',color:'#F5A54A'},{min:40,tier:'yellow',label:'黃級 · 加強防護',color:'#E9BC63'},{min:0,tier:'green',label:'綠級 · 正常',color:'#35E0A6'}];
+function scoreVessel(f){const s=Math.round(0.25*f.dwellDays+0.50*f.sourceStrength+0.25*f.distanceFactor);return {score:s,...LEVELS.find(l=>s>=l.min)};}
+const INCUB=7;
+function computeHits(ports,events){const hits=[];for(const e of events){const p=ports.find(p=>p.name===e.port);if(!p)continue;if(e.day>=p.dayIn&&e.day<=p.dayOut)hits.push({port:p.name,eventId:e.id,type:'rose',mag:Math.min(p.dayOut,e.day)-p.dayIn+1,markerDay:e.day});else if(e.day>p.dayOut&&e.day-p.dayOut<=INCUB)hits.push({port:p.name,eventId:e.id,type:'amber',mag:e.day-p.dayOut,markerDay:e.day});}return hits;}
+const P=(name,dayIn,dayOut,extra={})=>({name,dayIn,dayOut,...extra});
+const FLEET0=[
+  {id:'h217',name:'HORIZON 217',factors:{dwellDays:64,sourceStrength:85,distanceFactor:52},ports:[P('馬尼拉',0,0),P('香港',3,5),P('高雄',13,13,{berthed:true})],events:[{id:'e1',port:'香港',day:4,source:'who',label:'呼吸道群聚'}],intel:[{source:'who',text:'香港 · 呼吸道群聚 06-22',hit:true},{source:'cdc',text:'港澳旅遊疫情建議 L1',hit:true},{source:'news',text:'港區門診異常上升',hit:false}],advice:['登輪限縮檢疫+領航','N95 + 面罩','接觸名單建檔','離船 14d 自主管理'],sms:'HORIZON 217 抵高雄108 · 橙級 · 限制登輪'},
+  {id:'m9',name:'MERIDIAN 9',factors:{dwellDays:66,sourceStrength:58,distanceFactor:50},ports:[P('新加坡',1,3),P('馬六甲',6,6),P('高雄',13,13,{berthed:true})],events:[{id:'e2',port:'新加坡',day:8,source:'news',label:'離港後通報'}],intel:[{source:'news',text:'新加坡 · 離港後 5d 通報',hit:true},{source:'who',text:'東南亞監測中',hit:false}],advice:['加強體溫量測','手部消毒','接觸名單建檔'],sms:'MERIDIAN 9 抵高雄64 · 黃級 · 加強防護'},
+  {id:'n88',name:'NORDIC 88',factors:{dwellDays:50,sourceStrength:42,distanceFactor:30},ports:[P('釜山',2,4),P('那霸',8,8),P('高雄',13,13,{berthed:true})],events:[],intel:[{source:'who',text:'釜山 · 目前無異常',hit:false}],advice:['例行體溫量測','手部消毒'],sms:'NORDIC 88 抵高雄70 · 黃級 · 加強防護'},
+  {id:'pd',name:'PACIFIC DAWN',factors:{dwellDays:25,sourceStrength:15,distanceFactor:18},ports:[P('香港',1,2),P('高雄',13,13,{berthed:true})],events:[],intel:[{source:'who',text:'沿途無通報',hit:false}],advice:['例行量測'],sms:'PACIFIC DAWN 抵高雄55 · 綠級 · 正常'},
+  {id:'bh',name:'BLUE HERON',factors:{dwellDays:20,sourceStrength:8,distanceFactor:12},ports:[P('廈門',5,6),P('高雄',13,13,{berthed:true})],events:[],intel:[{source:'who',text:'沿途無通報',hit:false}],advice:['例行量測'],sms:'BLUE HERON 抵高雄40 · 綠級 · 正常'},
+];
+const PIPE0=[{key:'crawl',label:'爬取情資',count:'42',detail:['WHO 通報 6','疾管署公告 4','國際新聞 32','來源：who.int / cdc.gov.tw']},{key:'track',label:'重建航跡',count:'443',detail:['進高雄港船 443 艘','AIS 軌跡點 128k','過去 14 天窗口']},{key:'match',label:'時空比對',count:'7',detail:['命中 7 筆','rose 重疊 3','amber 潛伏窗 4'],run:true},{key:'score',label:'規則評分',count:'',detail:['IHR 規則 5 條','靠港天數 × 來源強度 × 距離因子']},{key:'sms',label:'細胞簡訊',count:'',detail:['待推播 · 橙級以上自動草擬']}];
+const INFLOW=[
+  {kind:'escalate',targetId:'n88',event:{id:'e3',port:'釜山',day:3,source:'who',label:'呼吸道群聚'},factors:{dwellDays:50,sourceStrength:82,distanceFactor:58},intel:{source:'who',text:'釜山 · 呼吸道群聚 06-21',hit:true},toast:'偵測到新通報 · 釜山，NORDIC 88 升級橙級'},
+  {kind:'newship',toast:'新進港船 · CORAL EXPRESS 紅級',vessel:{id:'coral',name:'CORAL EXPRESS',factors:{dwellDays:80,sourceStrength:88,distanceFactor:85},ports:[P('香港',2,5),P('廈門',9,9),P('高雄',13,13,{berthed:true})],events:[{id:'e4',port:'香港',day:3,source:'who',label:'呼吸道群聚'}],intel:[{source:'who',text:'香港 · 呼吸道群聚 06-22',hit:true},{source:'cdc',text:'港澳建議 L1',hit:true}],advice:['禁止一般登輪','僅檢疫登輪 全套 PPE','接觸名單即時建檔','離船 14d 健康管理'],sms:'CORAL EXPRESS 抵高雄108 · 紅級 · 禁止登輪'}},
+];
+let fleet=FLEET0.map(v=>({...v})),pipe=PIPE0.map(s=>({...s})),inflowIdx=0,curId=null,cursorDay=TR.now,autoArmed=true;
+const SRC={who:{name:'WHO',c:'#F0648C'},cdc:{name:'疾管署',c:'#E9BC63'},news:{name:'新聞',c:'#6b7a8d'}};
+const dotColor=t=>({red:'#F0648C',orange:'#F5A54A',yellow:'#E9BC63',green:'#3a4757'}[t]);
+const sortedFleet=()=>[...fleet].sort((a,b)=>scoreVessel(b.factors).score-scoreVessel(a.factors).score);
+
+/* ===== Mapbox ===== */
+let map=null,mapReady=false,portMarkers=[],shipMarker=null;
+function initMap(){
+  const hasToken=MAPBOX_TOKEN&&MAPBOX_TOKEN.indexOf('pk.')===0&&typeof mapboxgl!=='undefined';
+  if(!hasToken){ document.getElementById('mapfallback').style.display='flex'; return; }
+  const fb=document.getElementById('mapfallback'); if(fb)fb.remove(); // Mapbox 要求容器淨空
+  mapboxgl.accessToken=MAPBOX_TOKEN;
+  map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[118,20],zoom:3.1,attributionControl:false,cooperativeGestures:false});
+  map.on('load',()=>{
+    map.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'route-l',type:'line',source:'route',paint:{'line-color':'#7FB4FF','line-width':2,'line-dasharray':[2,1.5],'line-opacity':.85}});
+    map.addSource('hotspots',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'hot-glow',type:'circle',source:'hotspots',paint:{'circle-radius':['get','r'],'circle-color':['get','c'],'circle-blur':1,'circle-opacity':.5}});
+    map.addSource('trail',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'trail-l',type:'circle',source:'trail',paint:{'circle-radius':3,'circle-color':'#38BDF8','circle-opacity':['get','o']}});
+    const shipEl=document.createElement('div');shipEl.className='mk-ship';shipMarker=new mapboxgl.Marker({element:shipEl,anchor:'center'}).setLngLat([120.3,22.6]).addTo(map);
+    mapReady=true; if(curId)renderMap(fleet.find(v=>v.id===curId));
+  });
+}
+function clearPortMarkers(){portMarkers.forEach(m=>m.remove());portMarkers=[];}
+function renderMap(v){
+  if(!mapReady)return;
+  const hits=computeHits(v.ports,v.events); const hitPorts={}; hits.forEach(h=>hitPorts[h.port]=h.type);
+  // 航線
+  map.getSource('route').setData({type:'Feature',geometry:{type:'LineString',coordinates:v.ports.map(p=>PORTS[p.name])}});
+  // 疫區熱點
+  map.getSource('hotspots').setData({type:'FeatureCollection',features:v.events.map(e=>{const rose=hits.find(x=>x.eventId===e.id&&x.type==='rose');return {type:'Feature',geometry:{type:'Point',coordinates:PORTS[e.port]},properties:{r:rose?26:16,c:rose?'#F0648C':'#F5A54A'}};})});
+  // 港口 markers
+  clearPortMarkers();
+  v.ports.forEach(p=>{const type=hitPorts[p.name],isKhh=p.name==='高雄';const col=type==='rose'?'#F0648C':type==='amber'?'#F5A54A':(isKhh?'#35E0A6':'#9fb0c3');
+    const el=document.createElement('div');el.className='mk-port';el.style.background=col;if(type||isKhh)el.style.boxShadow='0 0 10px '+col;
+    const lab=document.createElement('span');lab.className='l';lab.style.color=type?col:(isKhh?'#35E0A6':'#c3d0de');lab.textContent=p.name+(type==='rose'?' ⚠':'')+(isKhh?'（目的港）':'');el.appendChild(lab);
+    portMarkers.push(new mapboxgl.Marker({element:el,anchor:'center'}).setLngLat(PORTS[p.name]).addTo(map));});
+  updateShip(v);
+  const b=new mapboxgl.LngLatBounds(); v.ports.forEach(p=>b.extend(PORTS[p.name])); map.fitBounds(b,{padding:{top:60,bottom:60,left:70,right:70},duration:700,maxZoom:6.5});
+}
+function shipLonLatAt(v,day){const wp=v.ports.map(p=>({d:(p.dayIn+p.dayOut)/2,c:PORTS[p.name]}));if(day<=wp[0].d)return wp[0].c;if(day>=wp[wp.length-1].d)return wp[wp.length-1].c;for(let i=0;i<wp.length-1;i++){if(day>=wp[i].d&&day<=wp[i+1].d){const t=(day-wp[i].d)/((wp[i+1].d-wp[i].d)||1);return [wp[i].c[0]+(wp[i+1].c[0]-wp[i].c[0])*t,wp[i].c[1]+(wp[i+1].c[1]-wp[i].c[1])*t];}}return wp[0].c;}
+function updateShip(v){ if(!mapReady)return; const ll=shipLonLatAt(v,cursorDay); shipMarker.setLngLat(ll);
+  map.getSource('trail').setData({type:'FeatureCollection',features:[1,2,3,4].map(k=>({type:'Feature',geometry:{type:'Point',coordinates:shipLonLatAt(v,cursorDay-k*0.6)},properties:{o:0.3-k*0.06}}))}); }
+
+/* ===== swimlane / right / fleet / pipe ===== */
+const dayX=(day,w)=>(day-TR.startDay)/(TR.now-TR.startDay)*w;
+function renderSwimlane(v){
+  const w=document.getElementById('sl').clientWidth-62; const bl=document.getElementById('berthLane'); bl.innerHTML='';
+  const hits=computeHits(v.ports,v.events); const hitPorts={}; hits.forEach(h=>hitPorts[h.port]=h.type);
+  v.ports.forEach(p=>{const x=dayX(p.dayIn,w),x2=dayX(p.dayOut,w);const type=hitPorts[p.name];const col=type==='rose'?'#F0648C':type==='amber'?'#F5A54A':(p.berthed?'#35E0A6':'#4a5568');const b=document.createElement('div');b.className='bar';b.style.cssText=`left:${x}px;width:${Math.max(x2-x,28)}px;background:${col};color:${type==='rose'?'#fff':'#0a1018'}`;b.textContent=p.name;bl.appendChild(b);});
+  const ev=document.getElementById('evtLane'); ev.innerHTML='';
+  v.events.forEach(e=>{const x=dayX(e.day,w);const d=document.createElement('div');d.className='evt';const c=SRC[e.source].c;d.style.cssText=`left:${x}px;background:${c};box-shadow:0 0 8px ${c}`;d.title=`${SRC[e.source].name} ${e.label}`;ev.appendChild(d);});
+  const hl=document.getElementById('hitLayer'); hl.innerHTML='';
+  hits.forEach(h=>{const x=dayX(h.markerDay,w);const line=document.createElement('div');line.className='hitline '+h.type;line.style.cssText=`left:${x}px;top:6px;height:56px;width:${Math.min(1.5+h.mag*0.6,5)}px`;hl.appendChild(line);});
+  document.getElementById('axis').innerHTML=TR.labels.map(l=>`<span>${l}${l===TR.endDate?' NOW':''}</span>`).join('');
+  positionCursor();
+}
+function positionCursor(){const w=document.getElementById('sl').clientWidth-62;document.getElementById('cursor').style.left=(62+dayX(cursorDay,w))+'px';}
+function meterRow(l,val,c){return `<div class="rulerow"><span>${l}</span><span class="mono" style="color:${c}">${val}</span></div><div class="meter"><i style="width:${val}%;background:${c}"></i></div>`;}
+function renderRight(v){
+  const sc=scoreVessel(v.factors);
+  document.getElementById('score').innerHTML=`<div style="display:flex;gap:12px;align-items:center"><div class="ring" style="border-color:${sc.color};color:${sc.color};box-shadow:0 0 14px ${sc.color}55">${sc.score}</div><div><b style="color:${sc.color};font-size:14px">${sc.label.split(' · ')[0]}</b><div style="font-size:11px;color:#8b9bad">${sc.label.split(' · ')[1]||''}</div></div></div><div style="margin-top:11px">${meterRow('靠港天數',v.factors.dwellDays,'#E9BC63')}${meterRow('來源強度',v.factors.sourceStrength,'#F0648C')}${meterRow('距離因子',v.factors.distanceFactor,'#6b7a8d')}</div>`;
+  document.getElementById('intel').innerHTML=v.intel.map(x=>`<div class="${x.hit?'':'miss'}"><span class="chip" style="border-color:${x.hit?SRC[x.source].c+'88':'rgba(255,255,255,.12)'};color:${x.hit?SRC[x.source].c:'#6b7a8d'}">${SRC[x.source].name}</span> ${x.text}</div>`).join('');
+  document.getElementById('advice').innerHTML=v.advice.map(a=>`<span class="actchip">${a}</span>`).join('');
+  document.getElementById('sms').innerHTML=`<div class="from">▲ IMARINE 疫情警報</div>${v.sms}`;
+  const hits=computeHits(v.ports,v.events); const top=hits[0];
+  document.getElementById('keyrow').innerHTML=`<div class="kchip ${top?(top.type==='rose'?'red':'hi'):''}">最高風險站點<b>${top?top.port:'—'}</b></div><div class="kchip ${top?'hi':''}">時序${top?(top.type==='rose'?'重疊':'臨界'):''}<b>${top?(top.type==='rose'?'+'+top.mag+' 天':top.mag+' 天'):'無'}</b></div><div class="kchip">現況<b>高雄港 在泊</b></div><div class="kchip">停靠序列<b>${v.ports.length} 港 / 14d</b></div>`;
+}
+function renderFleet(){
+  const el=document.getElementById('fleet'); el.innerHTML='';
+  sortedFleet().forEach(v=>{const sc=scoreVessel(v.factors);const row=document.createElement('div');row.className='frow'+(v.id===curId?' sel':(sc.tier==='green'?' dim':''));
+    const hits=computeHits(v.ports,v.events);const origin=v.ports[0];const sub=hits.length?`${hits[0].port} · ${hits[0].type==='rose'?'重疊 +'+hits[0].mag+'d':'臨界'}`:`${origin.name}來 · ${sc.tier==='green'?'正常':'觀察'}`;
+    row.innerHTML=`<span class="rdot" style="background:${dotColor(sc.tier)};box-shadow:0 0 9px ${sc.tier==='green'?'transparent':dotColor(sc.tier)}"></span><span class="fname">${v.name}<br><span class="fstop">${sub}</span></span><span class="fscore" style="color:${sc.tier==='green'?'#5f6d7f':sc.color}">${sc.score}</span>${v._unread?'<span class="unread"></span>':''}`;
+    row.onclick=()=>{v._unread=false;select(v.id);};el.appendChild(row);});
+}
+function select(id){curId=id;cursorDay=TR.now;const v=fleet.find(x=>x.id===id);renderFleet();renderMap(v);renderSwimlane(v);renderRight(v);}
+function renderPipe(){const el=document.getElementById('pipe');el.innerHTML='';pipe.forEach((s,i)=>{const st=s._state||'wait';const stage=document.createElement('div');stage.className='pstage'+(st!=='wait'?' on':'');stage.innerHTML=`<span class="plamp ${st}"></span>${s.label}${s.count?` <span class="pcount ${s.run?'hit':''}">${s.count}</span>`:''}`;const det=document.createElement('div');det.className='pdetail';det.innerHTML=s.detail.map(d=>d.startsWith('來源')?`<a href="#">${d}</a>`:`<div>${d}</div>`).join('');stage.appendChild(det);stage.onclick=e=>{e.stopPropagation();document.querySelectorAll('.pdetail').forEach(d=>d!==det&&d.classList.remove('show'));det.classList.toggle('show');};el.appendChild(stage);if(i<pipe.length-1){const f=document.createElement('div');f.className='pflow'+(pipe[i]._state==='done'?' lit':'');el.appendChild(f);}});}
+document.body.addEventListener('click',()=>document.querySelectorAll('.pdetail').forEach(d=>d.classList.remove('show')));
+function playPipe(){const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;if(rm){pipe.forEach(s=>s._state=s.run?'run':'done');pipe[4]._state='wait';renderPipe();return;}pipe.forEach(s=>s._state='wait');renderPipe();let i=0;const seq=()=>{if(i>=pipe.length)return;pipe[i]._state=pipe[i].run?'run':'done';renderPipe();i++;setTimeout(seq,360);};seq();}
+/* ===== 時間游標 ===== */
+function cursorToDay(clientX){const r=document.getElementById('sl').getBoundingClientRect();const w=r.width-62;let x=clientX-r.left-62;x=Math.max(0,Math.min(w,x));return TR.startDay+x/w*(TR.now-TR.startDay);}
+function setCursor(day){const v=fleet.find(x=>x.id===curId);if(!v)return;const prev=cursorDay;cursorDay=Math.max(TR.startDay,Math.min(TR.now,day));updateShip(v);positionCursor();computeHits(v.ports,v.events).forEach(h=>{if((prev-h.markerDay)*(cursorDay-h.markerDay)<=0&&Math.abs(cursorDay-h.markerDay)<0.7)pulseHit(h);});}
+function pulseHit(h){const w=document.getElementById('sl').clientWidth-62;const p=document.createElement('div');p.className='hitpulse act';p.style.cssText=`left:${62+dayX(h.markerDay,w)}px;top:22px;box-shadow:0 0 0 0 ${h.type==='rose'?'#F0648C':'#F5A54A'}`;document.getElementById('sl').appendChild(p);setTimeout(()=>p.remove(),520);}
+(function(){const c=document.getElementById('cursor');let drag=false;const down=e=>{drag=true;try{c.setPointerCapture(e.pointerId);}catch(_){}};addEventListener('pointermove',e=>{if(drag)setCursor(cursorToDay(e.clientX));});addEventListener('pointerup',e=>{drag=false;try{c.releasePointerCapture(e.pointerId);}catch(_){}});c.addEventListener('pointerdown',down);document.getElementById('sl').addEventListener('pointerdown',e=>{if(e.target.id!=='cursor'){setCursor(cursorToDay(e.clientX));down(e);}});c.addEventListener('keydown',e=>{const step=(TR.now-TR.startDay)/26;if(e.key==='ArrowLeft'){setCursor(cursorDay-step);e.preventDefault();e.stopPropagation();}else if(e.key==='ArrowRight'){setCursor(cursorDay+step);e.preventDefault();e.stopPropagation();}else if(e.key==='Home'){setCursor(TR.startDay);e.preventDefault();e.stopPropagation();}else if(e.key==='End'){setCursor(TR.now);e.preventDefault();e.stopPropagation();}});})();
+/* ===== 模擬偵測 ===== */
+function toast(msg){if(window.LiquidGlass&&LiquidGlass.toast){LiquidGlass.toast({title:'疫情自動追溯',message:msg,duration:3200});return;}const t=document.createElement('div');t.textContent=msg;t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a1526;border:1px solid rgba(56,189,248,.4);color:#cfe0f2;padding:10px 16px;border-radius:9px;font-size:12px;z-index:99';document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
+function simulate(){autoArmed=false;if(inflowIdx>=INFLOW.length){fleet=FLEET0.map(v=>({...v}));inflowIdx=0;if(curId&&!fleet.find(x=>x.id===curId))curId=sortedFleet()[0].id;renderFleet();toast('模擬池重置 · 回到初始船隊');if(curId)select(curId);return;}const f=INFLOW[inflowIdx++];if(f.kind==='escalate'){const v=fleet.find(x=>x.id===f.targetId);v.factors=f.factors;v.events=[...v.events,f.event];v.intel=[f.intel,...v.intel.filter(i=>i.hit)];v._unread=(v.id!==curId);renderFleet();if(v.id===curId)select(v.id);}else if(f.kind==='newship'){fleet=[{...f.vessel,_unread:true},...fleet];renderFleet();}toast(f.toast);}
+document.getElementById('simBtn').onclick=simulate;
+/* ===== 啟動 ===== */
+if(window.LiquidGlass&&LiquidGlass.init)LiquidGlass.init();
+initMap(); renderPipe(); renderFleet(); select(sortedFleet()[0].id); setTimeout(playPipe,200);
+let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(map)map.resize();if(curId)renderSwimlane(fleet.find(x=>x.id===curId));},150);});
+setTimeout(()=>{if(autoArmed&&inflowIdx===0)simulate();},9000);
+</script>
+</body>
+</html>

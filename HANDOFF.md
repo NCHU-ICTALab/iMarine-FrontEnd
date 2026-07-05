@@ -2,11 +2,38 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Dispatch 頁改版 SDD 7 tasks 全部完成並通過逐 task review，全站驗收綠燈，待最終 whole-branch review + 使用者實機驗收/合併
+最後更新：2026-07-05 Epidemic 頁改版 brainstorming 定案（spec + Mapbox 範例頁完成並驗證），待使用者複審 spec → writing-plans
 
 ---
 
 ## 1. 目前狀態
+
+**Epidemic 頁改版：brainstorming 定案，spec + 範例頁完成並 headless 驗證，待使用者複審 spec 後進 writing-plans。**
+- 定位：「疫情自動追溯」——進高雄港船隊總覽 → 下鑽單船；AIS 停靠序列 × WHO/疾管署/新聞疫情
+  時序**時空交叉比對**（規則式評分依 WHO IHR，非 ML）→ 擴散預警 → 細胞簡訊。港邊人員視角、模組色玫紅。
+- 使用者三大定案要求：**中性虛構船名**（不提任何真實具名事件/船/公司）、**無解釋性散文**
+  （重點用數據/chip/色彩呈現）、**引導性配色**（常態壓灰、風險與命中發亮，視線帶「左欄最高風險
+  → 中央命中 → 右欄簡訊」）。
+- 版面：標頭 → 全寬自動化管線帶（爬情資→重建航跡→時空比對→規則評分→細胞簡訊）→ 三分割
+  （左 0.72fr 進高雄船隊清單 / **中 2.9fr 放大為主要呈現** / 右 1fr 評分+情報+防護+簡訊）；
+  中央上 **Mapbox 真實地圖**（深色，只收目的港為高雄的船、真實航線→高雄、疫區熱點、船位插值）
+  + 下 Epi-Gantt 雙泳道（靠泊 × 通報 + 命中連接線），共用可拖曳時間游標。
+- **地圖決策幾經迭代**：示意圖 →（使用者要真地圖，一度做 Natural Earth vendored 海岸線）→ 使用者
+  定案 **Mapbox**（`pk.` token 已提供、填入範例頁驗證；取捨：需連網取磚、放棄純離線，token 走 .env）。
+- 四互動全做：點船下鑽、時間游標拖曳（船沿真實航線移動+命中脈衝）、管線進場動畫+點階段看來源、
+  模擬偵測（池兩發：升級現有 NORDIC 88 41→68 + 新增 CORAL EXPRESS 85 紅級，池盡重置）。
+- 產出：spec `docs/superpowers/specs/2026-07-05-epidemic-redesign-design.md`（決策表 / 資料契約
+  EpidemicSnapshot 重寫 / `correlate.ts` 規則評分+時空命中純邏輯 TDD / mock 劇本 / 互動規格 /
+  Mapbox 檔案結構 / 驗收）；範例頁 `docs/preview/preview-epidemic-redesign.html`（自含 Kit + Mapbox
+  GL JS CDN，四互動可操作；headless Chrome+CDP 驗證：mapReady/canvas/tiles、船標經緯度隨游標
+  正確插值、下鑽+模擬兩發、0 warning 0 error）。
+- **注意**：範例頁目前**內嵌了使用者的 Mapbox token**（供本地檢視）；docs/preview 進版控，**勿 commit
+  含 token 的版本**（或改回佔位 `__MAPBOX_TOKEN__`）；建議對 token 設 URL 限制。實作版走 `.env`
+  `VITE_MAPBOX_TOKEN`（gitignored）。
+- **下一步**：使用者複審 spec + 範例頁 → 有修改則回頭改；核可後 invoke writing-plans 寫實作計畫
+  （SDD tasks），實作時 `npm install mapbox-gl`。
+
+**（以下為前一輪 Dispatch 改版，已完成）**
 
 **Dispatch 頁改版：SDD 實作完成（7 tasks 全數逐 task review 通過），全站驗收綠燈，分支 `dispatch-redesign`（自 main，baseline `a43f249`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
 - 動機：舊 dispatch mock 頁的核心假設與真實系統不符——ConvLSTM 對未來 90 分鐘輸出的是
