@@ -1,11 +1,220 @@
 {
-  "metrics": { "csi": 0.71, "pod": 0.83, "far": 0.21 },
-  "winds": [12, 13, 15, 18, 17, 15, 13, 12, 11, 10],
-  "rains": [45, 60, 72, 80, 76, 62, 48, 38, 30, 24],
-  "suggestions": [
-    { "level": "rose", "title": "橋式吊掛 · 暫緩作業", "body": "13:00 前停工，纜具預先固定", "why": "風速 > 15 m/s · Beaufort 7" },
-    { "level": "amber", "title": "油品裝卸 · 可續 + 加派監控", "body": "延長至 14:30，加派 1 名監控", "why": "雨量機率 80% · 未達雷擊門檻" },
-    { "level": "amber", "title": "引水登輪 · 提前固定設備", "body": "湧浪 1.8m，登輪梯加固", "why": "海象站實測 · 非模型生成" },
-    { "level": "ok", "title": "倉儲搬運 · 正常作業", "body": "倉庫周邊排水已預防性清理", "why": "2025-06 倒灌事件 SOP" }
+  "scenarios": [
+    {
+      "id": "stable",
+      "label": "現況穩定",
+      "nowcast": { "rainLevel": "無", "beaufort": 4, "windAvg": 6.5, "windGust": 8.1 },
+      "conclusion": "未來 90 分鐘港區天候穩定 — 全作業線正常運轉",
+      "cwa": [
+        { "window": "+3h", "rainLevel": "無", "beaufort": 4 },
+        { "window": "+6h", "rainLevel": "小雨", "beaufort": 4 }
+      ],
+      "ops": [
+        {
+          "id": "crane", "name": "橋式機貨櫃",
+          "now": { "status": "ok", "action": "正常" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "風速 6.5 < 法定強風 10 m/s — 正常作業", "basis": "勞動部函釋 0042784：10 分鐘平均 ≥ 10 m/s 為強風", "tag": "official" },
+            { "text": "下一道門檻：10 m/s 禁止吊掛", "basis": "起重升降機具安全規則 §22-6", "tag": "official" }
+          ]
+        },
+        {
+          "id": "grain", "name": "散裝穀物",
+          "now": { "status": "ok", "action": "正常" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "無降雨 — 開艙裝卸", "basis": "國際租船 WWD 慣例：穀物見雨即關艙", "tag": "industry" },
+            { "text": "+6h CWA 預報轉小雨，屆時建議預先備妥艙蓋", "basis": "CWA 鄉鎮預報 · 逐 3 小時", "tag": "official" }
+          ]
+        },
+        {
+          "id": "coal", "name": "散裝煤礦",
+          "now": { "status": "ok", "action": "正常" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "風速 6.5 m/s 未達揚塵戒備線", "basis": "業界慣例：5 級起揚塵抑制、灑水戒備", "tag": "industry" }
+          ]
+        },
+        {
+          "id": "tanker", "name": "油品化學品",
+          "now": { "status": "ok", "action": "正常" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "無雷擊風險 — 正常裝卸", "basis": "ISGOTT Ch.16：雷暴接近即停止揮發性油品作業", "tag": "industry" }
+          ]
+        },
+        {
+          "id": "pilot", "name": "引水拖船",
+          "now": { "status": "ok", "action": "正常" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "風力 4 級 — 正常引水靠離泊", "basis": "高雄港風災防救要點 §5(2)：7 級停止船舶進出港", "tag": "official" }
+          ]
+        },
+        {
+          "id": "mooring", "name": "綁解纜",
+          "now": { "status": "ok", "action": "正常" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "常態纜數 — 無加纜需求", "basis": "高雄港風災防救要點 §5(3)9：警戒時加纜 5/7 條", "tag": "official" }
+          ]
+        },
+        {
+          "id": "yard", "name": "倉儲櫃場",
+          "now": { "status": "ok", "action": "正常" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "天候穩定 — 正常進出貨", "basis": "2025-06 短時強降雨倒灌事件後 SOP：豪雨前預防性清溝", "tag": "industry" }
+          ]
+        }
+      ],
+      "cards": [
+        { "opId": "yard", "title": "倉儲 · 排水溝例行巡檢", "body": "依 2025-06 倒灌事件 SOP，午班例行清理倉庫周邊排水", "level": "ok", "badge": { "text": "例行", "urgent": false } },
+        { "opId": "pilot", "title": "引水 · 正常排班", "body": "今日進出港 14 航次，拖船能量正常", "level": "ok", "badge": { "text": "常態", "urgent": false } }
+      ],
+      "metrics": { "csi": 0.71, "pod": 0.83, "far": 0.21 }
+    },
+    {
+      "id": "rain",
+      "label": "強降雨逼近",
+      "nowcast": { "rainLevel": "大雨", "beaufort": 6, "windAvg": 12.6, "windGust": 14.2 },
+      "conclusion": "08:05 起風力達 6 級 — {{stop:橋式機、穀物停工}}，油品續作加派監控，{{add:綁解纜加派 2 員}}",
+      "cwa": [
+        { "window": "+3h", "rainLevel": "豪雨", "beaufort": 6 },
+        { "window": "+6h", "rainLevel": "小雨", "beaufort": 4 }
+      ],
+      "ops": [
+        {
+          "id": "crane", "name": "橋式機貨櫃",
+          "now": { "status": "stop", "action": "停工" }, "cwa3": "warn", "cwa6": "ok",
+          "rules": [
+            { "text": "風速 12.6 ≥ 法定強風 10 m/s → 禁止吊掛", "basis": "起重升降機具安全規則 §22-6 · 勞動部函釋 0042784", "tag": "official" },
+            { "text": "空櫃提前一級降級（受風面積大）", "basis": "業界常識", "tag": "industry" },
+            { "text": "下一道門檻：7 級（13.9 m/s）全港停止作業 — 目前未達", "basis": "高雄港風災防救要點 §5(2)", "tag": "official" }
+          ]
+        },
+        {
+          "id": "grain", "name": "散裝穀物",
+          "now": { "status": "stop", "action": "停裝關艙" }, "cwa3": "stop", "cwa6": "ok",
+          "rules": [
+            { "text": "降雨達大雨等級 → 關艙停裝（防穀物霉變）", "basis": "國際租船 WWD 慣例：穀物見雨即停", "tag": "industry" },
+            { "text": "+6h 轉小雨後評估復工", "basis": "CWA 鄉鎮預報", "tag": "official" }
+          ]
+        },
+        {
+          "id": "coal", "name": "散裝煤礦",
+          "now": { "status": "warn", "action": "戒備" }, "cwa3": "warn", "cwa6": "ok",
+          "rules": [
+            { "text": "大雨 + 6 級風 → 降速、加強機具巡檢", "basis": "碼頭裝卸安全衛生設施標準 §62：大雨致危險之虞得停止", "tag": "official" },
+            { "text": "煤礦遇雨可續作（灑水抑塵同效）", "basis": "業界慣例", "tag": "industry" }
+          ]
+        },
+        {
+          "id": "tanker", "name": "油品化學品",
+          "now": { "status": "warn", "action": "續作+監控" }, "cwa3": "warn", "cwa6": "ok",
+          "rules": [
+            { "text": "未達雷擊門檻 → 可續作，加派監控", "basis": "ISGOTT Ch.16：紅線為雷暴接近，與風雨等級無關", "tag": "industry" },
+            { "text": "裝卸臂風速上限 15 m/s — 目前 12.6 未達", "basis": "裝卸臂 ESD 設計慣例", "tag": "industry" }
+          ]
+        },
+        {
+          "id": "pilot", "name": "引水拖船",
+          "now": { "status": "warn", "action": "加派拖船" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "6 級風大型船靠離泊 → 加派拖船護航", "basis": "業界慣例：受風面積大之船型 6 級起加拖", "tag": "industry" },
+            { "text": "下一道門檻：7 級停止進出港 — 目前未達", "basis": "高雄港風災防救要點 §5(2)", "tag": "official" }
+          ]
+        },
+        {
+          "id": "mooring", "name": "綁解纜",
+          "now": { "status": "warn", "action": "加派 +2" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "強風戒備 → 人力需求上升：加派 2 員巡纜", "basis": "高雄港風災防救要點 §5(3)9：總噸 ≥1 萬加纜至 7 條含倒纜", "tag": "official" }
+          ]
+        },
+        {
+          "id": "yard", "name": "倉儲櫃場",
+          "now": { "status": "ok", "action": "正常" }, "cwa3": "ok", "cwa6": "ok",
+          "rules": [
+            { "text": "棚內作業不受影響；豪雨前完成清溝", "basis": "2025-06 倒灌事件 SOP", "tag": "industry" }
+          ]
+        }
+      ],
+      "cards": [
+        { "opId": "crane", "title": "橋式機 · 暫緩作業", "body": "4 席吊掛暫停 · 吊具復位 · 纜具預先固定", "level": "stop", "badge": { "text": "08:05 生效", "urgent": true } },
+        { "opId": "grain", "title": "散裝穀物 · 停裝關艙", "body": "47 / 71 / 72 號碼頭關閉艙蓋", "level": "stop", "badge": { "text": "即刻", "urgent": true } },
+        { "opId": "tanker", "title": "油品 · 續作 + 監控", "body": "延長至 14:30 · 加派 1 名監控員", "level": "warn", "badge": { "text": "14:30 前", "urgent": false } },
+        { "opId": "mooring", "title": "綁解纜 · 加派 2 員", "body": "總噸 ≥ 1 萬加纜至 7 條含倒纜", "level": "ok", "badge": { "text": "警戒期間", "urgent": false } }
+      ],
+      "metrics": { "csi": 0.71, "pod": 0.83, "far": 0.21 }
+    },
+    {
+      "id": "typhoon",
+      "label": "颱風外圍",
+      "nowcast": { "rainLevel": "豪雨", "beaufort": 7, "windAvg": 14.5, "windGust": 19.6 },
+      "conclusion": "港區風力達 7 級、豪雨 — {{stop:全港停止裝卸作業}}，危險品船出港避風，{{add:綁解纜加派加纜 5/7 條}}",
+      "cwa": [
+        { "window": "+3h", "rainLevel": "大豪雨", "beaufort": 8 },
+        { "window": "+6h", "rainLevel": "豪雨", "beaufort": 7 }
+      ],
+      "ops": [
+        {
+          "id": "crane", "name": "橋式機貨櫃",
+          "now": { "status": "stop", "action": "停工+錨定" }, "cwa3": "stop", "cwa6": "stop",
+          "rules": [
+            { "text": "7 級（14.5 m/s）→ 全港停止作業", "basis": "高雄港風災防救要點 §5(2)", "tag": "official" },
+            { "text": "陣風趨近錨定線 → 逸走防止裝置預備", "basis": "起重升降機具安全規則 §22-1：瞬間風速有逾 30 m/s 之虞應錨定", "tag": "official" }
+          ]
+        },
+        {
+          "id": "grain", "name": "散裝穀物",
+          "now": { "status": "stop", "action": "停裝" }, "cwa3": "stop", "cwa6": "stop",
+          "rules": [
+            { "text": "豪雨 + 全港停止作業", "basis": "高雄港風災防救要點 §5(9)3：穀倉裝卸機停放防颱部署位置並固定", "tag": "official" }
+          ]
+        },
+        {
+          "id": "coal", "name": "散裝煤礦",
+          "now": { "status": "stop", "action": "卸煤機固定" }, "cwa3": "stop", "cwa6": "stop",
+          "rules": [
+            { "text": "全港停止作業 → 49 號碼頭卸煤機防颱固定", "basis": "高雄港風災防救要點 §5(9)2", "tag": "official" }
+          ]
+        },
+        {
+          "id": "tanker", "name": "油品化學品",
+          "now": { "status": "stop", "action": "危險品船出港" }, "cwa3": "stop", "cwa6": "stop",
+          "rules": [
+            { "text": "警戒區 → 總噸逾 5,000 危險品船應出港避風", "basis": "高雄港風災防救要點 §5(5)1", "tag": "official" },
+            { "text": "滯港小型油輪由碼頭業主負全責", "basis": "同要點（中油碼頭附則）", "tag": "official" }
+          ]
+        },
+        {
+          "id": "pilot", "name": "引水拖船",
+          "now": { "status": "stop", "action": "停止進出港" }, "cwa3": "stop", "cwa6": "stop",
+          "rules": [
+            { "text": "平均風力 7 級 → 停止船舶進出港", "basis": "高雄港風災防救要點 §5(2)", "tag": "official" },
+            { "text": "8 級（17.2 m/s）引水人停止登輪", "basis": "台中港封港案例（20 m/s）", "tag": "industry" }
+          ]
+        },
+        {
+          "id": "mooring", "name": "綁解纜",
+          "now": { "status": "warn", "action": "加派加纜 5/7" }, "cwa3": "warn", "cwa6": "warn",
+          "rules": [
+            { "text": "警戒區加纜：總噸 <1 萬各 ≥5 條、≥1 萬各 ≥7 條（含倒纜）", "basis": "高雄港風災防救要點 §5(3)9", "tag": "official" },
+            { "text": "浮筒繫泊船全部淨空", "basis": "同要點 §5(3)6：任一測站風力達 5 級", "tag": "official" }
+          ]
+        },
+        {
+          "id": "yard", "name": "倉儲櫃場",
+          "now": { "status": "warn", "action": "貨櫃加固" }, "cwa3": "warn", "cwa6": "warn",
+          "rules": [
+            { "text": "堆放二層以上、近圍籬貨櫃加強繫固", "basis": "高雄港風災防救要點 §5(10)7", "tag": "official" },
+            { "text": "2024 山陀兒：貨櫃翻倒、卸煤機倒塌（17 級陣風）", "basis": "歷史案例", "tag": "industry" }
+          ]
+        }
+      ],
+      "cards": [
+        { "opId": "crane", "title": "橋式機 · 停工 + 錨定準備", "body": "全數復位並固定，逸走防止裝置預備", "level": "stop", "badge": { "text": "即刻", "urgent": true } },
+        { "opId": "tanker", "title": "危險品船 · 出港避風", "body": "總噸逾 5,000 者依要點限時出港", "level": "stop", "badge": { "text": "6 小時內", "urgent": true } },
+        { "opId": "coal", "title": "卸煤機 · 防颱固定", "body": "49 號碼頭停放防颱部署位置", "level": "stop", "badge": { "text": "即刻", "urgent": true } },
+        { "opId": "mooring", "title": "綁解纜 · 加派加纜", "body": "在港船艏艉纜加至 5/7 條，浮筒船淨空", "level": "ok", "badge": { "text": "警戒期間", "urgent": false } },
+        { "opId": "yard", "title": "櫃場 · 貨櫃繫固", "body": "二層以上與圍籬側貨櫃加固、堆高機停用", "level": "warn", "badge": { "text": "入夜前", "urgent": false } }
+      ],
+      "metrics": { "csi": 0.71, "pod": 0.83, "far": 0.21 }
+    }
   ]
 }

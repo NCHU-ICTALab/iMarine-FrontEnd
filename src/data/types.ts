@@ -65,11 +65,33 @@ export interface PolicySnapshot {
   globalQa: PolicyQA[];
 }
 
-export interface DispatchSnapshot {
-  metrics: { csi: number; pod: number; far: number };
-  winds: number[]; rains: number[];                      // 各 10 筆，t=0..90 step10
-  suggestions: { level: 'rose' | 'amber' | 'ok'; title: string; body: string; why: string }[];
+// ── dispatch（2026-07-05 spec 改版：ConvLSTM 90 分鐘單一預測 + 三情境劇本）──
+export type RainLevel = '無' | '小雨' | '大雨' | '豪雨' | '大豪雨' | '超大豪雨';
+export type OpStatus = 'ok' | 'warn' | 'stop';
+export type RuleTag = 'official' | 'industry';
+export interface CwaWindow { window: '+3h' | '+6h'; rainLevel: RainLevel; beaufort: number }
+export interface OpRow {
+  id: 'crane' | 'grain' | 'coal' | 'tanker' | 'pilot' | 'mooring' | 'yard';
+  name: string;
+  now: { status: OpStatus; action: string };   // ConvLSTM 段：燈色 + 格內動作字
+  cwa3: OpStatus; cwa6: OpStatus;              // CWA 段：只有燈色
+  rules: { text: string; basis: string; tag: RuleTag }[];
 }
+export interface DispatchCard {
+  opId: string; title: string; body: string; level: OpStatus;
+  badge?: { text: string; urgent: boolean };
+}
+export interface DispatchScenario {
+  id: 'stable' | 'rain' | 'typhoon';
+  label: string;
+  nowcast: { rainLevel: RainLevel; beaufort: number; windAvg: number; windGust: number };
+  conclusion: string;                          // 含 {{stop:..}}/{{add:..}} 標記
+  cwa: [CwaWindow, CwaWindow];
+  ops: OpRow[];                                // 固定 7 筆
+  cards: DispatchCard[];                       // 2-5 張
+  metrics: { csi: number; pod: number; far: number };
+}
+export interface DispatchSnapshot { scenarios: DispatchScenario[] }  // 固定 3 筆
 
 export interface EpidemicSnapshot {
   ship: string; risk: number; level: string;

@@ -11,10 +11,9 @@ describe('mockProvider', () => {
   });
 });
 describe('createMockExchange', () => {
-  it('dispatch snapshot has 10 timesteps', async () => {
+  it('dispatch snapshot has 3 scenarios', async () => {
     const ex = createMockExchange();
     const d = await ex.dispatch.snapshot();
-    expect(d.winds).toHaveLength(10);
-    expect(d.rains).toHaveLength(10);
+    expect(d.scenarios).toHaveLength(3);
   });
 });
