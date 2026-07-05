@@ -2,36 +2,49 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Epidemic 頁改版 brainstorming 定案（spec + Mapbox 範例頁完成並驗證），待使用者複審 spec → writing-plans
+最後更新：2026-07-05 Epidemic 頁改版 SDD 8 tasks 全數完成並通過逐 task review，全站驗收綠燈，待最終 whole-branch review + 使用者實機驗收/合併
 
 ---
 
 ## 1. 目前狀態
 
-**Epidemic 頁改版：brainstorming 定案，spec + 範例頁完成並 headless 驗證，待使用者複審 spec 後進 writing-plans。**
+**Epidemic 頁改版：SDD 實作完成（7 個功能 task 全數逐 task review 通過 + Task 8 全站驗收），全站驗收綠燈，分支 `epidemic-redesign`（自 main，baseline `f829e0b`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
 - 定位：「疫情自動追溯」——進高雄港船隊總覽 → 下鑽單船；AIS 停靠序列 × WHO/疾管署/新聞疫情
   時序**時空交叉比對**（規則式評分依 WHO IHR，非 ML）→ 擴散預警 → 細胞簡訊。港邊人員視角、模組色玫紅。
-- 使用者三大定案要求：**中性虛構船名**（不提任何真實具名事件/船/公司）、**無解釋性散文**
+- 使用者三大定案要求（全數落實）：**中性虛構船名**（不提任何真實具名事件/船/公司）、**無解釋性散文**
   （重點用數據/chip/色彩呈現）、**引導性配色**（常態壓灰、風險與命中發亮，視線帶「左欄最高風險
   → 中央命中 → 右欄簡訊」）。
 - 版面：標頭 → 全寬自動化管線帶（爬情資→重建航跡→時空比對→規則評分→細胞簡訊）→ 三分割
   （左 0.72fr 進高雄船隊清單 / **中 2.9fr 放大為主要呈現** / 右 1fr 評分+情報+防護+簡訊）；
-  中央上 **Mapbox 真實地圖**（深色，只收目的港為高雄的船、真實航線→高雄、疫區熱點、船位插值）
+  中央上 **Mapbox 真實地圖**（深色 dark-v11，只收目的港為高雄的船、真實航線→高雄、疫區熱點、船位插值）
   + 下 Epi-Gantt 雙泳道（靠泊 × 通報 + 命中連接線），共用可拖曳時間游標。
-- **地圖決策幾經迭代**：示意圖 →（使用者要真地圖，一度做 Natural Earth vendored 海岸線）→ 使用者
-  定案 **Mapbox**（`pk.` token 已提供、填入範例頁驗證；取捨：需連網取磚、放棄純離線，token 走 .env）。
 - 四互動全做：點船下鑽、時間游標拖曳（船沿真實航線移動+命中脈衝）、管線進場動畫+點階段看來源、
   模擬偵測（池兩發：升級現有 NORDIC 88 41→68 + 新增 CORAL EXPRESS 85 紅級，池盡重置）。
-- 產出：spec `docs/superpowers/specs/2026-07-05-epidemic-redesign-design.md`（決策表 / 資料契約
-  EpidemicSnapshot 重寫 / `correlate.ts` 規則評分+時空命中純邏輯 TDD / mock 劇本 / 互動規格 /
-  Mapbox 檔案結構 / 驗收）；範例頁 `docs/preview/preview-epidemic-redesign.html`（自含 Kit + Mapbox
-  GL JS CDN，四互動可操作；headless Chrome+CDP 驗證：mapReady/canvas/tiles、船標經緯度隨游標
-  正確插值、下鑽+模擬兩發、0 warning 0 error）。
-- **注意**：範例頁目前**內嵌了使用者的 Mapbox token**（供本地檢視）；docs/preview 進版控，**勿 commit
-  含 token 的版本**（或改回佔位 `__MAPBOX_TOKEN__`）；建議對 token 設 URL 限制。實作版走 `.env`
-  `VITE_MAPBOX_TOKEN`（gitignored）。
-- **下一步**：使用者複審 spec + 範例頁 → 有修改則回頭改；核可後 invoke writing-plans 寫實作計畫
-  （SDD tasks），實作時 `npm install mapbox-gl`。
+- **成果檔案**：`src/screens/epidemic/{correlate.ts 新增,worldmap.ts 新增,swimlane.ts 新增,
+  index.ts 重寫,epidemic.html 重寫,epidemic.css 新增}` + 刪 `route.ts` + `src/data/types.ts`
+  （EpidemicSnapshot 改 fleet/pipeline/inflowPool 結構）+ `src/data/mock/epidemic.json`（全面改寫成
+  六船皆進高雄，逐字轉錄自已驗收 preview）+ `tests/{epidemic-correlate.test.ts,epidemic-mock.test.ts}`
+  新增 + `src/ui/tokens.css` 刪 epidemic 舊佔位段 + `package.json`（+mapbox-gl/@types）+ `.env.example`
+  （+VITE_MAPBOX_TOKEN=）。
+- **SDD 8 tasks（每個獨立 code review 皆 Spec ✅ + Quality Approved）**：(1) correlate.ts 規則式評分+
+  時空命中 TDD；(2) 資料契約+mock 全面改寫+刪 route.ts 降過渡殼 TDD；(3) 三分割骨架+epidemic.css
+  （#s-epidemic 前綴）+靜態渲染+tokens.css 清舊；(4) Mapbox 依賴+worldmap.ts+選中船地圖渲染；
+  (5) swimlane.ts Epi-Gantt+點船下鑽全連動；(6) 時間游標拖曳/鍵盤+船沿航線插值+命中脈衝；
+  (7) 管線進場動畫+點階段看來源+模擬偵測池兩發+show/hide 生命週期+reduced-motion；(8) 全站驗收+本文件。
+- **驗收（誠實分野）**：三綠燈全過（tsc 0 / vitest 11 檔 40 tests 全綠 / build ok）。純邏輯（correlate/
+  mock 契約）走 vitest TDD；地圖/互動每個 task 皆以獨立 headless Chrome + CDP（SwiftShader、勿加
+  --disable-gpu；MCP 共用 profile 曾被別 session 污染故改獨立）逐項實機驗證；Task 8 全站整合驗收：
+  7 頁迴歸全 active、epidemic Mapbox canvas+5 船+ring 72、下鑽 NORDIC 41、管線點階段 .pdetail 顯示、
+  模擬三連擊（CORAL 85 置頂/NORDIC 68/重置）、reduced-motion 管線終態，全程 console 零錯誤；截圖存證。
+  demo 前建議真 Chrome 人工 click-through 一輪（拖游標/切船/點管線/模擬偵測的手感）。
+- **Mapbox token**：實作走 `.env` 的 `VITE_MAPBOX_TOKEN`（gitignored，本機已設）；範例頁
+  `docs/preview/preview-epidemic-redesign.html` 的 token 已還原成佔位 `__MAPBOX_TOKEN__`（進版控無 token）；
+  建議對 token 於 Mapbox 帳號設 URL 網域限制。**取捨：Mapbox 磚需連網，放棄純離線；demo 現場需備網路。**
+- 設計事實與規則見 `docs/superpowers/specs/2026-07-05-epidemic-redesign-design.md`；實作計畫
+  `docs/superpowers/plans/2026-07-05-epidemic-redesign.md`（8 tasks）；視覺/互動基準
+  `docs/preview/preview-epidemic-redesign.html`；逐 task review 摘要 `.superpowers/sdd/progress.md`。
+- **下一步**：最終 whole-branch review（opus/fable）→ 使用者實機驗收 → finishing（決定合併方式，
+  比照 dispatch/policy 前例可能本地合併回 main、未 push）。
 
 **（以下為前一輪 Dispatch 改版，已完成）**
 
