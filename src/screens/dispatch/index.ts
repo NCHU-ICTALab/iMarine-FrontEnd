@@ -138,6 +138,52 @@ const s: Screen = {
       template +
       '</div>';
     renderAll();
+    const N_END = 55, C3_END = 77.5;
+    let pct = 20;
+    function updateBubble(): void {
+      const sc = scn();
+      const tl = $('#tl'), knob = $('#tlknob'), bub = $('#tlbub');
+      let txt: string, zone: 'N' | '3' | '6';
+      if (pct <= N_END) {
+        const min = Math.round((pct / N_END) * 90 / 5) * 5;
+        txt = `${min === 0 ? 'NOW' : `+${min} min`} · ConvLSTM · ${sc.nowcast.rainLevel}`;
+        zone = 'N';
+      } else if (pct <= C3_END) {
+        txt = `+3h · CWA · ${sc.cwa[0].rainLevel}`; zone = '3';
+      } else {
+        txt = `+6h · CWA · ${sc.cwa[1].rainLevel}`; zone = '6';
+      }
+      knob.style.left = `${pct}%`;
+      bub.style.left = `${Math.min(Math.max(pct, 12), 88)}%`;   // 泡泡不出界
+      bub.textContent = txt;
+      tl.setAttribute('aria-valuenow', String(Math.round(pct)));
+      $('#hN').classList.toggle('hl', zone === 'N');
+      $('#h3').classList.toggle('hl', zone === '3');
+      $('#h6').classList.toggle('hl', zone === '6');
+    }
+    bubbleRefresh = updateBubble;
+    const tlEl = $('#tl');
+    function setPct(e: PointerEvent): void {
+      const r = tlEl.getBoundingClientRect();
+      pct = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+      updateBubble();
+    }
+    let dragging = false;
+    tlEl.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      try { tlEl.setPointerCapture(e.pointerId); } catch { /* 合成事件/邊界情況無 active pointer */ }
+      setPct(e);
+    });
+    tlEl.addEventListener('pointermove', (e) => { if (dragging) setPct(e); });
+    tlEl.addEventListener('pointerup', () => { dragging = false; });
+    tlEl.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') { pct = Math.max(0, pct - 2.5); updateBubble(); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { pct = Math.min(100, pct + 2.5); updateBubble(); e.preventDefault(); }
+      /* #tl 是 div[role=slider]，不在 main.ts 全域導覽鍵的 INPUT/TEXTAREA/SELECT bail-out 內：
+         focus 在時間軸上按數字/Enter 會誤觸全站導覽，必須在此隔離（確定性 bug，非猜測）。 */
+      if (/^[0-9]$/.test(e.key) || e.key === 'Enter') e.stopPropagation();
+    });
+    updateBubble();   // 首繪
     $('#mxbody').addEventListener('click', (e) => {
       const row = (e.target as HTMLElement).closest<HTMLElement>('.mrow');
       if (row) toggleRow(row);
@@ -154,7 +200,7 @@ const s: Screen = {
       cur = btn.getAttribute('data-scn') as ScenarioId;
       sectionEl.querySelectorAll('.scbtn').forEach((b) => b.classList.toggle('on', b === btn));
       renderAll();
-      (bubbleRefresh as (() => void) | null)?.();       // Task 5：泡泡文字跟上新情境
+      bubbleRefresh?.();       // Task 5：泡泡文字跟上新情境
       sCtx.ui.toast({ title: `已切換情境：${scn().label}`, message: TOAST[cur] });
     });
   },
