@@ -1,0 +1,104 @@
+/* Epidemic screen 樣式 — 自 docs/preview/preview-epidemic-redesign.html 唯一 <style> 區塊逐條搬入，
+   選擇器一律前綴 #s-epidemic 定界（比照 dispatch.css / policy.css 的既有慣例）。
+   已刪除：mockup 專用引導層（*／html,body／body／.swrap／.eyebrow／.hrow／.hactions／.note，
+   皆由 tokens.css 或 screenHeader 提供）；.chip.src（header 專用的資料源配色變體，本頁改用
+   screenHeader 的 .src/.src.live，未再被任何 markup 引用）。
+   保留：.chip（本頁另作 #epiIntel 情報列的來源標籤用，見 renderRight()，非 header 語意）、
+   .simbtn（header actionsHtml 的模擬偵測鈕，比照 policy.css 同名慣例另行定義）。
+   :root 變數改為 #s-epidemic{ } 內定界（--rose/--amber/--gold/--cyan 與 tokens.css 既有同色值，
+   但 --green/--ink/--ink60/--ink40/--panel/--line 皆為 tokens.css 未定義的名字/數值，故整組沿用
+   preview 字面值就地定界，避免混用兩套變數造成色偏）。
+   grid 為 preview 定案 grid-template-columns:0.72fr 2.9fr 1fr；.map{height:400px}（Task 4 用）。
+   .mk-port/.mk-ship（Mapbox marker）、.hitpulse（命中脈衝）本 task 未使用但依 brief 一併轉錄，
+   供 Task 4/6 直接沿用不必回頭補 CSS。 */
+
+#s-epidemic{
+  --rose:#F0648C; --amber:#F5A54A; --gold:#E9BC63; --green:#35E0A6; --cyan:#38BDF8;
+  --ink:#dbe3ec; --ink60:#8b9bad; --ink40:#6b7a8d; --panel:#0d1420; --line:rgba(255,255,255,.08);
+}
+
+/* 模擬偵測鈕（screenHeader actionsHtml 位置） */
+#s-epidemic .simbtn{font-size:11px;padding:6px 12px;border-radius:8px;border:1px solid rgba(56,189,248,.4);background:rgba(56,189,248,.1);color:var(--cyan);cursor:pointer;font-family:inherit;}
+#s-epidemic .simbtn:hover{background:rgba(56,189,248,.18);}
+
+/* ── 管線帶 ── */
+#s-epidemic .pipe{display:flex;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 16px;margin-bottom:16px;position:relative;}
+#s-epidemic .pstage{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink40);cursor:pointer;white-space:nowrap;}
+#s-epidemic .pstage.on{color:#c3d0de;}
+#s-epidemic .plamp{width:8px;height:8px;border-radius:50%;flex:none;}
+#s-epidemic .plamp.done{background:var(--green);box-shadow:0 0 8px var(--green);}
+#s-epidemic .plamp.run{background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:epi-pl 1s infinite;}
+#s-epidemic .plamp.wait{background:#333d4d;}
+@keyframes epi-pl{50%{opacity:.35;}}
+#s-epidemic .pflow{flex:1;height:1px;margin:0 12px;background:rgba(255,255,255,.07);position:relative;overflow:hidden;}
+#s-epidemic .pflow.lit{background:linear-gradient(90deg,var(--green),var(--cyan));}
+#s-epidemic .pflow.lit::after{content:"";position:absolute;top:0;left:-30%;width:30%;height:100%;background:linear-gradient(90deg,transparent,#fff,transparent);opacity:.5;animation:epi-flow 1.6s infinite;}
+@keyframes epi-flow{to{left:110%;}}
+#s-epidemic .pcount{font-family:var(--mono);color:var(--ink40);}
+#s-epidemic .pcount.hit{color:var(--cyan);}
+#s-epidemic .pdetail{position:absolute;top:100%;margin-top:6px;background:#0a1220;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:11px;color:#c3d0de;z-index:20;box-shadow:0 12px 30px rgba(0,0,0,.5);min-width:200px;display:none;}
+#s-epidemic .pdetail.show{display:block;}
+#s-epidemic .pdetail a{color:var(--ink60);text-decoration:underline;display:block;margin-top:3px;font-size:10px;}
+
+/* ── 三分割格線 ── */
+#s-epidemic .grid{display:grid;grid-template-columns:0.72fr 2.9fr 1fr;gap:14px;align-items:start;}
+#s-epidemic .col{display:flex;flex-direction:column;gap:14px;}
+#s-epidemic .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;}
+#s-epidemic .cap{font-size:9.5px;letter-spacing:.14em;color:#55606f;text-transform:uppercase;margin-bottom:9px;}
+
+/* ── 船隊清單 ── */
+#s-epidemic .frow{display:flex;align-items:center;gap:9px;padding:9px;border-radius:9px;font-size:12px;cursor:pointer;border:1px solid transparent;transition:.2s;position:relative;}
+#s-epidemic .frow.dim{opacity:.5;}
+#s-epidemic .frow.sel{background:rgba(240,100,140,.1);border-color:rgba(240,100,140,.4);opacity:1;}
+#s-epidemic .rdot{width:9px;height:9px;border-radius:50%;flex:none;}
+#s-epidemic .fname{flex:1;font-weight:600;letter-spacing:.02em;}
+#s-epidemic .fstop{color:var(--ink40);font-size:10px;font-weight:400;}
+#s-epidemic .fscore{font-weight:800;font-size:14px;font-family:var(--mono);}
+#s-epidemic .unread{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:epi-pl 1.2s infinite;}
+
+/* ── 重點 chip 列 ── */
+#s-epidemic .keyrow{display:flex;gap:9px;flex-wrap:wrap;}
+#s-epidemic .kchip{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:10.5px;color:var(--ink60);flex:1;min-width:96px;}
+#s-epidemic .kchip b{display:block;font-size:15px;font-family:var(--mono);margin-top:3px;color:#c3d0de;}
+#s-epidemic .kchip.hi{border-color:rgba(245,165,74,.45);}
+#s-epidemic .kchip.hi b{color:var(--amber);}
+#s-epidemic .kchip.red{border-color:rgba(240,100,140,.5);}
+#s-epidemic .kchip.red b{color:var(--rose);}
+
+/* ── Mapbox 地圖（Task 4）── */
+#s-epidemic .map{position:relative;width:100%;height:400px;border-radius:9px;overflow:hidden;background:#0a1220;}
+#s-epidemic .mapfallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;text-align:center;color:var(--ink40);font-size:12px;padding:20px;}
+#s-epidemic .mapfallback code{color:var(--cyan);font-size:11px;}
+#s-epidemic .mapboxgl-ctrl-logo,#s-epidemic .mapboxgl-ctrl-attrib{opacity:.35;}
+#s-epidemic .mk-port{width:9px;height:9px;border-radius:50%;position:relative;}
+#s-epidemic .mk-port .l{position:absolute;left:12px;top:-3px;font-size:10px;white-space:nowrap;font-weight:700;}
+#s-epidemic .mk-ship{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:13px solid var(--cyan);filter:drop-shadow(0 0 6px var(--cyan));}
+
+/* ── 泳道（Task 5）── */
+#s-epidemic .sl{position:relative;margin-top:14px;padding-left:62px;}
+#s-epidemic .lane{position:relative;height:36px;border-bottom:1px solid rgba(255,255,255,.05);}
+#s-epidemic .lname{position:absolute;left:-62px;top:10px;font-size:9px;color:#55606f;width:58px;}
+#s-epidemic .bar{position:absolute;height:15px;top:6px;border-radius:3px;font-size:8.5px;color:#0a1018;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;}
+#s-epidemic .evt{position:absolute;width:10px;height:10px;border-radius:50%;top:8px;transform:translateX(-50%);}
+#s-epidemic .hitline{position:absolute;width:2px;z-index:2;}
+#s-epidemic .hitline.rose{background:var(--rose);}
+#s-epidemic .hitline.amber{background:var(--amber);}
+#s-epidemic .hitpulse{position:absolute;width:16px;height:16px;border-radius:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;opacity:0;}
+#s-epidemic .hitpulse.act{animation:epi-pulse .5s ease-out;}
+@keyframes epi-pulse{0%{opacity:.9;box-shadow:0 0 0 0 var(--rose);}100%{opacity:0;box-shadow:0 0 0 14px transparent;}}
+#s-epidemic .cursor{position:absolute;top:-2px;height:80px;width:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);cursor:ew-resize;z-index:7;}
+#s-epidemic .cursor::before{content:"";position:absolute;top:-5px;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--cyan);}
+#s-epidemic .axis{display:flex;justify-content:space-between;font-size:9px;color:#55606f;margin-top:6px;padding-left:62px;}
+
+/* ── 右欄：評分環 / meter / 情報 / 防護 / 簡訊 ── */
+#s-epidemic .ring{width:62px;height:62px;border-radius:50%;border:3px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--amber);font-family:var(--mono);}
+#s-epidemic .rulerow{display:flex;justify-content:space-between;font-size:11px;padding:6px 0 2px;}
+#s-epidemic .rulerow span:first-child{color:var(--ink60);}
+#s-epidemic .meter{height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;}
+#s-epidemic .meter i{display:block;height:100%;border-radius:3px;transition:width .4s;}
+#s-epidemic .intel{font-size:11.5px;color:#c3d0de;display:flex;flex-direction:column;gap:9px;}
+#s-epidemic .intel .miss{opacity:.5;}
+#s-epidemic .chip{font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.12);color:var(--ink40);}
+#s-epidemic .actchip{display:inline-block;font-size:11px;padding:5px 9px;border-radius:7px;background:rgba(240,100,140,.09);border:1px solid rgba(240,100,140,.28);color:#f2c0cf;margin:0 5px 5px 0;}
+#s-epidemic .sms{background:#0a1526;border:1px solid rgba(56,189,248,.35);border-radius:11px 11px 11px 3px;padding:10px 12px;font-size:12px;color:#cfe0f2;}
+#s-epidemic .sms .from{font-size:9px;color:var(--cyan);letter-spacing:.1em;margin-bottom:5px;font-weight:700;}
