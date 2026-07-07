@@ -1,0 +1,105 @@
+/* Alert screen 樣式 — 自 docs/preview/preview-alert-redesign.html 唯一 <style> 區塊逐條搬入，
+   選擇器一律前綴 #s-alert 定界（比照 epidemic.css / dispatch.css / policy.css 的既有慣例）。
+   已刪除：mockup 專用引導層（*／body／.swrap／.eyebrow／.hrow／.hactions／.chip／.chip.src，
+   皆由 tokens.css 或 screenHeader 提供）；.simbtn（「模擬事件」鈕改用既有 lg-btn，見 index.ts 的
+   SIM_BTN 常數，不在本檔另定義樣式）；.note（示範說明不搬）；.mapfallback（Task 4 的
+   broadcastmap.ts 用 inline style 降級卡，同 worldmap.ts 手法，不在此定義）。
+   :root 變數處理（不落地成 #s-alert{ } 區塊變數，逐一對應 tokens.css 既有變數或字面值）：
+     --flame:#FF7A59 → 用途處一律寫字面 #FF7A59（不用 var()）；
+     --amber/--cyan   → tokens.css 既有 var(--amber)/var(--cyan)，色值相同；
+     --green:#35E0A6  → tokens.css 既有 var(--lg-accent)，色值相同；
+     --ink60/--ink40  → tokens.css 既有 var(--ink-60)/var(--ink-40)（數字尾綴對應同一階層語意）；
+     --panel:#0d1420  → tokens.css 無對應變數，用途處寫字面 #0d1420；
+     --line:rgba(255,255,255,.08) → tokens.css 既有髮絲線變數 var(--hair)（同語意）；
+     --mono           → tokens.css 既有 var(--mono)；
+     --rose 未在本頁實際使用，不轉錄。
+   @keyframes 一律加 a 前綴防跨頁衝突：ackpl→aackpl、pd→apd、rip→arip、shk→ashk（所有
+   animation: 參照處已同步改名）。 */
+
+#s-alert .keyrow{display:flex;gap:10px;margin-bottom:14px;}
+#s-alert .kchip{background:#0d1420;border:1px solid var(--hair);border-radius:9px;padding:9px 13px;font-size:10.5px;color:var(--ink-60);flex:1;}
+#s-alert .kchip b{display:block;font-size:17px;font-family:var(--mono);margin-top:3px;color:#c3d0de;}
+#s-alert .kchip.hi b{color:#FF7A59;}
+
+#s-alert .agrid{display:grid;grid-template-columns:0.95fr 2.5fr 1fr;gap:14px;align-items:start;}
+#s-alert .acol{display:flex;flex-direction:column;gap:14px;}
+#s-alert .apanel-feed{flex:1;}
+#s-alert .panel{background:#0d1420;border:1px solid var(--hair);border-radius:12px;padding:13px;}
+#s-alert .cap{font-size:9.5px;letter-spacing:.14em;color:#55606f;text-transform:uppercase;margin-bottom:9px;}
+
+/* 事件流 */
+#s-alert .fbar{display:flex;gap:6px;margin-bottom:10px;}
+#s-alert .fchip{font-size:10px;padding:4px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--ink-40);cursor:pointer;}
+#s-alert .fchip.is-on{border-color:rgba(255,122,89,.5);color:#FF7A59;background:rgba(255,122,89,.08);}
+#s-alert .ecard{position:relative;border:1px solid transparent;border-left:3px solid var(--sv,#4a5568);border-radius:8px;padding:9px 10px 9px 11px;margin-bottom:8px;font-size:11.5px;cursor:pointer;background:rgba(255,255,255,.02);transition:.2s;}
+#s-alert .ecard.dim{opacity:.55;}
+#s-alert .ecard.sel{background:color-mix(in srgb,var(--sv) 8%,transparent);border-color:color-mix(in srgb,var(--sv) 40%,transparent);border-left-color:var(--sv);box-shadow:0 0 18px color-mix(in srgb,var(--sv) 14%,transparent);opacity:1;}
+#s-alert .etop{display:flex;align-items:center;gap:6px;}
+#s-alert .sdot{width:7px;height:7px;border-radius:50%;flex:none;}
+#s-alert .etitle{flex:1;font-weight:700;font-size:11.5px;letter-spacing:.01em;}
+#s-alert .etime{font-size:9.5px;color:var(--ink-40);font-family:var(--mono);}
+#s-alert .ebody{color:var(--ink-60);font-size:10.5px;margin:4px 0 6px;}
+#s-alert .emeta{display:flex;align-items:center;gap:6px;}
+#s-alert .chb{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.15);color:var(--ink-60);letter-spacing:.06em;}
+#s-alert .ackbtn{margin-left:auto;font-size:9.5px;padding:3px 8px;border-radius:6px;border:1px solid;cursor:pointer;background:none;}
+#s-alert .ackbtn.todo{border-color:var(--sv);color:var(--sv);animation:aackpl 1.2s infinite;}
+#s-alert .ackbtn.done{border-color:rgba(245,165,74,.4);color:var(--amber);animation:none;cursor:default;}
+@keyframes aackpl{50%{opacity:.35;}}
+#s-alert .unread{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:#FF7A59;box-shadow:0 0 8px #FF7A59;animation:aackpl 1.2s infinite;}
+
+/* 分級軌跡（下鑽展開） */
+#s-alert .trace{margin-top:9px;border-top:1px solid var(--hair);padding-top:8px;display:none;}
+#s-alert .ecard.sel .trace{display:block;}
+#s-alert .tnode{display:flex;gap:8px;align-items:flex-start;padding:3px 0;font-size:10px;color:var(--ink-40);}
+#s-alert .tnode .lamp{width:7px;height:7px;border-radius:50%;background:#333d4d;margin-top:3px;flex:none;}
+#s-alert .tnode.on{color:#c3d0de;}
+#s-alert .tnode.on .lamp{background:var(--lg-accent);box-shadow:0 0 7px var(--lg-accent);}
+#s-alert .tnode.on.run .lamp{background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:aackpl 1s infinite;}
+#s-alert .tnode b{font-weight:700;}
+#s-alert .tnode .sub{display:block;font-size:9.5px;color:var(--ink-40);}
+#s-alert .tnode .tmono{font-family:var(--mono);color:#c3d0de;}
+
+/* Mapbox（Task 4 接線；本 task 樣式先備妥） */
+#s-alert .amap{position:relative;width:100%;height:560px;border-radius:9px;overflow:hidden;background:#0a1220;}
+#s-alert .mapboxgl-ctrl-logo,#s-alert .mapboxgl-ctrl-attrib{opacity:.35;}
+#s-alert .cell{width:22px;height:24px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:rgba(139,155,173,.28);border:none;position:relative;transition:.3s;cursor:pointer;}
+/* 注意：不可對 .cellwrap 設 position——會蓋掉 .mapboxgl-marker 的 absolute 定位造成 marker 流式偏移 */
+#s-alert .cellwrap .tip{position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:#0a1220;border:1px solid var(--hair);border-radius:7px;padding:5px 9px;font-size:10px;color:#c3d0de;white-space:nowrap;display:none;z-index:30;box-shadow:0 8px 20px rgba(0,0,0,.5);}
+#s-alert .cellwrap:hover .tip{display:block;}
+#s-alert .cellwrap.lit .cell{background:rgba(255,122,89,.75);filter:drop-shadow(0 0 9px #FF7A59);}
+#s-alert .pdot{width:12px;height:12px;border-radius:50%;background:#FF7A59;box-shadow:0 0 12px #FF7A59;position:relative;}
+#s-alert .pdot::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid #FF7A59;animation:apd 1.4s infinite;opacity:.7;}
+@keyframes apd{to{transform:scale(2.1);opacity:0;}}
+#s-alert .ripple{width:30px;height:30px;border-radius:50%;border:2px solid #FF7A59;opacity:0;pointer-events:none;}
+#s-alert .ripple.act{animation:arip 1.5s ease-out forwards;}
+@keyframes arip{0%{opacity:.85;transform:scale(.3);}100%{opacity:0;transform:scale(9);}}
+
+/* 手機 mock */
+#s-alert .phone{position:relative;width:100%;max-width:230px;margin:0 auto;aspect-ratio:9/18.5;background:linear-gradient(170deg,#0c1320,#0a0f18);border:1.5px solid rgba(255,255,255,.16);border-radius:26px;padding:14px 12px;overflow:hidden;}
+#s-alert .phone.shake{animation:ashk .55s ease-in-out 2;}
+@keyframes ashk{0%,100%{transform:translateX(0);}20%{transform:translateX(-5px);}40%{transform:translateX(5px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
+#s-alert .notch{width:78px;height:16px;background:#05080d;border-radius:0 0 12px 12px;margin:-14px auto 8px;}
+#s-alert .ptime{text-align:center;font-size:26px;font-weight:200;letter-spacing:.04em;}
+#s-alert .pdate{text-align:center;font-size:9.5px;color:var(--ink-40);margin-bottom:12px;}
+#s-alert .banner{background:rgba(20,28,42,.92);border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:9px 10px;font-size:10px;color:#cfe0f2;margin-bottom:7px;}
+#s-alert .banner .bfrom{font-size:8.5px;color:var(--cyan);letter-spacing:.1em;font-weight:700;margin-bottom:3px;display:flex;gap:5px;align-items:center;}
+#s-alert .banner.warn .bfrom{color:var(--amber);}
+#s-alert .banner.old{opacity:.45;}
+#s-alert .palert{position:absolute;inset:0;background:rgba(28,10,6,.96);border:2px solid #FF7A59;border-radius:26px;padding:38px 14px 14px;display:none;flex-direction:column;gap:8px;z-index:5;}
+#s-alert .palert.show{display:flex;}
+#s-alert .palert .ptag{font-size:9px;letter-spacing:.16em;color:#FF7A59;font-weight:800;display:flex;align-items:center;gap:6px;}
+#s-alert .palert .ptag .tri{animation:aackpl .8s infinite;}
+#s-alert .palert h5{margin:0;font-size:14px;color:#ffd9cd;line-height:1.4;}
+#s-alert .palert .pbody{font-size:10.5px;color:#f0c9bd;line-height:1.55;}
+#s-alert .palert .pch{margin-top:auto;font-family:var(--mono);font-size:9px;color:#FF7A59;letter-spacing:.08em;}
+
+/* 送達漏斗 */
+#s-alert .fun{margin-bottom:4px;}
+#s-alert .funlbl{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-60);margin-bottom:3px;}
+#s-alert .funlbl b{font-family:var(--mono);color:#c3d0de;}
+#s-alert .frail{display:flex;flex-direction:column;gap:4px;}
+#s-alert .fstep{display:flex;align-items:center;gap:7px;font-size:9.5px;color:var(--ink-40);}
+#s-alert .fstep .nm{width:34px;flex:none;}
+#s-alert .fstep .bar{height:9px;border-radius:3px;background:linear-gradient(90deg,rgba(255,122,89,.85),rgba(255,122,89,.45));transition:width .5s;min-width:2px;}
+#s-alert .fstep .num{font-family:var(--mono);color:#c3d0de;margin-left:auto;}
+#s-alert .fstep .pct{font-family:var(--mono);font-size:8.5px;color:var(--ink-40);width:38px;text-align:right;}

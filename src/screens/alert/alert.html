@@ -1,1 +1,35 @@
-<!-- alert 改版過渡佔位（Task 3 重寫版面） -->
+<!-- 自 docs/preview/preview-alert-redesign.html 的 .swrap 內容逐字轉錄（Task 3）。
+     標頭（eyebrow/h1/badges/來源 chip/模擬事件鈕）由 screenHeader() 產生，不進本檔；
+     .note 示範說明不搬。class 更名（避開全站通用名）：
+     .grid→.agrid、.col→.acol、.map→.amap、#map→#amap、#phone→#aphone、#phoneScr→#aphoneScr、
+     #palert→#apalert、#feed→#afeed、#funnel→#afunnel、#kpis→.keyrow（無 id，index.ts 以 .keyrow 查找）。
+     其餘 class（ecard/trace/tnode/cell/cellwrap/pdot/ripple/phone 系/fun 系/fbar/fchip/kchip/chb/
+     ackbtn/sdot/etitle/etime/ebody/emeta/unread）沿 preview 原名，皆由 alert.css 的 #s-alert 前綴 scope。
+     .apanel-feed：取代 preview 原本 inline style="flex:1"（見 alert.css）。 -->
+<div class="keyrow"><!--KPIS--></div>
+<div class="agrid">
+  <div class="acol">
+    <div class="panel apanel-feed">
+      <div class="cap">警報事件流</div>
+      <div class="fbar">
+        <button class="fchip is-on" data-cat="all">全部</button><button class="fchip" data-cat="epi">疫情</button><button class="fchip" data-cat="wx">氣象</button><button class="fchip" data-cat="ok">解除</button>
+      </div>
+      <div id="afeed"></div>
+    </div>
+  </div>
+  <div class="acol">
+    <div class="panel"><div class="cap">Cell Broadcast 覆蓋 · 高雄港區</div>
+      <div class="amap" id="amap"></div>
+    </div>
+  </div>
+  <div class="acol">
+    <div class="panel"><div class="cap">港區人員手機 · 接收端</div>
+      <div class="phone" id="aphone">
+        <div class="notch"></div><div class="ptime">19:36</div><div class="pdate">7月7日 星期二 · 高雄港區</div>
+        <div id="aphoneScr"></div>
+        <div class="palert" id="apalert"></div>
+      </div>
+    </div>
+    <div class="panel"><div class="cap">送達漏斗</div><div id="afunnel"></div></div>
+  </div>
+</div>

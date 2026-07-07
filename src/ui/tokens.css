@@ -144,12 +144,6 @@ body[data-hero="ov"] .overview{opacity:1;transform:none;pointer-events:auto;}
 .frail{display:flex;flex-direction:column;gap:16px;padding:16px;border-radius:16px;position:sticky;top:0;}
 .rail-h{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-40);font-weight:600;font-family:var(--mono);}
 .rail-group{display:flex;flex-direction:column;gap:7px;}
-.fchip{display:flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid var(--hair);border-radius:10px;
-  background:none;color:var(--ink-60);font-size:13px;cursor:pointer;text-align:left;font-family:inherit;
-  transition:color .25s var(--ease),border-color .25s var(--ease);}
-.fchip:hover{color:var(--ink-90);border-color:rgba(255,255,255,.25);}
-.fchip.is-on{color:var(--lg-accent);border-color:var(--lg-accent);}
-.fchip .n{margin-left:auto;font-size:11px;color:var(--ink-40);font-family:var(--mono);}
 .frail select,.wbbar select{background:rgba(255,255,255,.06);border:1px solid var(--hair);border-radius:10px;
   color:var(--ink-90);padding:8px 10px;font-size:13px;font-family:inherit;}
 .frail select option,.wbbar select option{background:#0a0f16;}
@@ -190,17 +184,12 @@ body[data-hero="ov"] .overview{opacity:1;transform:none;pointer-events:auto;}
 .srcrow .meta{color:var(--ink-40);font-size:11px;font-family:var(--mono);}
 
 /* ═══ 警報 ═══ */
+/* .feed 保留：carbon.css 的 #s-carbon .feed（#d-timeline 事件 timeline）未設 display，
+   實際仍吃這條全域 display:flex/gap（見 carbon.html:107 <ul class="feed" id="d-timeline">），
+   刪除會改變 carbon 既有渲染（違反「carbon 操作邏輯一律不動」鐵則），故不隨其餘警報舊佔位
+   一併清除。舊版 .alertrow/.phone/.sms（Task 11 過渡殼遺留，未有其他頁引用）已於 Task 3 清除，
+   Alert 新版樣式改走 src/screens/alert/alert.css 的 #s-alert 前綴 scope。 */
 .feed{display:flex;flex-direction:column;gap:10px;}
-.alertrow{display:flex;gap:12px;padding:12px 14px;border-radius:14px;align-items:flex-start;}
-.alertrow .sev{width:4px;align-self:stretch;border-radius:4px;flex:none;}
-.alertrow b{font-size:13.5px;display:block;}
-.alertrow p{margin:2px 0 0;font-size:12.5px;color:var(--ink-60);}
-.alertrow time{margin-left:auto;font-size:11px;color:var(--ink-40);font-family:var(--mono);flex:none;}
-.phone{width:100%;max-width:250px;margin:0 auto;border-radius:26px;padding:16px 14px 20px;
-  background:rgba(8,13,20,.72);border:1px solid rgba(255,255,255,.14);}
-.phone .pt{text-align:center;font-size:10px;color:var(--ink-40);font-family:var(--mono);letter-spacing:.14em;margin-bottom:10px;}
-.sms{border-radius:14px;padding:11px 13px;background:rgba(255,122,89,.12);border:1px solid rgba(255,122,89,.4);font-size:12px;line-height:1.6;}
-.sms b{color:var(--flame);font-size:11px;font-family:var(--mono);letter-spacing:.08em;display:block;margin-bottom:4px;}
 
 /* ═══ 細節 refine ═══ */
 button:focus-visible{outline:2px solid var(--lg-accent);outline-offset:2px;}
@@ -223,24 +212,6 @@ button:focus-visible{outline:2px solid var(--lg-accent);outline-offset:2px;}
   background:none;cursor:pointer;font-family:inherit;transition:color .25s var(--ease),border-color .25s var(--ease);}
 .scn:hover{color:var(--ink-90);border-color:rgba(255,255,255,.3);}
 .scn.on{color:var(--lg-accent);border-color:var(--lg-accent);}
-/* 警報：篩選列 + 手機 */
-.fbar{display:flex;gap:8px;margin-bottom:12px;}
-.alertrow{cursor:default;transition:transform .3s var(--ease);}
-.alertrow:hover{transform:translateX(3px);}
-.alertrow.hide{display:none;}
-.phone{width:225px;padding:13px 11px 18px;border-radius:30px;margin:0 auto;
-  background:rgba(8,13,20,.82);border:1px solid rgba(255,255,255,.16);
-  box-shadow:0 16px 44px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.08);}
-.phone .notch{width:70px;height:15px;border-radius:9px;background:rgba(255,255,255,.09);margin:0 auto 6px;}
-.phone .ptime{text-align:center;font-size:19px;font-weight:700;font-family:var(--mono);letter-spacing:.02em;margin:2px 0 0;}
-.phone .pdate{text-align:center;font-size:10px;color:var(--ink-40);font-family:var(--mono);margin-bottom:10px;}
-.sms + .sms{margin-top:8px;}
-.sms.old{opacity:.5;}
-.sms.pop{animation:smspop .5s var(--ease);}
-@keyframes smspop{0%{opacity:0;transform:translateY(-10px) scale(.96)}100%{opacity:1;transform:none}}
-.phone.buzz{animation:buzz .5s;}
-@keyframes buzz{0%,100%{transform:none}20%{transform:translateX(-3px) rotate(-.6deg)}40%{transform:translateX(3px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
-@media(prefers-reduced-motion:reduce){.phone.buzz,.sms.pop{animation:none;}}
 
 /* ── 導覽提示列 ── */
 #hint{position:fixed;right:18px;bottom:16px;z-index:70;font-size:11px;color:var(--ink-40);
