@@ -91,7 +91,9 @@ export function createBroadcastMap(
     d.style.display = 'none';
     dotMk = new mapboxgl.Marker({ element: d, anchor: 'center' }).setLngLat([120.3, 22.59]).addTo(map);
     ready = true;
-    (window as any).__alertMap = map; // Dev/verification handle（同 twin/scene-init.ts window.__twin 慣例）
+    if (import.meta.env.DEV) {
+      (window as unknown as { __alertMap?: unknown }).__alertMap = map; // DEV-only 驗證鉤（import.meta.env.DEV 保證不進 production build），同 dispatch __dispatchForceUpdate 慣例
+    }
     onReady();
   });
 
