@@ -2,13 +2,13 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-07 系統設定頁（Settings）SDD 8 tasks 全數完成並通過逐 task review，全站驗收綠燈，分支 `settings-page`，待最終 whole-branch review + 使用者實機驗收/合併（Epidemic 頁改版已於 2026-07-05 合併回 main，見下）
+最後更新：2026-07-07 系統設定頁（Settings）SDD 8 tasks + 最終 whole-branch review + 三項修復全數完成，使用者實機驗收通過，已合併回 main 並 push 到 origin（README 加系統設定頁畫面展示）（Epidemic 頁改版已於 2026-07-05 合併回 main，見下）
 
 ---
 
 ## 1. 目前狀態
 
-**系統設定頁（Settings）：SDD 實作完成（8 tasks 全數逐 task review 通過，含 Task 8 全站驗收），三綠燈 + CDP 全站驗收綠燈，分支 `settings-page`（自 main，baseline `427ba4a`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
+**系統設定頁（Settings）：SDD 8 tasks 全數逐 task review 通過 + 最終 whole-branch review (opus, Ready to merge) + 三項最終修復，使用者實機驗收通過，已合併回 main（fast-forward `b78e423`→`2474de9`、feature 分支已刪）並 push 到 origin。三綠燈 + CDP 全站驗收綠燈。README「畫面展示」已加系統設定頁截圖（`docs/screens/settings.png`）。本輪工作全部結束。**
 - 定位：左側 rail 底部新增「系統設定」入口（第 8 個 screen，模組色中性銀灰 `#9FB0C0`、mode `doc`、鍵盤 `7`），
   承載全站前後端設定，分 7 分區（前端設定 + 六大功能模組）。核心價值是**框架先行**——schema 驅動的
   設定框架讓協作者**不碰 UI 程式碼**就能新增/刪除自己模組的設定項目；現在能確定的（policy 知識庫 +
@@ -753,18 +753,8 @@
 
 ## 4. 下一步（依序）
 
-**目前的下一步（2026-07-07 起）：系統設定頁（Settings）SDD 實作已完成（8 tasks，見第 1 節），剩收尾。**
-0. **（建議先做）修 Task 8 驗收發現的視覺缺陷**：settings 頁內容未包 `.swrap` 版心 → 固定 rail 疊在
-   左欄分區導覽上（見第 1 節末條與第 5 節）。屬 Task 2 遺漏、一行級修法（settings/index.ts 把 header+sgrid
-   包進 `<div class="swrap">`）。本 task 為純文件+驗收，依規約未自行修，交 review/使用者決策；建議在使用者
-   實機驗收前先修。
-1. 最終 whole-branch review（opus/fable）——分支 `settings-page` 全 diff 複審（schema 框架承載性接縫：
-   validateSections key 唯一性、instant/explicit draft 生命週期、custom 渲染器 escape hatch、modal Escape
-   監聽掛卸、getKbs/getProviders 的 fallback 深拷貝防污染、跨頁 subscribe 同步、只換讀取點不動操作邏輯）。
-2. 使用者實機驗收（真 Chrome 人工 click-through：切 7 分區 / instant 撥 toggle + explicit 改字儲存捨棄 /
-   供應商 Setup 全流程 / 知識庫 modal 上傳刪除 chunk 策略 progressive disclosure / llmMode 雙向同步 /
-   減少動態效果全站生效的手感）。
-3. finishing：決定合併方式（比照 policy/dispatch/epidemic 前例可能本地合併回 main、未 push）。
+**目前的下一步（2026-07-07 起）：系統設定頁（Settings）已完成、使用者實機驗收通過、合併回 main 並 push 到 origin（見第 1 節）。本輪無後續排定 task。**
+- ~~swrap 版心缺陷~~ 已修（commit `cc44ec3`）。~~最終 whole-branch review（opus）~~＝Ready to merge，新發現的 Important（getDefaults 漏深拷貝）+ 兩 Minor 已於 `2474de9` 修完再審 clean。~~finishing~~ 本地合併 + push 完成。~~使用者實機驗收~~ 通過。
 - policy / dispatch / epidemic 頁改版皆已完成並合併回 main（見第 1 節）。
 - 六大功能頁改版進度：carbon(live)/twin(live 原生)/policy(已改版)/dispatch(已改版)/epidemic(已改版)；
   尚餘 alert 仍為初版 mock 佔位頁（未來若要比照前例做深度改版再各自 brainstorming）。
