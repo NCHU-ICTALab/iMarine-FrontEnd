@@ -41,6 +41,64 @@
 #s-settings .gnote{font-size:10.5px;color:var(--ink40);margin-top:10px;line-height:1.6}
 #s-settings .gnote a{color:var(--cyan);cursor:pointer;text-decoration:underline}
 
+/* ===== 欄位（Task 3 累加：自 preview 第 49-92 行、153-157 行、187 行轉錄） ===== */
+#s-settings .frow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+#s-settings .frow:last-child{border-bottom:0}
+#s-settings .flabel{width:170px;flex:none;font-size:12px;color:#c3d0de;font-weight:600}
+#s-settings .flabel .help{display:block;font-size:9.5px;color:var(--ink40);font-weight:400;margin-top:2px;letter-spacing:.02em}
+#s-settings .fctl{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+#s-settings .tin{flex:1;max-width:420px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);border-radius:8px;
+  padding:7px 10px;font-size:12px;color:var(--ink);font-family:var(--mono);outline:none;transition:.15s}
+#s-settings .tin:focus{border-color:rgba(159,176,192,.5)}
+#s-settings .tin::placeholder{color:#3d4a5c;font-family:-apple-system,"Noto Sans TC",sans-serif}
+#s-settings .tin[disabled]{opacity:.5;cursor:not-allowed}
+#s-settings .tin.num{max-width:110px;font-family:var(--mono)}
+#s-settings .sel{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:7px 10px;
+  font-size:12px;color:var(--ink);outline:none;min-width:190px;cursor:pointer}
+#s-settings .sel[disabled]{opacity:.5;cursor:not-allowed}
+#s-settings .sel option{background:#0d1420}
+#s-settings .eyebtn,#s-settings .mini{font-size:10.5px;padding:6px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.04);color:var(--ink60);cursor:pointer;white-space:nowrap;transition:.15s}
+#s-settings .eyebtn:hover,#s-settings .mini:hover{background:rgba(255,255,255,.09);color:#c3d0de}
+#s-settings .mini.acc{border-color:rgba(56,189,248,.4);color:var(--cyan);background:rgba(56,189,248,.08)}
+#s-settings .mini.acc:hover{background:rgba(56,189,248,.16)}
+#s-settings .mini.danger{border-color:rgba(240,100,140,.4);color:var(--rose)}
+#s-settings .mini[disabled]{opacity:.4;cursor:not-allowed}
+#s-settings .masked{font-family:var(--mono);font-size:12px;color:var(--ink60)}
+
+/* toggle（instant） */
+#s-settings .tgl{position:relative;width:36px;height:20px;flex:none;cursor:pointer}
+#s-settings .tgl input{opacity:0;width:0;height:0;position:absolute}
+#s-settings .tgl .tr{position:absolute;inset:0;border-radius:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);transition:.2s}
+#s-settings .tgl .th{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#8b9bad;transition:.2s}
+#s-settings .tgl input:checked + .tr{background:rgba(53,224,166,.25);border-color:rgba(53,224,166,.5)}
+#s-settings .tgl input:checked + .tr + .th{left:19px;background:var(--green)}
+#s-settings .tgl.dis{opacity:.4;pointer-events:none}
+#s-settings .flash{font-size:10px;color:var(--green);opacity:0;transition:opacity .25s}
+#s-settings .flash.show{opacity:1}
+
+/* 儲存列（explicit dirty） */
+#s-settings .savebar{display:none;align-items:center;gap:10px;margin-top:12px;padding:9px 12px;border-radius:9px;
+  background:rgba(245,165,74,.07);border:1px solid rgba(245,165,74,.3);font-size:11px;color:var(--amber)}
+#s-settings .savebar.show{display:flex}
+#s-settings .savebar .sp{flex:1}
+#s-settings .saved{display:none;margin-top:12px;font-size:11px;color:var(--green)}
+#s-settings .saved.show{display:block;animation:setfade 1.8s forwards}
+@keyframes setfade{0%,70%{opacity:1}100%{opacity:0}}
+
+/* 導引字（select options() 空陣列時） */
+#s-settings .guide{font-size:10.5px;color:var(--amber)}
+#s-settings .guide a{color:var(--cyan);cursor:pointer;text-decoration:underline}
+
+/* 測試連線 / action 執行狀態 */
+#s-settings .tstate{font-size:11px;display:flex;align-items:center;gap:6px;min-height:18px}
+#s-settings .tstate.run{color:var(--cyan)}
+#s-settings .tstate.ok{color:var(--green)}
+#s-settings .tstate.err{color:var(--rose)}
+#s-settings .spin{width:11px;height:11px;border:2px solid rgba(56,189,248,.3);border-top-color:var(--cyan);border-radius:50%;
+  animation:setspin 0.8s linear infinite;flex:none}
+@keyframes setspin{to{transform:rotate(360deg)}}
+
 #s-settings .hl{animation:sethl 1.6s ease-out}
 @keyframes sethl{0%{box-shadow:0 0 0 2px rgba(56,189,248,.7)}100%{box-shadow:0 0 0 2px transparent}}
 

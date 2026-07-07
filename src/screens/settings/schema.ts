@@ -17,7 +17,7 @@ export type SettingField =
   | { kind: 'text'; key: string; label: string; placeholder?: string; help?: string; disabled?: boolean }
   | { kind: 'password'; key: string; label: string; help?: string; disabled?: boolean }
   | { kind: 'select'; key: string; label: string; options: () => { value: string; label: string }[]; help?: string; disabled?: boolean }
-  | { kind: 'toggle'; key: string; label: string; help?: string; disabled?: boolean }
+  | { kind: 'toggle'; key: string; label: string; help?: string; disabled?: boolean; defaultOn?: boolean }
   | { kind: 'number'; key: string; label: string; min?: number; max?: number; step?: number; help?: string; disabled?: boolean }
   | { kind: 'slider'; key: string; label: string; min: number; max: number; step?: number; disabled?: boolean }
   | { kind: 'action'; label: string; button: string; run: (ctx: SettingsCtx) => Promise<ActionResult>; disabled?: boolean }

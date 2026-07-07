@@ -3,6 +3,12 @@ import './settings.css';
 import { screenHeader } from '../../ui/components';
 import type { Screen, ScreenCtx } from '../types';
 import { validateSections, type SettingsSection, type SettingsCtx } from './schema';
+import { renderSection } from './renderer';
+import { frontendSection } from './sections/frontend';
+import { twinSection } from './sections/twin';
+import { dispatchSection } from './sections/dispatch';
+import { epidemicSection } from './sections/epidemic';
+import { alertSection } from './sections/alert';
 
 let SECTIONS: SettingsSection[] = [];
 let cur = 'frontend';
@@ -25,12 +31,8 @@ function renderNav(): void {
 
 function renderPanel(): void {
   const panel = root.querySelector('#setPanel') as HTMLElement;
-  panel.innerHTML = '';
   const sec = SECTIONS.find((s) => s.id === cur);
-  if (!sec) return;
-  // Task 3 起改用 renderer.ts 的 renderSection；本 task 先出佔位文字驗證骨架
-  panel.innerHTML = '<div class="gcard"><div class="ghead"><h3>' + esc(sec.label) + '</h3></div>' +
-    '<div class="gnote">分區內容於後續 task 接上。</div></div>';
+  if (sec) renderSection(panel, sec, sctx);
 }
 
 function select(id: string): void {
@@ -60,15 +62,15 @@ const screen: Screen = {
         }
       },
     };
-    // 本 task：7 筆最小 stub；Task 3-7 逐一換成 sections/ 檔案
+    // Task 3：frontend + 四佔位換成真 sections；carbon/policy 仍為 Task 2 stub（Task 5/6 才換）
     SECTIONS = [
-      { id: 'frontend', label: '前端設定', color: '#35E0A6', status: () => '生效中', groups: [] },
+      frontendSection,
       { id: 'carbon', label: '碳權代幣化', color: '#E9BC63', status: () => 'API 可設定', groups: [] },
       { id: 'policy', label: '政策報告', color: '#38BDF8', status: () => '', groups: [] },
-      { id: 'twin', label: '沙盤推演', color: '#7FB4FF', status: () => '後端待接入', groups: [] },
-      { id: 'dispatch', label: '派工建議', color: '#F5A54A', status: () => '後端待接入', groups: [] },
-      { id: 'epidemic', label: '疫情追溯', color: '#F0648C', status: () => '後端待接入', groups: [] },
-      { id: 'alert', label: '警報推播', color: '#FF7A59', status: () => '後端待接入', groups: [] },
+      twinSection,
+      dispatchSection,
+      epidemicSection,
+      alertSection,
     ];
     validateSections(SECTIONS);
     el.innerHTML = html.replace(
