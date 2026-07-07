@@ -5,6 +5,7 @@ import type { Screen, ScreenCtx } from '../types';
 import { validateSections, type SettingsSection, type SettingsCtx } from './schema';
 import { renderSection } from './renderer';
 import { frontendSection } from './sections/frontend';
+import { carbonSection } from './sections/carbon';
 import { twinSection } from './sections/twin';
 import { dispatchSection } from './sections/dispatch';
 import { epidemicSection } from './sections/epidemic';
@@ -62,10 +63,10 @@ const screen: Screen = {
         }
       },
     };
-    // Task 3：frontend + 四佔位換成真 sections；carbon/policy 仍為 Task 2 stub（Task 5/6 才換）
+    // Task 3：frontend + 四佔位換成真 sections；Task 5：carbon 換真 section；policy 仍為 Task 2 stub（Task 6 才換）
     SECTIONS = [
       frontendSection,
-      { id: 'carbon', label: '碳權代幣化', color: '#E9BC63', status: () => 'API 可設定', groups: [] },
+      carbonSection,
       { id: 'policy', label: '政策報告', color: '#38BDF8', status: () => '', groups: [] },
       twinSection,
       dispatchSection,
