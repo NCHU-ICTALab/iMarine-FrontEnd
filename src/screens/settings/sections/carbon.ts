@@ -38,10 +38,13 @@ export const carbonSection: SettingsSection = {
       custom(el) {
         el.innerHTML = '<div class="gnote" id="cbChain">後端離線 — 依 README 前置步驟啟動 PoC 的 make chain + make api 後，此處顯示鏈上狀態摘要。</div>';
         const base = getSetting('carbon.apiBase', '') || (import.meta as any).env?.VITE_CARBON_API || 'http://127.0.0.1:8000';
-        fetch(base + '/state').then((r) => r.json()).then((j) => {
+        const ac = new AbortController();
+        const t = setTimeout(() => ac.abort(), 3000);
+        fetch(base + '/state', { signal: ac.signal }).then((r) => r.json()).then((j) => {
+          clearTimeout(t);
           const n = Array.isArray(j?.sus) ? j.sus.length : 0;
           (el.querySelector('#cbChain') as HTMLElement).textContent = '鏈上狀態：SU ' + n + ' 筆 · 資料源 ' + base;
-        }).catch(() => {});
+        }).catch(() => { clearTimeout(t); });
       },
     },
   ],

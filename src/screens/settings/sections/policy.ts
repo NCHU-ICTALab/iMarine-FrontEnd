@@ -149,8 +149,11 @@ export function getProviders(): ProviderCfg[] {
 function setProviders(list: ProviderCfg[]): void {
   setSetting('policy.providers', list);
 }
-function getDefaults(): PolicyDefaults {
-  return getSetting<PolicyDefaults>('policy.defaults', DEFAULTS_PRESET);
+export function getDefaults(): PolicyDefaults {
+  // fallback 深拷貝：與 getKbs()/getProviders() 同因——getSetting 找不到 key 時直接回傳
+  // fallback 參照本身。系統預設模型 select 的 change 監聽與移除供應商流程都會就地改動
+  // 取回的物件（d[key]=...），首次讀取直接傳 DEFAULTS_PRESET 會污染 export 常數本身。
+  return getSetting<PolicyDefaults>('policy.defaults', JSON.parse(JSON.stringify(DEFAULTS_PRESET)));
 }
 export function connectedModels(kind: 'chat' | 'embedding' | 'rerank'): string[] {
   const out: string[] = [];
@@ -264,7 +267,7 @@ function modelGroup(): SettingGroup {
         providers.map((p) =>
           '<div class="pcard' + (p.connected ? ' ok' : '') + '" data-prov="' + esc(p.id) + '">' +
           '<b>' + esc(p.name) + '</b>' +
-          '<span class="meta">' + (p.connected ? (p.keyOptional && !p.key ? '免金鑰（地端）' : tail4(p.key)) : '未設定') + '</span>' +
+          '<span class="meta">' + (p.connected ? (p.keyOptional && !p.key ? '免金鑰（地端）' : esc(tail4(p.key))) : '未設定') + '</span>' +
           '<span class="stt"><span class="lamp"></span>' +
           (p.connected ? '已連線 · ' + p.models.filter((m) => m.enabled).length + ' 模型' : 'Setup') +
           '</span></div>',

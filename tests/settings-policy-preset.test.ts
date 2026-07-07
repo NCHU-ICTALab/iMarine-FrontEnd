@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PROVIDER_PRESET, KB_PRESET, DEFAULTS_PRESET, getProviders, getKbs } from '../src/screens/settings/sections/policy';
+import { PROVIDER_PRESET, KB_PRESET, DEFAULTS_PRESET, getProviders, getKbs, getDefaults } from '../src/screens/settings/sections/policy';
 
 describe('policy 預置資料契約', () => {
   it('供應商：3 家預置、Ollama 已連線含三種 kind、雲端家帶 catalog', () => {
@@ -27,17 +27,22 @@ describe('policy 預置資料契約', () => {
     // 必須是 PRESET 的深拷貝而非同一參照——否則消費端就地 push/覆寫會污染 export 常數。
     const provs = getProviders();
     const kbs = getKbs();
+    const defaults = getDefaults();
     expect(provs).not.toBe(PROVIDER_PRESET);
     expect(kbs).not.toBe(KB_PRESET);
+    expect(defaults).not.toBe(DEFAULTS_PRESET);
 
     const provLenBefore = PROVIDER_PRESET.length;
     const kbFirstDocsBefore = KB_PRESET[0].docs.length;
+    const reasoningBefore = DEFAULTS_PRESET.reasoning;
 
-    // 模擬 saveBtn 就地 push / 文件上傳就地 push
+    // 模擬 saveBtn 就地 push / 文件上傳就地 push / 系統預設模型 select 就地改
     provs.push({ ...provs[0], id: 'pollute-check' });
     kbs[0].docs.push({ id: 'pollute-doc', name: 'x.pdf', status: 'available' });
+    defaults.reasoning = 'x';
 
     expect(PROVIDER_PRESET.length).toBe(provLenBefore);
     expect(KB_PRESET[0].docs.length).toBe(kbFirstDocsBefore);
+    expect(DEFAULTS_PRESET.reasoning).toBe(reasoningBefore);
   });
 });
