@@ -157,8 +157,45 @@
 #s-settings .mdlrow label{flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--mono)}
 #s-settings .mdlrow input{accent-color:#35E0A6}
 
+/* ===== Task 7 累加：policy 分區——知識庫卡牆 + KB modal + 新增庫 modal ===== */
+/* 自 preview 第 118-130 行（.kbgrid/.kbcard）轉錄 */
+#s-settings .kbgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+#s-settings .kbcard{position:relative;border:1px solid var(--line);border-radius:10px;padding:12px;background:rgba(255,255,255,.02);
+  cursor:pointer;transition:.18s;min-height:78px;display:flex;flex-direction:column;gap:5px}
+#s-settings .kbcard:hover{border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.04)}
+#s-settings .kbcard b{font-size:12.5px;color:#e8f0f6}
+#s-settings .kbcard .meta{font-size:10px;color:var(--ink40);font-family:var(--mono);margin-top:auto}
+#s-settings .kbcard .del{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:6px;border:1px solid rgba(240,100,140,.4);
+  background:rgba(240,100,140,.1);color:var(--rose);font-size:12px;line-height:18px;text-align:center;
+  cursor:pointer;opacity:0;transition:.15s}
+#s-settings .kbcard:hover .del{opacity:1}
+#s-settings .kbcard.addc{border-style:dashed;align-items:center;justify-content:center;color:var(--cyan);font-size:12px}
+#s-settings .kbcard.addc:hover{background:rgba(56,189,248,.06)}
+
+/* 文件表（知識庫 modal）——自 preview 第 168-177 行轉錄 */
+#s-settings .docrow{display:flex;align-items:center;gap:9px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11.5px}
+#s-settings .docrow .fn{flex:1;font-family:var(--mono);color:#c3d0de;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#s-settings .docrow .stat{font-size:10px;letter-spacing:.04em}
+#s-settings .docrow .stat.ok{color:var(--green)}
+#s-settings .docrow .stat.idx{color:var(--amber)}
+#s-settings .docrow .rm{border:0;background:transparent;color:var(--ink40);cursor:pointer;font-size:12px;padding:2px 5px}
+#s-settings .docrow .rm:hover{color:var(--rose)}
+#s-settings .drop{border:1.5px dashed rgba(56,189,248,.35);border-radius:9px;padding:13px;text-align:center;font-size:11px;
+  color:var(--cyan);cursor:pointer;margin-top:8px;transition:.15s}
+#s-settings .drop:hover{background:rgba(56,189,248,.06)}
+
+/* 檢索策略 radio 卡——自 preview 第 179-188 行轉錄 */
+#s-settings .strat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#s-settings .scard{border:1px solid var(--line);border-radius:9px;padding:9px 10px;cursor:pointer;font-size:11px;color:var(--ink60);transition:.15s}
+#s-settings .scard b{display:block;font-size:11.5px;color:#c3d0de;margin-bottom:2px}
+#s-settings .scard.on{border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.07);color:#c3d0de}
+#s-settings .subopt{margin-top:10px;padding:10px 12px;border-radius:9px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06)}
+#s-settings .rng{width:100%;accent-color:#38BDF8}
+#s-settings .rlab{display:flex;justify-content:space-between;font-size:10px;color:var(--ink40);font-family:var(--mono)}
+
 @media (max-width:1100px){
   #s-settings .sgrid{grid-template-columns:1fr}
   #s-settings .subnav{position:static;flex-direction:row;flex-wrap:wrap}
   #s-settings .pgrid{grid-template-columns:repeat(2,1fr)}
+  #s-settings .kbgrid{grid-template-columns:repeat(2,1fr)}
 }

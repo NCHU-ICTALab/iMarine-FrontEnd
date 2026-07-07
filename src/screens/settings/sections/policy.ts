@@ -56,6 +56,88 @@ export const PROVIDER_PRESET: ProviderCfg[] = [
   },
 ];
 
+/* ---------- 知識庫（Kb） ---------- */
+export interface Kb {
+  id: string;
+  name: string;
+  desc?: string;
+  docs: { id: string; name: string; status: 'available' | 'indexing' }[];
+  chunk: { size: number; overlap: number };
+  retrieval: {
+    strategy: 'vector' | 'fulltext' | 'hybrid';
+    hybridWeight: number;
+    rerank: boolean;
+    rerankModel: string;
+    embeddingModel: string;
+  };
+}
+
+// preview 的 mkdocs()：id 用 'd'+index+'-'+檔名長度 湊出穩定假 id，逐字沿用同一湊法。
+function mkdocs(names: string[]): Kb['docs'] {
+  return names.map((n, i) => ({ id: 'd' + i + '-' + n.length, name: n, status: 'available' as const }));
+}
+
+export const KB_PRESET: Kb[] = [
+  {
+    id: 'law', name: '航港法令',
+    docs: mkdocs([
+      '商港法施行細則.pdf', '航路標識條例.pdf', '船舶法.pdf', '海商法.pdf', '引水法.pdf',
+      '商港服務費收取保管辦法.pdf', '航業法.pdf', '船員法.pdf', '港區安全檢查作業.pdf',
+      'IMO_NZF_2025.pdf', 'MARPOL附則VI.pdf', 'SOLAS修正案彙編.pdf',
+    ]),
+    chunk: { size: 512, overlap: 64 },
+    retrieval: { strategy: 'hybrid', hybridWeight: 60, rerank: false, rerankModel: '', embeddingModel: 'bge-m3' },
+  },
+  {
+    id: 'news', name: '海運焦點新聞',
+    docs: mkdocs([
+      '紅海航線中斷追蹤.pdf', '巴拿馬運河配額.pdf', '馬六甲碰撞管制.pdf', '聯盟重組分析.pdf',
+      '塞港指數週報.pdf', '運價走勢0630.pdf', '綠色燃料補給網.pdf', '船員短缺調查.pdf', '港口自動化案例.pdf',
+    ]),
+    chunk: { size: 512, overlap: 64 },
+    retrieval: { strategy: 'vector', hybridWeight: 60, rerank: false, rerankModel: '', embeddingModel: 'bge-m3' },
+  },
+  {
+    id: 'idx', name: '全球航運指數',
+    docs: mkdocs([
+      'SCFI週資料.csv', 'CCFI月報.pdf', 'BDI日更彙整.csv', 'WCI貨櫃運價.pdf',
+      '港口壅塞指數.csv', '燃油價格追蹤.csv', '汰舊換新統計.pdf',
+    ]),
+    chunk: { size: 256, overlap: 32 },
+    retrieval: { strategy: 'vector', hybridWeight: 60, rerank: false, rerankModel: '', embeddingModel: 'bge-m3' },
+  },
+  {
+    id: 'tw', name: '台灣數據統計',
+    docs: mkdocs([
+      '高雄港年報2025.pdf', '進出港船舶統計.csv', '貨物吞吐量月報.csv', '散雜貨作業統計.pdf',
+      '港勤船調度紀錄.csv', '氣象觀測彙整.csv', '危險品申報統計.pdf', '岸電使用率.csv',
+    ]),
+    chunk: { size: 512, overlap: 64 },
+    retrieval: { strategy: 'fulltext', hybridWeight: 60, rerank: false, rerankModel: '', embeddingModel: 'bge-m3' },
+  },
+  {
+    id: 'alt', name: '替代能源專區',
+    docs: mkdocs([
+      '甲醇動力船隊盤點.pdf', '氨燃料安全指引.pdf', '岸電設施規範.pdf',
+      '綠色航運走廊MOU.pdf', '碳強度指標CII.pdf', '生質燃料試航報告.pdf',
+    ]),
+    chunk: { size: 512, overlap: 64 },
+    retrieval: { strategy: 'vector', hybridWeight: 60, rerank: false, rerankModel: '', embeddingModel: 'bge-m3' },
+  },
+];
+
+function getKbs(): Kb[] {
+  // getSetting() 找不到 key 時直接回傳 fallback 參照本身（storage.ts 未深拷貝 fallback）。
+  // 本 group 會就地改動取回的陣列/其內物件（nk-create 的 kbs.push、kb-save 的
+  // kbCur.chunk=…、doc 刪除的 kbCur.docs=…），若 fallback 直接傳 KB_PRESET，首次讀取（storage
+  // 尚無 'policy.kbs' key）會把改動一路寫回 KB_PRESET 這個 module 常數本身，之後「重置為預設」
+  // 會複製到已被污染的 KB_PRESET，永久失效。故 fallback 一律先深拷貝一份，切斷共享參照。
+  return getSetting<Kb[]>('policy.kbs', JSON.parse(JSON.stringify(KB_PRESET)));
+}
+function setKbs(list: Kb[]): void {
+  setSetting('policy.kbs', list);
+}
+
 export function getProviders(): ProviderCfg[] {
   return getSetting<ProviderCfg[]>('policy.providers', PROVIDER_PRESET);
 }
@@ -366,10 +448,395 @@ function modelGroup(): SettingGroup {
   };
 }
 
+/* ---------- 知識庫管理 group（卡牆 + KB modal + 新增庫 modal） ---------- */
+function docsListHtml(kb: Kb): string {
+  if (!kb.docs.length) return '<div class="gnote">尚無文件 — 由下方上傳。</div>';
+  return kb.docs.map((d) =>
+    '<div class="docrow"><span class="fn">' + esc(d.name) + '</span>' +
+    '<span class="stat ' + (d.status === 'available' ? 'ok' : 'idx') + '">' +
+    (d.status === 'available' ? 'available' : 'indexing…') + '</span>' +
+    '<button type="button" class="rm" data-rmdoc="' + esc(d.id) + '" title="刪除">×</button></div>',
+  ).join('');
+}
+
+function stratCardsHtml(r: Kb['retrieval']): string {
+  return (
+    [
+      ['vector', '向量檢索', '語意相似度'],
+      ['fulltext', '全文檢索', '關鍵字倒排索引'],
+      ['hybrid', 'Hybrid', '語意 + 關鍵字加權'],
+    ] as const
+  ).map((s) => '<div class="scard' + (r.strategy === s[0] ? ' on' : '') + '" data-strat="' + s[0] + '"><b>' + s[1] + '</b>' + s[2] + '</div>').join('');
+}
+
+function kbModalHtml(): string {
+  return (
+    '<div class="mwrap" id="kbmodal"><div class="mbox wide">' +
+    '<div class="mhead"><h3 id="kb-title">知識庫</h3><span class="sp"></span>' +
+    '<button type="button" class="mclose" id="kb-close">×</button></div>' +
+    '<div class="msec">文件（即時生效）</div><div id="kb-docs"></div>' +
+    '<div class="drop" id="kb-drop">拖放或點擊上傳文件（PDF / DOCX / TXT）</div>' +
+    '<input type="file" id="kb-file" multiple style="display:none">' +
+    '<div class="msec">分段與索引（需儲存）</div>' +
+    '<div class="frow"><div class="flabel">Chunk 長度<span class="help">tokens</span></div>' +
+    '<div class="fctl"><input class="tin num" id="kb-chunk" type="number" min="64" max="4096" step="64"></div></div>' +
+    '<div class="frow"><div class="flabel">Chunk 重疊<span class="help">tokens</span></div>' +
+    '<div class="fctl"><input class="tin num" id="kb-overlap" type="number" min="0" max="1024" step="16"></div></div>' +
+    '<div class="frow"><div class="flabel">Embedding 模型</div>' +
+    '<div class="fctl"><select class="sel" id="kb-emb"></select></div></div>' +
+    '<div class="msec">檢索策略（需儲存）</div><div class="strat" id="kb-strat"></div>' +
+    '<div class="subopt" id="kb-hybrid" style="display:none">' +
+    '<div class="rlab"><span>語意權重</span><span id="kb-wlab">0.6</span><span>關鍵字權重</span></div>' +
+    '<input type="range" class="rng" id="kb-weight" min="0" max="100" value="60"></div>' +
+    '<div class="frow" style="margin-top:8px"><div class="flabel">Rerank 重排序</div><div class="fctl">' +
+    '<label class="tgl" id="kb-rrwrap"><input type="checkbox" id="kb-rerank"><span class="tr"></span><span class="th"></span></label>' +
+    '<select class="sel" id="kb-rrmodel" style="display:none"></select>' +
+    '<span class="guide" id="kb-rrguide" style="display:none">尚無可用 rerank 模型 — <a id="kb-goprov">先至模型管理設定</a></span>' +
+    '</div></div>' +
+    '<div class="savebar" id="kb-savebar"><span>未儲存變更</span><span class="sp"></span>' +
+    '<button type="button" class="mini" id="kb-discard">捨棄</button>' +
+    '<button type="button" class="mini acc" id="kb-save">儲存</button></div>' +
+    '<div class="saved" id="kb-saved">✓ 已儲存</div>' +
+    '</div></div>'
+  );
+}
+
+function nkModalHtml(): string {
+  return (
+    '<div class="mwrap" id="nkmodal"><div class="mbox" style="width:440px">' +
+    '<div class="mhead"><h3>新增知識庫</h3><span class="sp"></span>' +
+    '<button type="button" class="mclose" id="nk-close">×</button></div>' +
+    '<div class="frow"><div class="flabel">名稱</div>' +
+    '<div class="fctl"><input class="tin" id="nk-name" placeholder="例：綠色航運政策"></div></div>' +
+    '<div class="frow"><div class="flabel">描述（選填）</div>' +
+    '<div class="fctl"><input class="tin" id="nk-desc" placeholder="這個知識庫收錄什麼"></div></div>' +
+    '<div class="savebar show" style="background:transparent;border-color:rgba(255,255,255,.1);color:var(--ink60)">' +
+    '<span></span><span class="sp"></span><button type="button" class="mini acc" id="nk-create">建立</button></div>' +
+    '</div></div>'
+  );
+}
+
+function kbGroup(): SettingGroup {
+  return {
+    title: '知識庫管理',
+    saveMode: 'instant',
+    custom(el, ctx: SettingsCtx) {
+      let kbs = getKbs();
+      let kbCur: Kb | null = null;
+      let kbDraft: { chunk: Kb['chunk']; retrieval: Kb['retrieval'] } | null = null;
+      // 兩個 modal（知識庫 / 新增知識庫）各自獨立的 Escape 生命週期，沿用 modelGroup 的
+      // escOff 模式：卡片無 tabindex，開 modal 後 focus 停在 body，keydown 只會冒泡到
+      // document，故監聽必須掛在 document、且開一次掛一次、關一次卸一次，避免疊加殘留。
+      let escOffKb: (() => void) | null = null;
+      let escOffNk: (() => void) | null = null;
+
+      // 動態「n 庫 · m 文件」badge + 「重置為預設」鈕：schema 的 g.badge 是靜態字串，無法反映
+      // 即時庫/文件數，故不設 g.badge，改在 custom 執行當下手動插入 ghead（同 modelGroup 手法）。
+      const card = el.parentElement;
+      const ghead = card?.querySelector('.ghead');
+      if (ghead && !ghead.querySelector('.gbadge')) {
+        const badge = document.createElement('span');
+        badge.className = 'gbadge blue';
+        badge.textContent = kbs.length + ' 庫 · ' + kbs.reduce((a, k) => a + k.docs.length, 0) + ' 文件';
+        ghead.insertBefore(badge, ghead.querySelector('.sp'));
+        const resetBtn = document.createElement('button');
+        resetBtn.type = 'button';
+        resetBtn.className = 'mini';
+        resetBtn.id = 'kb-reset';
+        resetBtn.textContent = '重置為預設';
+        ghead.appendChild(resetBtn);
+        resetBtn.addEventListener('click', () => {
+          if (!confirm('重置知識庫為預設五庫？（自訂庫與變更將移除）')) return;
+          setKbs(JSON.parse(JSON.stringify(KB_PRESET)));
+          ctx.rerender();
+        });
+      }
+
+      el.innerHTML =
+        '<div class="kbgrid">' +
+        kbs.map((k) =>
+          '<div class="kbcard" data-kb="' + esc(k.id) + '">' +
+          '<b>' + esc(k.name) + '</b>' +
+          '<span class="meta">' + k.docs.length + ' 文件 · ' + k.retrieval.strategy +
+          (k.retrieval.rerank ? ' · rerank' : '') + '</span>' +
+          '<span class="del" data-delkb="' + esc(k.id) + '" title="刪除知識庫">×</span></div>',
+        ).join('') +
+        '<div class="kbcard addc" id="kb-add">+ 新增知識庫</div></div>' +
+        '<div class="gnote">點知識庫卡片管理文件與分段/檢索參數。刪除與上傳為即時生效；參數需儲存。</div>' +
+        kbModalHtml() + nkModalHtml();
+
+      // ---- 卡牆外層局部刷新（doc 級操作 modal 開著時不能整組 rerender，否則會把 modal 拆掉）----
+      function refreshBadge(): void {
+        const b = ghead?.querySelector('.gbadge');
+        if (b) b.textContent = kbs.length + ' 庫 · ' + kbs.reduce((a, k) => a + k.docs.length, 0) + ' 文件';
+      }
+      function refreshCard(kb: Kb): void {
+        const c = el.querySelector('.kbcard[data-kb="' + kb.id + '"]');
+        const m = c?.querySelector('.meta');
+        if (m) m.textContent = kb.docs.length + ' 文件 · ' + kb.retrieval.strategy + (kb.retrieval.rerank ? ' · rerank' : '');
+      }
+
+      el.querySelectorAll<HTMLElement>('[data-kb]').forEach((c) => {
+        c.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('[data-delkb]')) return;
+          openKb(c.getAttribute('data-kb') as string);
+        });
+      });
+      el.querySelectorAll<HTMLElement>('[data-delkb]').forEach((d) => {
+        d.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = d.getAttribute('data-delkb');
+          const kb = kbs.find((k) => k.id === id);
+          if (!kb) return;
+          if (!confirm('刪除知識庫「' + kb.name + '」？（' + kb.docs.length + ' 份文件將一併移除）')) return;
+          kbs = kbs.filter((k) => k.id !== kb.id);
+          setKbs(kbs);
+          ctx.rerender();
+        });
+      });
+
+      const nkWrap = el.querySelector('#nkmodal') as HTMLElement;
+      const nkNameIn = nkWrap.querySelector('#nk-name') as HTMLInputElement;
+      const nkDescIn = nkWrap.querySelector('#nk-desc') as HTMLInputElement;
+
+      function closeNkModal(): void {
+        nkWrap.classList.remove('open');
+        if (escOffNk) { escOffNk(); escOffNk = null; }
+      }
+      function openNk(): void {
+        nkNameIn.value = '';
+        nkDescIn.value = '';
+        nkWrap.classList.add('open');
+        if (escOffNk) { escOffNk(); escOffNk = null; }
+        const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeNkModal(); };
+        document.addEventListener('keydown', onEsc);
+        escOffNk = () => document.removeEventListener('keydown', onEsc);
+      }
+      (el.querySelector('#kb-add') as HTMLElement).addEventListener('click', openNk);
+      (nkWrap.querySelector('#nk-close') as HTMLElement).addEventListener('click', closeNkModal);
+      nkWrap.addEventListener('click', (e) => { if (e.target === nkWrap) closeNkModal(); });
+      (nkWrap.querySelector('#nk-create') as HTMLElement).addEventListener('click', () => {
+        const name = nkNameIn.value.trim();
+        if (!name) { nkNameIn.focus(); return; }
+        const kb: Kb = {
+          id: 'kb' + (Date.now() % 100000),
+          name,
+          desc: nkDescIn.value.trim(),
+          docs: [],
+          chunk: { size: 512, overlap: 64 },
+          retrieval: {
+            strategy: 'vector', hybridWeight: 60, rerank: false, rerankModel: '',
+            embeddingModel: connectedModels('embedding')[0] || '',
+          },
+        };
+        kbs.push(kb);
+        setKbs(kbs);
+        closeNkModal();
+        ctx.rerender();
+      });
+
+      // ---- 知識庫 modal ----
+      const kbWrap = el.querySelector('#kbmodal') as HTMLElement;
+      const kbTitle = kbWrap.querySelector('#kb-title') as HTMLElement;
+      const kbDocsEl = kbWrap.querySelector('#kb-docs') as HTMLElement;
+      const kbDropEl = kbWrap.querySelector('#kb-drop') as HTMLElement;
+      const kbFileEl = kbWrap.querySelector('#kb-file') as HTMLInputElement;
+      const kbChunkIn = kbWrap.querySelector('#kb-chunk') as HTMLInputElement;
+      const kbOverlapIn = kbWrap.querySelector('#kb-overlap') as HTMLInputElement;
+      const kbEmbSel = kbWrap.querySelector('#kb-emb') as HTMLSelectElement;
+      const kbStratEl = kbWrap.querySelector('#kb-strat') as HTMLElement;
+      const kbHybridEl = kbWrap.querySelector('#kb-hybrid') as HTMLElement;
+      const kbWeightIn = kbWrap.querySelector('#kb-weight') as HTMLInputElement;
+      const kbWlabEl = kbWrap.querySelector('#kb-wlab') as HTMLElement;
+      const kbRerankCk = kbWrap.querySelector('#kb-rerank') as HTMLInputElement;
+      const kbRrModelSel = kbWrap.querySelector('#kb-rrmodel') as HTMLSelectElement;
+      const kbRrGuideEl = kbWrap.querySelector('#kb-rrguide') as HTMLElement;
+      const kbGoProvA = kbWrap.querySelector('#kb-goprov') as HTMLElement;
+      const kbSavebarEl = kbWrap.querySelector('#kb-savebar') as HTMLElement;
+      const kbSavedEl = kbWrap.querySelector('#kb-saved') as HTMLElement;
+      const kbSaveBtn = kbWrap.querySelector('#kb-save') as HTMLButtonElement;
+      const kbDiscardBtn = kbWrap.querySelector('#kb-discard') as HTMLButtonElement;
+
+      function renderKbDocs(): void {
+        if (!kbCur) return;
+        kbDocsEl.innerHTML = docsListHtml(kbCur);
+      }
+      function renderKbParams(): void {
+        if (!kbCur || !kbDraft) return;
+        const r = kbDraft.retrieval;
+        kbChunkIn.value = String(kbDraft.chunk.size);
+        kbOverlapIn.value = String(kbDraft.chunk.overlap);
+        const emb = connectedModels('embedding');
+        kbEmbSel.innerHTML = emb.length
+          ? emb.map((m) => '<option value="' + esc(m) + '"' + (m === r.embeddingModel ? ' selected' : '') + '>' + esc(m) + '</option>').join('')
+          : '<option value="">（無可用 embedding 模型）</option>';
+        kbEmbSel.disabled = !emb.length;
+        kbStratEl.innerHTML = stratCardsHtml(r);
+        kbHybridEl.style.display = r.strategy === 'hybrid' ? '' : 'none';
+        kbWeightIn.value = String(r.hybridWeight);
+        kbWlabEl.textContent = (r.hybridWeight / 100).toFixed(1);
+        kbRerankCk.checked = r.rerank;
+        const rr = connectedModels('rerank');
+        if (r.rerank) {
+          if (rr.length) {
+            kbRrModelSel.style.display = '';
+            kbRrGuideEl.style.display = 'none';
+            kbRrModelSel.innerHTML = rr.map((m) => '<option value="' + esc(m) + '"' + (m === r.rerankModel ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
+          } else {
+            kbRrModelSel.style.display = 'none';
+            kbRrGuideEl.style.display = '';
+          }
+        } else {
+          kbRrModelSel.style.display = 'none';
+          kbRrGuideEl.style.display = 'none';
+        }
+      }
+      function kbDirty(): void {
+        kbSavebarEl.classList.add('show');
+        kbSavedEl.classList.remove('show');
+      }
+      function closeKbModal(): void {
+        kbWrap.classList.remove('open');
+        if (escOffKb) { escOffKb(); escOffKb = null; }
+      }
+      function openKb(id: string): void {
+        const kb = kbs.find((k) => k.id === id);
+        if (!kb) return;
+        kbCur = kb;
+        kbDraft = JSON.parse(JSON.stringify({ chunk: kb.chunk, retrieval: kb.retrieval }));
+        kbTitle.textContent = '知識庫 — ' + kb.name;
+        renderKbDocs();
+        renderKbParams();
+        kbSavebarEl.classList.remove('show');
+        kbSavedEl.classList.remove('show');
+        kbWrap.classList.add('open');
+        if (escOffKb) { escOffKb(); escOffKb = null; }
+        const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeKbModal(); };
+        document.addEventListener('keydown', onEsc);
+        escOffKb = () => document.removeEventListener('keydown', onEsc);
+      }
+
+      (kbWrap.querySelector('#kb-close') as HTMLElement).addEventListener('click', closeKbModal);
+      kbWrap.addEventListener('click', (e) => { if (e.target === kbWrap) closeKbModal(); });
+
+      kbChunkIn.addEventListener('input', () => {
+        if (!kbDraft) return;
+        kbDraft.chunk.size = Number(kbChunkIn.value) || 512;
+        kbDirty();
+      });
+      kbOverlapIn.addEventListener('input', () => {
+        if (!kbDraft) return;
+        kbDraft.chunk.overlap = Number(kbOverlapIn.value) || 0;
+        kbDirty();
+      });
+      kbEmbSel.addEventListener('change', () => {
+        if (!kbDraft) return;
+        kbDraft.retrieval.embeddingModel = kbEmbSel.value;
+        kbDirty();
+      });
+      kbStratEl.addEventListener('click', (e) => {
+        const s = (e.target as HTMLElement).closest('[data-strat]') as HTMLElement | null;
+        if (!s || !kbDraft) return;
+        kbDraft.retrieval.strategy = s.getAttribute('data-strat') as Kb['retrieval']['strategy'];
+        renderKbParams();
+        kbDirty();
+      });
+      kbWeightIn.addEventListener('input', () => {
+        if (!kbDraft) return;
+        kbDraft.retrieval.hybridWeight = Number(kbWeightIn.value);
+        kbWlabEl.textContent = (kbDraft.retrieval.hybridWeight / 100).toFixed(1);
+        kbDirty();
+      });
+      kbRerankCk.addEventListener('change', () => {
+        if (!kbDraft) return;
+        kbDraft.retrieval.rerank = kbRerankCk.checked;
+        renderKbParams();
+        kbDirty();
+      });
+      kbRrModelSel.addEventListener('change', () => {
+        if (!kbDraft) return;
+        kbDraft.retrieval.rerankModel = kbRrModelSel.value;
+        kbDirty();
+      });
+      kbGoProvA.addEventListener('click', () => {
+        closeKbModal();
+        ctx.goto('policy', '模型管理');
+      });
+      kbSaveBtn.addEventListener('click', () => {
+        if (!kbCur || !kbDraft) return;
+        kbCur.chunk = kbDraft.chunk;
+        kbCur.retrieval = kbDraft.retrieval;
+        setKbs(kbs);
+        kbDraft = JSON.parse(JSON.stringify({ chunk: kbCur.chunk, retrieval: kbCur.retrieval }));
+        kbSavebarEl.classList.remove('show');
+        kbSavedEl.classList.remove('show');
+        void kbSavedEl.offsetWidth;
+        kbSavedEl.classList.add('show');
+        refreshCard(kbCur);
+      });
+      kbDiscardBtn.addEventListener('click', () => {
+        if (!kbCur) return;
+        kbDraft = JSON.parse(JSON.stringify({ chunk: kbCur.chunk, retrieval: kbCur.retrieval }));
+        renderKbParams();
+        kbSavebarEl.classList.remove('show');
+      });
+      kbDocsEl.addEventListener('click', (e) => {
+        const rm = (e.target as HTMLElement).closest('[data-rmdoc]') as HTMLElement | null;
+        if (!rm || !kbCur) return;
+        const docId = rm.getAttribute('data-rmdoc');
+        const doc = kbCur.docs.find((x) => x.id === docId);
+        if (!doc) return;
+        if (!confirm('刪除文件「' + doc.name + '」？')) return;
+        kbCur.docs = kbCur.docs.filter((x) => x.id !== doc.id);
+        setKbs(kbs);
+        renderKbDocs();
+        refreshCard(kbCur);
+        refreshBadge();
+      });
+      kbDropEl.addEventListener('click', () => kbFileEl.click());
+      kbFileEl.addEventListener('change', () => {
+        if (!kbCur) return;
+        const kb = kbCur;
+        const files = Array.from(kbFileEl.files ?? []);
+        if (!files.length) return;
+        files.forEach((f) => {
+          const doc: Kb['docs'][number] = {
+            id: 'u' + Date.now() + Math.floor(Math.random() * 1e4),
+            name: f.name,
+            status: 'indexing',
+          };
+          kb.docs.push(doc);
+          // 3 秒後轉 available：對「當下最新的 storage 快照」做針對性 patch 再寫回，
+          // 避免這個非同步 callback（可能在使用者已離開/切換分區後才觸發）用本次
+          // render 捕捉到的舊 kbs 陣列整批覆寫，蓋掉期間發生的其他變更。
+          setTimeout(() => {
+            const latest = getKbs();
+            const li = latest.findIndex((k) => k.id === kb.id);
+            if (li >= 0) {
+              const di = latest[li].docs.findIndex((x) => x.id === doc.id);
+              if (di >= 0) latest[li].docs[di].status = 'available';
+              setKbs(latest);
+            }
+            doc.status = 'available';
+            if (kbCur === kb && kbWrap.classList.contains('open')) renderKbDocs();
+            refreshCard(kb);
+            refreshBadge();
+          }, 3000);
+        });
+        kbFileEl.value = '';
+        setKbs(kbs);
+        renderKbDocs();
+        refreshCard(kb);
+        refreshBadge();
+      });
+    },
+  };
+}
+
 export const policySection: SettingsSection = {
   id: 'policy',
   label: '政策報告',
   color: '#38BDF8',
   status: () => getProviders().filter((p) => p.connected).length + ' 供應商已連線',
-  groups: [llmGroup(), modelGroup()],
+  groups: [llmGroup(), modelGroup(), kbGroup()],
 };
