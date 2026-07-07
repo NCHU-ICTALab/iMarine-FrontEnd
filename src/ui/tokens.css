@@ -60,6 +60,8 @@ main{position:relative;z-index:10;height:100%;}
 .screen.entered .anim{opacity:1;transform:none;
   transition:opacity .7s var(--ease),transform .7s var(--ease);transition-delay:var(--d,0s);}
 @media(prefers-reduced-motion:reduce){.anim{opacity:1;transform:none;transition:none!important;}}
+body[data-motion="reduce"] .anim{opacity:1;transform:none;transition:none!important;}
+body[data-anim="off"] .anim{opacity:1;transform:none;transition:none!important;}
 
 /* ── 統一頁首（eyebrow + 標題 + 徽章）── */
 .eyebrow{display:flex;align-items:center;gap:9px;margin:0 0 6px;}

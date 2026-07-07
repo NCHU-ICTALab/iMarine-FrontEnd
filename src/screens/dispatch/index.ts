@@ -5,6 +5,7 @@ import type { Screen, ScreenCtx } from '../types';
 import type { DispatchScenario, DispatchCard, OpRow, OpStatus, RainLevel } from '../../data/types';
 import { screenHeader } from '../../ui/components';
 import { parseConclusion } from './conclusion';
+import { prefersReduced } from '../settings/storage';
 import template from './dispatch.html?raw';
 import './dispatch.css';
 
@@ -28,7 +29,7 @@ let stopInference: () => void = () => {};      // Task 6 覆寫
 
 /* 模型更新倒數（spec §7-4）：10:00 自動歸零 → 推論動畫 ~2s → windAvg/windGust 視覺抖動 + toast → 重置。
    reduced-motion 降級：推論不經 2s 轉圈直接完成。 */
-const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const RM = () => prefersReduced();
 const TOTAL = 600;                 // 10:00（spec 定案：真實系統節奏）
 let remain = TOTAL;
 let inferring = false;
@@ -67,7 +68,7 @@ function runInference(): void {
       message: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} 推論完成`,
     });
     paintRing();
-  }, RM ? 0 : 2000);
+  }, RM() ? 0 : 2000);
 }
 /* DEV-only 測試鉤：倒數 10 分鐘，驗收腳本等不到自然歸零，需一個觸發入口
    （比照 preview 基準檔的 __forceUpdate；import.meta.env.DEV 保證不進 production build）。 */

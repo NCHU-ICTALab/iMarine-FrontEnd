@@ -17,6 +17,7 @@ import { scoreVessel, computeHits, type RiskTier, type Hit } from './correlate';
 import { createWorldMap, type WorldMap } from './worldmap';
 import { renderSwimlane, dayToX, type SwimlaneEls } from './swimlane';
 import { screenHeader } from '../../ui/components';
+import { prefersReduced } from '../settings/storage';
 import template from './epidemic.html?raw';
 import './epidemic.css';
 
@@ -161,7 +162,7 @@ document.body.addEventListener('click', () => {
 });
 
 function playPipe(): void {
-  const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rm = prefersReduced();
   if (rm) {
     pipe.forEach((stage) => {
       stage._state = stage.run ? 'run' : 'done';

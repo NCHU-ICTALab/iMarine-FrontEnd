@@ -5,6 +5,7 @@
 import type { Screen, ScreenCtx } from '../types';
 import type { PolicyBrief, PolicyQA, PolicySource } from '../../data/types';
 import { screenHeader } from '../../ui/components';
+import { prefersReduced } from '../settings/storage';
 import { runTimeline, type TimelineHandle } from './generate';
 import template from './policy.html?raw';
 import './policy.css';
@@ -28,7 +29,7 @@ function st(id: string): BriefState {
   return s;
 }
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduced = () => prefersReduced();
 
 const ANSMS = { local: [900, 1100], cloud: [500, 700] } as const;
 let answering = false;

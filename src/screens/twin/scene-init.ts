@@ -18,6 +18,7 @@ import basemapMeta from './data/basemap-khh.json';
 import basemapUrl from './data/basemap-khh.jpg';
 import { buildLabelLayer } from './scene/textLabels';
 import { DEFAULT_BANDS } from './scene/portZones';
+import { prefersReduced } from '../settings/storage';
 import { buildPierSegs, nearestPierTangent } from './scene/orient';
 import { shortBerthLabel, type BerthMarker } from './data/berthGeometry';
 import berthsData from './data/berths-khh.json';
@@ -429,7 +430,7 @@ export function initTwinScene(canvas: HTMLCanvasElement): TwinScene {
     const fp = cam.position.clone();
     const ft = ctrl ? ctrl.target.clone() : new THREE.Vector3(...to.tgt);
     if (flyRaf) cancelAnimationFrame(flyRaf);
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (prefersReduced()) {
       cam.position.set(...to.pos); ctrl?.target.set(...to.tgt); return;
     }
     const t0 = performance.now(), DUR = 650;

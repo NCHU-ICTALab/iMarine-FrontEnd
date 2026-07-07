@@ -9,10 +9,23 @@ import { initRail } from './shell/rail';
 import { createMockExchange } from './data/exchange/mock';
 import { createCarbonProvider } from './data/exchange/carbon';
 import { createTwinProvider } from './data/exchange/twin';
+import { getSetting, subscribe } from './screens/settings/storage';
 // lg.d.ts 為 ambient 宣告（tsconfig include 已涵蓋），不需 import
 
 document.documentElement.setAttribute('data-lg-theme', 'dark');
 document.body.setAttribute('data-mode', 'cover');
+
+// 動效設定 → body 屬性（CSS 端）；JS 端各頁走 prefersReduced()
+const applyMotionAttrs = () => {
+  if (getSetting('frontend.reduceMotion', false)) document.body.setAttribute('data-motion', 'reduce');
+  else document.body.removeAttribute('data-motion');
+  if (!getSetting('frontend.entrance', true)) document.body.setAttribute('data-anim', 'off');
+  else document.body.removeAttribute('data-anim');
+};
+applyMotionAttrs();
+subscribe('frontend.reduceMotion', applyMotionAttrs);
+subscribe('frontend.entrance', applyMotionAttrs);
+
 export const bg = initBackground(document.getElementById('harbor') as HTMLCanvasElement);
 
 // overview/policy/dispatch/epidemic/alert 為 mock provider；carbon（Task 4）與 twin（Task 8）
@@ -21,7 +34,7 @@ const env = (import.meta as any).env ?? {};
 const ctx: ScreenCtx = {
   data: {
     ...createMockExchange(),
-    carbon: createCarbonProvider(env.VITE_CARBON_API),
+    carbon: createCarbonProvider(getSetting('carbon.apiBase', '') || env.VITE_CARBON_API),
     twin: createTwinProvider(),
   },
   ui: {

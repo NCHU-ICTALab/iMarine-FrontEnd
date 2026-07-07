@@ -1,4 +1,5 @@
 /* ══ 點雲港口背景 ══ */
+import { prefersReduced } from '../screens/settings/storage';
 
 export interface Background {
   repaint(): void;
@@ -28,7 +29,7 @@ interface Pier {
 
 export function initBackground(canvas: HTMLCanvasElement): Background {
   const ctx = canvas.getContext('2d')!;
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = prefersReduced();
 
   let W = 0;
   let H = 0;

@@ -1,13 +1,14 @@
 /* Mapbox 真實地圖 — 逐字轉錄 docs/preview/preview-epidemic-redesign.html 的
    PORTS/initMap/renderMap/updateShip/shipLonLatAt（該 preview 已 headless 驗證過行為）。
    CDN→npm 差異：import mapbox-gl 模組 + 其 CSS（非 <script src> 全域 mapboxgl）；
-   token 讀法比照 carbon.ts 第 4 行 (import.meta as any).env?.，規避 vite/client 未宣告
-   自訂 env 鍵的型別問題；無 token（或非 pk. 開頭）→ 容器內顯示降級提示卡，ready 恆 false，
-   其餘方法皆 no-op（不拋錯，維持頁面可用）。 */
+   token 讀法：系統設定的 frontend.mapboxToken 優先，其次 (import.meta as any).env?.，
+   規避 vite/client 未宣告自訂 env 鍵的型別問題；無 token（或非 pk. 開頭）→ 容器內顯示
+   降級提示卡，ready 恆 false，其餘方法皆 no-op（不拋錯，維持頁面可用）。 */
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { EpidemicVessel } from '../../data/types';
 import type { Hit } from './correlate';
+import { getSetting } from '../settings/storage';
 
 export const PORT_COORDS: Record<string, [number, number]> = {
   高雄: [120.3, 22.61],
@@ -42,10 +43,11 @@ export interface WorldMap {
 
 const FALLBACK_HTML =
   '<div class="mapfallback" style="display:flex">Mapbox 地圖需要 access token' +
-  '<br>把公開 token（<code>pk.…</code>）填入 <code>.env</code> 的 <code>VITE_MAPBOX_TOKEN</code></div>';
+  '<br>把公開 token（<code>pk.…</code>）填入系統設定的「地圖服務」或 <code>.env</code> 的 <code>VITE_MAPBOX_TOKEN</code></div>';
 
 export function createWorldMap(container: HTMLElement, onReady: () => void): WorldMap {
-  const token: string | undefined = (import.meta as any).env?.VITE_MAPBOX_TOKEN;
+  const token: string | undefined =
+    getSetting('frontend.mapboxToken', '') || (import.meta as any).env?.VITE_MAPBOX_TOKEN;
   const hasToken = !!token && token.indexOf('pk.') === 0;
 
   if (!hasToken) {

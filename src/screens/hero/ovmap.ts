@@ -2,6 +2,7 @@
    繪陸地／突堤＋泊位編號 108-113／航道／錨區／移動船點。
    rAF 迴圈自管：只在 start() 之後才繪製與迴圈，stop() 取消；
    prefers-reduced-motion 時 start() 只畫單一幀，不進入迴圈（呼叫端 show()/hide() 決定何時開關）。 */
+import { prefersReduced } from '../settings/storage';
 
 interface OvShip {
   u: number; // 0–1 沿航道方向的位置
@@ -12,7 +13,7 @@ interface OvShip {
 
 export function initOvMap(canvas: HTMLCanvasElement): { start(): void; stop(): void } {
   const ctx = canvas.getContext('2d')!;
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = prefersReduced();
 
   let seed = 77;
   function rnd(): number {
