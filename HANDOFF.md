@@ -2,13 +2,59 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-05 Epidemic 頁改版 SDD 8 tasks 全數完成並通過逐 task review，全站驗收綠燈，待最終 whole-branch review + 使用者實機驗收/合併
+最後更新：2026-07-07 系統設定頁（Settings）SDD 8 tasks 全數完成並通過逐 task review，全站驗收綠燈，分支 `settings-page`，待最終 whole-branch review + 使用者實機驗收/合併（Epidemic 頁改版已於 2026-07-05 合併回 main，見下）
 
 ---
 
 ## 1. 目前狀態
 
-**Epidemic 頁改版：SDD 實作完成（7 個功能 task 全數逐 task review 通過 + Task 8 全站驗收），全站驗收綠燈，分支 `epidemic-redesign`（自 main，baseline `f829e0b`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
+**系統設定頁（Settings）：SDD 實作完成（8 tasks 全數逐 task review 通過，含 Task 8 全站驗收），三綠燈 + CDP 全站驗收綠燈，分支 `settings-page`（自 main，baseline `427ba4a`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
+- 定位：左側 rail 底部新增「系統設定」入口（第 8 個 screen，模組色中性銀灰 `#9FB0C0`、mode `doc`、鍵盤 `7`），
+  承載全站前後端設定，分 7 分區（前端設定 + 六大功能模組）。核心價值是**框架先行**——schema 驅動的
+  設定框架讓協作者**不碰 UI 程式碼**就能新增/刪除自己模組的設定項目；現在能確定的（policy 知識庫 +
+  模型管理）做成完整互動 mock 當示範樣板，其餘四模組（twin/dispatch/epidemic/alert）為 disabled 佔位骨架。
+- 真實程度：落地 localStorage（單一 key `imarine.settings.v1`）+ 有限生效——policy 地端/雲端切換、
+  carbon API base、mapbox token、動效設定實際生效；其餘存而不用等後端。**只換讀取點，不動任何頁的操作邏輯**。
+- **成果檔案**：`src/screens/settings/{index.ts,schema.ts,storage.ts,renderer.ts,settings.html,settings.css}` +
+  `src/screens/settings/sections/{frontend,carbon,policy,twin,dispatch,epidemic,alert}.ts` 新增；
+  接線改動（只換讀取點）：`src/shell/registry.ts`（第 8 筆 ScreenDef）、`src/shell/rail.ts`（spacer+hr+齒輪鈕）、
+  `src/main.ts`（鍵盤 `7` + carbon base 讀取順序 settings→env）、`src/screens/policy/index.ts`（llmMode 初始化/
+  回寫/subscribe 雙向同步）、`src/screens/epidemic/worldmap.ts`（mapbox token settings→env）、各頁 reduced-motion
+  改讀共用 `prefersReduced()` helper（storage.ts）；測試新增 `tests/{settings-storage,settings-schema,settings-policy-preset}.test.ts`。
+- **SDD 8 tasks（每個獨立 code review 皆 Spec 符合 + Quality Approved）**：(1) storage.ts + schema.ts（SettingField
+  8 種 kind union / validateSections key 唯一性 throw）TDD；(2) shell 接入 + 7 分區導覽骨架 + settings.html/css；
+  (3) renderer.ts（instant/explicit 語意）+ 前端設定 + 四佔位分區；(4) 有限生效接線（prefersReduced/進場動畫/
+  mapbox/carbon base）；(5) 資料源總覽（carbon 真 /health 探測）+ carbon 分區（測試連線）；(6) policy 模型管理
+  （供應商 Setup modal / 系統預設模型）+ llmMode 雙向同步；(7) policy 知識庫管理（多庫/KB modal/chunk/檢索策略
+  progressive disclosure/rerank 導引）；(8) README 協作者指南 + 全站驗收 + 本文件收尾。
+- **驗收（誠實分野）**：三綠燈全過（`tsc` 0 / `vitest` 14 檔 49 tests 全綠 / `build` ok）。純邏輯（storage
+  round-trip / schema key 唯一性 / 預置資料契約）走 vitest；互動以獨立 headless Chrome（埠 9429、SwiftShader
+  flags、勿加 `--disable-gpu`）+ 自寫 CDP 腳本逐項實機驗證，spec §10 全清單通過：rail 齒輪+鍵盤 `7`、`0-6` 迴歸、
+  7 分區切換、instant/explicit 兩儲存語意 + 重載保留 + 捨棄還原、供應商 Setup 全流程（空值失敗→驗證→載模型→
+  啟停→儲存轉已連線→系統預設 select 聯集→移除）、知識庫全流程（開庫/上傳假 indexing→available/刪文件/chunk
+  儲存/hybrid 權重 slider/rerank 無模型導引跳轉/新增庫/刪庫/重置為預設）、llmMode 設定頁⇄policy 頁雙向同步 + 重載
+  不失、mapbox 覆寫（settings 值壓過 .env）、reduced-motion 設定生效（epidemic 管線走同步終態分支）+
+  prefers-reduced-motion 模擬、**8 頁全站迴歸 console 零錯誤**、settings 輸入框內打 `1`-`7` 不跳頁（既有 bail-out）。
+  截圖 3 張（前端/policy Setup modal/KB modal，SwiftShader）存 scratch。demo 前建議真 Chrome 人工 click-through 一輪
+  （切分區/開兩個 modal/拖 slider/切策略的手感）。
+- **Task 8 全站驗收發現的視覺缺陷（未修，交 review 決策，見第 5 節）**：settings 頁內容**未包在 `.swrap` 版心**——
+  其餘 7 個 screen 的 index.ts 都把內容包進 `<div class="swrap">`（`.swrap` 有 `padding-left:110px` 讓開固定
+  rail），但 `settings/index.ts` 直接 `el.innerHTML = html.replace(...)` 無 `.swrap`（settings.css 註解誤以為
+  「shell 已提供」）。實測：policy 左欄起於 x=151 已避開 rail（右緣 x=72），settings 的 `.sgrid`/`.subnav` 起於
+  x=0 → 固定 rail 疊在左欄分區導覽上（垂直置中處的「沙盤推演/派工建議/疫情追溯/警報」列被 rail icon 遮住）。
+  功能不受影響（CDP 94/94 全過、console 零錯誤、分區可點切），純視覺佔位錯誤。屬 Task 2（shell 接入）遺漏、
+  逐 task review 未攔到，本 task 純文件+驗收依規約不自行修產品碼。最小修法：settings/index.ts 比照 carbon/
+  policy/alert 把 header+sgrid 包進 `<div class="swrap">…</div>`（一行級），或於 settings.css 給 `#s-settings` 補
+  `padding-left`。**建議在使用者實機驗收前先修此項。**
+- 設計事實與 schema/決策見 `docs/superpowers/specs/2026-07-07-settings-page-design.md`（含 SettingField union、
+  儲存語意、各分區規格、PolicyBackendSettings 資料契約、README 章節結構、驗收標準）；README 新增「協作者指南」章
+  （新增/刪除設定欄位 + 讀取設定值 + mock→live + 前端頁面設計規範/PR 自查清單）作協作者 PR 檢查基準。
+- **下一步**：最終 whole-branch review（opus/fable）→ 使用者實機驗收 → finishing（決定合併方式，比照
+  policy/dispatch/epidemic 前例可能本地合併回 main、未 push）。詳見第 4 節。
+
+**（以下為前一輪 Epidemic 改版，已於 2026-07-05 合併回 main 完成）**
+
+**Epidemic 頁改版：SDD 8 tasks 全數完成並通過逐 task review + 最終 whole-branch review，已於 2026-07-05 合併回 main（commit `3a0a5f0`，本地，未 push）。分支 `epidemic-redesign`（自 main，baseline `f829e0b`）任務完結。**
 - 定位：「疫情自動追溯」——進高雄港船隊總覽 → 下鑽單船；AIS 停靠序列 × WHO/疾管署/新聞疫情
   時序**時空交叉比對**（規則式評分依 WHO IHR，非 ML）→ 擴散預警 → 細胞簡訊。港邊人員視角、模組色玫紅。
 - 使用者三大定案要求（全數落實）：**中性虛構船名**（不提任何真實具名事件/船/公司）、**無解釋性散文**
@@ -43,8 +89,8 @@
 - 設計事實與規則見 `docs/superpowers/specs/2026-07-05-epidemic-redesign-design.md`；實作計畫
   `docs/superpowers/plans/2026-07-05-epidemic-redesign.md`（8 tasks）；視覺/互動基準
   `docs/preview/preview-epidemic-redesign.html`；逐 task review 摘要 `.superpowers/sdd/progress.md`。
-- **下一步**：最終 whole-branch review（opus/fable）→ 使用者實機驗收 → finishing（決定合併方式，
-  比照 dispatch/policy 前例可能本地合併回 main、未 push）。
+- **完結狀態**：最終 whole-branch review 通過 → 使用者實機驗收通過 → 已於 2026-07-05 本地合併回
+  main（commit `3a0a5f0`，未 push，比照 dispatch/policy 前例）。分支任務完結。
 
 **（以下為前一輪 Dispatch 改版，已完成）**
 
@@ -707,14 +753,22 @@
 
 ## 4. 下一步（依序）
 
-**目前的下一步（2026-07-05 起）：dispatch 頁改版 SDD 實作已完成（7 tasks，見第 1 節），剩收尾。**
-1. 最終 whole-branch review（opus）——分支 `dispatch-redesign` 全 diff 複審。
-2. 使用者實機驗收（真 Chrome 人工 click-through：切三情境 / 點列展開規則 / 拖時間軸跨分界 /
-   等或手動觸發模型更新）。
-3. finishing：決定合併方式（比照 policy 前例可能本地合併回 main、未 push）。
-- policy 頁改版已於 2026-07-05 完成並合併回 main（見第 1 節）。
-- 六大功能頁改版進度：carbon(live)/twin(live 原生)/policy(已改版)/**dispatch(本輪改版完成)**；
-  尚餘 epidemic、alert 仍為初版 mock 佔位頁（未來若要比照 policy/dispatch 做深度改版再各自 brainstorming）。
+**目前的下一步（2026-07-07 起）：系統設定頁（Settings）SDD 實作已完成（8 tasks，見第 1 節），剩收尾。**
+0. **（建議先做）修 Task 8 驗收發現的視覺缺陷**：settings 頁內容未包 `.swrap` 版心 → 固定 rail 疊在
+   左欄分區導覽上（見第 1 節末條與第 5 節）。屬 Task 2 遺漏、一行級修法（settings/index.ts 把 header+sgrid
+   包進 `<div class="swrap">`）。本 task 為純文件+驗收，依規約未自行修，交 review/使用者決策；建議在使用者
+   實機驗收前先修。
+1. 最終 whole-branch review（opus/fable）——分支 `settings-page` 全 diff 複審（schema 框架承載性接縫：
+   validateSections key 唯一性、instant/explicit draft 生命週期、custom 渲染器 escape hatch、modal Escape
+   監聽掛卸、getKbs/getProviders 的 fallback 深拷貝防污染、跨頁 subscribe 同步、只換讀取點不動操作邏輯）。
+2. 使用者實機驗收（真 Chrome 人工 click-through：切 7 分區 / instant 撥 toggle + explicit 改字儲存捨棄 /
+   供應商 Setup 全流程 / 知識庫 modal 上傳刪除 chunk 策略 progressive disclosure / llmMode 雙向同步 /
+   減少動態效果全站生效的手感）。
+3. finishing：決定合併方式（比照 policy/dispatch/epidemic 前例可能本地合併回 main、未 push）。
+- policy / dispatch / epidemic 頁改版皆已完成並合併回 main（見第 1 節）。
+- 六大功能頁改版進度：carbon(live)/twin(live 原生)/policy(已改版)/dispatch(已改版)/epidemic(已改版)；
+  尚餘 alert 仍為初版 mock 佔位頁（未來若要比照前例做深度改版再各自 brainstorming）。
+- 系統設定頁（Settings）為新增的第 8 個 screen（本輪完成），承載全站前後端設定 + 協作者 schema 框架。
 
 （以下為 shell 建置期的歷史步驟，皆已完成）
 
@@ -752,6 +806,16 @@
 
 ## 5. 已知風險 / 注意
 
+- **【Settings Task 8 驗收發現】settings 頁缺 `.swrap` 版心 → 固定 rail 疊在左欄分區導覽上（視覺缺陷，未修）**：
+  其餘 7 個 screen 的 index.ts 都把內容包進 `<div class="swrap">`（`.swrap` 於 tokens.css 有 `padding-left:110px`
+  讓開 `position:fixed` 的 `#rail`），但 `src/screens/settings/index.ts` 直接 `el.innerHTML = html.replace('<!--HEADER-->', …)`
+  沒有 `.swrap` 包層（`settings.css` 開頭註解誤標「.swrap（shell 已提供）」——實則 shell 不自動提供，每個 screen
+  各自在 index.ts 補）。CDP 實測：policy `.pcols` 左緣 x=151 已避開 rail（右緣 x=72），settings `.sgrid`/`.subnav`
+  左緣 x=0 → rail（垂直置中，約 y=230–680）疊住左欄「沙盤推演/派工建議/疫情追溯/警報」等列。**功能完全不受影響**
+  （Task 8 CDP 94/94 全過、8 頁 console 零錯誤、7 分區可點切、兩 modal 全流程正常），是純視覺佔位錯誤。屬 Task 2
+  遺漏、逐 task review 未攔到。最小修法（product code，本 task 純文件+驗收依規約未自行改）：settings/index.ts 比照
+  carbon/policy/alert 把 `screenHeader()+#s-settings 內容` 包進 `<div class="swrap">…</div>`（一行級），或 settings.css
+  給 `#s-settings` 補 `padding` 左內距。**建議在使用者實機驗收前先修**。
 - **twin-provider 測試 flaky（機器負載相關，非 policy 缺陷）**：`tests/twin-provider.test.ts`
   的「snapshot 映射 72 筆泊位與 443 條真實航跡數」在機器負載高時（如剛跑完 build）會逾時
   （Test timed out in 5000ms，非斷言失敗）——twin provider 的 `snapshot()` 動態載入 4.6MB
