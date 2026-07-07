@@ -1,12 +1,13 @@
 /* Alert screen — 自動警報推播（2026-07-07 spec 改版）。
    互動基準：docs/preview/preview-alert-redesign.html（v2，已驗收）。
    Task 3：三分割骨架 + alert.css + 靜態渲染（KPI/事件流/軌跡展開/手機/漏斗）+
-   篩選/Ack/下鑽（非地圖部分）。地圖先留 renderMapStub 空函式，Task 4 換真
-   broadcastmap.ts（createBroadcastMap）接線；模擬事件鈕（SIM_BTN）先靜態渲染、
-   Task 5 才綁 click + 池兩發全鏈路動畫 + 重置 + show/hide 生命週期。 */
+   篩選/Ack/下鑽（非地圖部分）。Task 4：地圖膠合層走 ./broadcastmap（真 Mapbox，
+   cell/圍欄/pdot/波紋）+ renderMap 下鑽連動 + show()/resize 生命週期；模擬事件鈕
+   （SIM_BTN）先靜態渲染、Task 5 才綁 click + 池兩發全鏈路動畫 + 重置 + hide()。 */
 import type { Screen, ScreenCtx } from '../types';
 import type { AlertSnapshot, AlertEvent, AlertSev, AlertFunnel } from '../../data/types';
 import { funnelRates, sumDelivered, FUNNEL_STEPS } from './funnel';
+import { createBroadcastMap, type BroadcastMap } from './broadcastmap';
 import { screenHeader } from '../../ui/components';
 import { prefersReduced } from '../settings/storage';
 import template from './alert.html?raw';
@@ -37,6 +38,7 @@ let curId: string | null = null;
 let curCat = 'all';
 let sectionEl: HTMLElement;
 let sCtx: ScreenCtx;
+let map: BroadcastMap;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string): T => sectionEl.querySelector(sel) as T;
 
@@ -172,8 +174,8 @@ function renderFunnel(ev: AlertEvent, countUp: boolean): void {
   }
 }
 
-function renderMapStub(ev: AlertEvent): void {
-  void ev; // Task 4 用 createBroadcastMap() 換真地圖，改叫 map.renderEvent(ev)
+function renderMap(ev: AlertEvent): void {
+  map.renderEvent(ev);
 }
 
 function select(id: string): void {
@@ -182,7 +184,7 @@ function select(id: string): void {
   renderFeed();
   renderFunnel(ev, false);
   renderPhone(ev, false);
-  renderMapStub(ev);
+  renderMap(ev);
 }
 
 const s: Screen = {
@@ -206,6 +208,9 @@ const s: Screen = {
       template +
       '</div>';
     renderKpis();
+    map = createBroadcastMap($('#amap'), snap.cells, () => {
+      if (curId) renderMap(feed.find((e) => e.id === curId)!);
+    });
     $('.fbar').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest('.fchip') as HTMLElement | null;
       if (!b) return;
@@ -214,6 +219,16 @@ const s: Screen = {
       renderFeed();
     });
     select(snap.feed[0].id);
+    // 本頁 active 時的視窗 resize（對齊 epidemic/dispatch 定案手法）
+    window.addEventListener('resize', () => {
+      if (!sectionEl.classList.contains('active')) return;
+      map.resize();
+    });
+  },
+  show() {
+    // section 從 mount() 當下的 display:none 變 .active 後容器才有真實尺寸，
+    // 首次 show() 前用 0 寬量出的地圖畫布是錯的，故比照 epidemic/dispatch 的既有慣例在此補一次 resize()。
+    map.resize();
   },
 };
 export default s;
