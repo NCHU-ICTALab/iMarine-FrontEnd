@@ -147,6 +147,10 @@ function modelGroup(): SettingGroup {
     custom(el, ctx: SettingsCtx) {
       let pmProv: ProviderCfg | null = null;
       let pmTestedModels: ProviderCfg['models'] | null = null;
+      // Escape 關閉需生命週期綁在 document（modal 開啟時才有 focus 落在 pcard 上，
+      // .pcard 無 tabindex，activeElement 停在 body，keydown 冒泡到 document 而非 el，
+      // 故不能綁在 el 上）；開 modal 時掛、關 modal 時卸，避免每次開合疊加監聽。
+      let escOff: (() => void) | null = null;
 
       const providers = getProviders();
 
@@ -255,11 +259,18 @@ function modelGroup(): SettingGroup {
         (wrap.querySelector('#pm-remove') as HTMLElement).style.display =
           pmProv.connected && id !== '__new' ? '' : 'none';
         wrap.classList.add('open');
+        // Escape 監聽掛在 document（非 el）：pcard 無 tabindex，開 modal 後 focus 停在
+        // body，keydown 從 body 冒泡到 document 不會經過 el。開一次掛一次、關一次卸一次，
+        // 若前一個尚未卸除（理論上不會發生）先卸再掛，避免殘留疊加。
+        if (escOff) { escOff(); escOff = null; }
+        const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal(); };
+        document.addEventListener('keydown', onEsc);
+        escOff = () => document.removeEventListener('keydown', onEsc);
       }
 
       // Setup modal 靜態元件（測試連線/儲存/移除/眼睛/勾選/關閉）只綁一次：
       // custom() 本身每次分區重渲染才會重跑一次（不會在單次開合 modal 期間重複呼叫），
-      // 故此處綁定不會造成重複監聽。
+      // 故此處綁定不會造成重複監聽。Escape 例外——見 openProv/closeModal 內的 document 監聽。
       const wrap = el.querySelector('#pmodal') as HTMLElement;
       const urlIn = wrap.querySelector('#pm-url') as HTMLInputElement;
       const keyIn = wrap.querySelector('#pm-key') as HTMLInputElement;
@@ -271,10 +282,12 @@ function modelGroup(): SettingGroup {
       const removeBtn = wrap.querySelector('#pm-remove') as HTMLButtonElement;
       const hintEl = wrap.querySelector('#pm-hint') as HTMLElement;
 
-      const closeModal = () => wrap.classList.remove('open');
+      const closeModal = () => {
+        wrap.classList.remove('open');
+        if (escOff) { escOff(); escOff = null; }
+      };
       (wrap.querySelector('#pm-close') as HTMLElement).addEventListener('click', closeModal);
       wrap.addEventListener('click', (e) => { if (e.target === wrap) closeModal(); });
-      el.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Escape') closeModal(); });
 
       eyeBtn.addEventListener('click', () => {
         keyIn.type = keyIn.type === 'password' ? 'text' : 'password';
