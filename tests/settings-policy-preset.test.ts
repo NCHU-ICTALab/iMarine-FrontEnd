@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PROVIDER_PRESET, KB_PRESET, DEFAULTS_PRESET } from '../src/screens/settings/sections/policy';
+import { PROVIDER_PRESET, KB_PRESET, DEFAULTS_PRESET, getProviders, getKbs } from '../src/screens/settings/sections/policy';
 
 describe('policy 預置資料契約', () => {
   it('供應商：3 家預置、Ollama 已連線含三種 kind、雲端家帶 catalog', () => {
@@ -21,5 +21,23 @@ describe('policy 預置資料契約', () => {
   });
   it('預設模型：形狀為 reasoning/embedding/rerank 三欄字串', () => {
     expect(Object.keys(DEFAULTS_PRESET).sort()).toEqual(['embedding', 'reasoning', 'rerank']);
+  });
+  it('狀態污染防護：空 storage 下 getters 回傳深拷貝、就地 mutate 不污染 export 常數', () => {
+    // 空 storage（本測試檔全程不 setSetting policy.providers/policy.kbs）下，getter 的 fallback
+    // 必須是 PRESET 的深拷貝而非同一參照——否則消費端就地 push/覆寫會污染 export 常數。
+    const provs = getProviders();
+    const kbs = getKbs();
+    expect(provs).not.toBe(PROVIDER_PRESET);
+    expect(kbs).not.toBe(KB_PRESET);
+
+    const provLenBefore = PROVIDER_PRESET.length;
+    const kbFirstDocsBefore = KB_PRESET[0].docs.length;
+
+    // 模擬 saveBtn 就地 push / 文件上傳就地 push
+    provs.push({ ...provs[0], id: 'pollute-check' });
+    kbs[0].docs.push({ id: 'pollute-doc', name: 'x.pdf', status: 'available' });
+
+    expect(PROVIDER_PRESET.length).toBe(provLenBefore);
+    expect(KB_PRESET[0].docs.length).toBe(kbFirstDocsBefore);
   });
 });

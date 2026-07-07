@@ -126,7 +126,7 @@ export const KB_PRESET: Kb[] = [
   },
 ];
 
-function getKbs(): Kb[] {
+export function getKbs(): Kb[] {
   // getSetting() 找不到 key 時直接回傳 fallback 參照本身（storage.ts 未深拷貝 fallback）。
   // 本 group 會就地改動取回的陣列/其內物件（nk-create 的 kbs.push、kb-save 的
   // kbCur.chunk=…、doc 刪除的 kbCur.docs=…），若 fallback 直接傳 KB_PRESET，首次讀取（storage
@@ -139,7 +139,12 @@ function setKbs(list: Kb[]): void {
 }
 
 export function getProviders(): ProviderCfg[] {
-  return getSetting<ProviderCfg[]>('policy.providers', PROVIDER_PRESET);
+  // fallback 深拷貝：與 getKbs() 同因——getSetting 找不到 key 時直接回傳 fallback 參照本身。
+  // saveBtn 處理內 `const list = getProviders(); list.push/替換; setProviders(list)` 會就地改動
+  // 取回的陣列；若首次讀取（'policy.providers' 尚未寫入 storage）直接傳 PROVIDER_PRESET，就地
+  // push/覆寫會污染 export 常數本身（Ollama 預設 connected:true，點開 Ollama 卡直接儲存即觸發）。
+  // 故 fallback 先深拷貝切斷共享參照。
+  return getSetting<ProviderCfg[]>('policy.providers', JSON.parse(JSON.stringify(PROVIDER_PRESET)));
 }
 function setProviders(list: ProviderCfg[]): void {
   setSetting('policy.providers', list);
