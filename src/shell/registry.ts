@@ -10,7 +10,7 @@ export interface ScreenDef {
   load(): Promise<{ default: Screen }>;
 }
 
-// 順序：hero, carbon, policy, twin, dispatch, epidemic, alert
+// 順序：hero, carbon, policy, twin, dispatch, epidemic, alert, settings
 export const SCREENS: ScreenDef[] = [
   {
     id: 'hero',
@@ -74,5 +74,14 @@ export const SCREENS: ScreenDef[] = [
     mode: 'ov',
     icon: '<path d="M6 16V11a6 6 0 1112 0v5l2 3H4z"/><path d="M10 21a2 2 0 004 0"/>',
     load: () => import('../screens/alert/index'),
+  },
+  {
+    id: 'settings',
+    title: '系統設定',
+    short: '系統設定',
+    color: '#9FB0C0',
+    mode: 'doc',
+    icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.09a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.09a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.09a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
+    load: () => import('../screens/settings/index'),
   },
 ];

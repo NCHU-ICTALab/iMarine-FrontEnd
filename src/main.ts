@@ -59,7 +59,7 @@ addEventListener('keydown', (e) => {
   }
   if (e.key === '0') router.go('hero');
   const n = parseInt(e.key, 10);
-  if (n >= 1 && n <= 6) router.go(SCREENS[n].id);
+  if (n >= 1 && n <= 7) router.go(SCREENS[n].id);
 });
 
 router.go(parseHash(location.hash, ids));
