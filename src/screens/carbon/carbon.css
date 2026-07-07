@@ -65,7 +65,7 @@
   transition:color .25s var(--ease),border-color .25s var(--ease);}
 #s-carbon .fchip:hover{color:var(--ink-90);border-color:rgba(255,255,255,.25);}
 #s-carbon .fchip.is-on{color:var(--lg-accent);border-color:var(--lg-accent);}
-#s-carbon .fchip .n{margin-left:auto;font-size:11px;color:var(--ink-40);}
+#s-carbon .fchip .n{margin-left:auto;font-size:11px;color:var(--ink-40);font-family:var(--mono);}
 #s-carbon .rail select,#s-carbon .wb-toolbar select,#s-carbon .lg-modal__panel select{background:rgba(255,255,255,.06);border:1px solid var(--hair);border-radius:10px;
   color:var(--ink-90);padding:8px 10px;font-size:13px;font-family:inherit;}
 #s-carbon .rail select:focus,#s-carbon .wb-toolbar select:focus,#s-carbon .lg-modal__panel select:focus{outline:1px solid var(--lg-accent);}
