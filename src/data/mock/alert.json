@@ -1,15 +1,109 @@
 {
-  "kpi": { "today": 3, "reached": 210, "avgSec": 4.2, "pending": 12 },
-  "feed": [
-    { "cat": "epi", "sev": "rose", "title": "疫情橙級 · SHIN KUANG 168 泊位 108", "body": "細胞簡訊已推播港區西側作業人員 210 人", "time": "19:36" },
-    { "cat": "wx", "sev": "amber", "title": "強降雨預警 · 未來 30 分鐘", "body": "降雨機率 80%，橋式吊掛建議暫緩", "time": "19:12" },
-    { "cat": "wx", "sev": "amber", "title": "強風預警 · 港區平均風速 18 m/s", "body": "Beaufort 7 · 高空作業停止", "time": "18:47" },
-    { "cat": "wx", "sev": "flame", "title": "雷擊警戒 · 雷雨胞接近港區西南 8km", "body": "油品裝卸區進入戒備，加油作業暫停", "time": "16:58" },
-    { "cat": "ok", "sev": "ok", "title": "解除 · 雷擊警戒", "body": "雷雨胞移出港區 10km 範圍", "time": "17:05" },
-    { "cat": "ok", "sev": "ok", "title": "解除 · 疫情黃級 · EVER LUCENT", "body": "WHO 通報下修，恢復一般登輪程序", "time": "15:40" }
+  "kpi": { "published": 14, "reachedPeople": 2610, "reachedShips": 47, "avgSec": 3.2, "deliveryRate": 98.2 },
+  "cells": [
+    { "id": "KH-01", "lngLat": [120.276, 22.617], "delivered": 212 },
+    { "id": "KH-02", "lngLat": [120.288, 22.608], "delivered": 305 },
+    { "id": "KH-03", "lngLat": [120.297, 22.598], "delivered": 388 },
+    { "id": "KH-04", "lngLat": [120.308, 22.590], "delivered": 341 },
+    { "id": "KH-05", "lngLat": [120.318, 22.581], "delivered": 296 },
+    { "id": "KH-06", "lngLat": [120.327, 22.570], "delivered": 254 },
+    { "id": "KH-07", "lngLat": [120.338, 22.559], "delivered": 230 },
+    { "id": "KH-08", "lngLat": [120.301, 22.610], "delivered": 318 },
+    { "id": "KH-09", "lngLat": [120.316, 22.598], "delivered": 266 }
   ],
-  "sms": [
-    { "text": "[港區作業警報]泊位108靠泊船舶疫情風險橙級，即刻起限制非必要登輪，作業人員配戴N95。詳情洽港勤中心。", "old": false },
-    { "text": "[港區氣象警報]未來30分鐘強降雨機率80%，橋式吊掛作業暫緩，倉儲區預防性排水。", "old": true }
+  "feed": [
+    {
+      "id": "e1", "cat": "epi", "sev": "orange", "source": "epidemic",
+      "title": "疫情橙級 · NORDIC 88", "body": "泊位 108 · 評分 68 · 限制登輪", "time": "19:36", "ch": "CH 911",
+      "lngLat": [120.299, 22.597],
+      "fence": [[120.292, 22.604], [120.306, 22.604], [120.308, 22.592], [120.294, 22.590]],
+      "cellsLit": ["KH-03", "KH-04", "KH-08"],
+      "funnels": [{ "label": "人員", "triggered": 420, "published": 415, "delivered": 408, "acked": 377 }],
+      "trace": { "rule": "疫情風險 ≥ 60", "threshold": "68 / 60", "pws": "警訊通知", "ch": "CH 911", "publishSec": 4.1 },
+      "sms": { "unit": "航港局港勤中心", "event": "泊位108靠泊船疫情風險橙級", "area": "港區西側作業區", "action": "限制非必要登輪，作業人員配戴N95" },
+      "acked": false
+    },
+    {
+      "id": "e2", "cat": "wx", "sev": "notice", "source": "dispatch",
+      "title": "強降雨 · 未來 30 分鐘", "body": "降雨 80% · 吊掛暫緩", "time": "19:12", "ch": "CH 911",
+      "lngLat": [120.308, 22.586],
+      "fence": [[120.300, 22.594], [120.316, 22.592], [120.314, 22.578], [120.302, 22.580]],
+      "cellsLit": ["KH-04", "KH-09"],
+      "funnels": [{ "label": "人員", "triggered": 320, "published": 318, "delivered": 312, "acked": 236 }],
+      "trace": { "rule": "降雨機率 ≥ 70%", "threshold": "80% / 70%", "pws": "警訊通知", "ch": "CH 911", "publishSec": 3.6 },
+      "sms": { "unit": "航港局港勤中心", "event": "未來30分鐘強降雨機率80%", "area": "中央碼頭區", "action": "橋式吊掛作業暫緩，倉儲區預防性排水" },
+      "acked": true
+    },
+    {
+      "id": "e3", "cat": "wx", "sev": "orange", "source": "weather",
+      "title": "強風 · 平均風速 18 m/s", "body": "Beaufort 7 · 高空停止", "time": "18:47", "ch": "CH 911",
+      "lngLat": [120.320, 22.575],
+      "fence": [[120.310, 22.586], [120.330, 22.580], [120.334, 22.564], [120.314, 22.568]],
+      "cellsLit": ["KH-05", "KH-06", "KH-09"],
+      "funnels": [{ "label": "人員", "triggered": 560, "published": 554, "delivered": 545, "acked": 489 }],
+      "trace": { "rule": "10min 風速 ≥ 15 m/s", "threshold": "18 / 15", "pws": "警訊通知", "ch": "CH 911", "publishSec": 3.2 },
+      "sms": { "unit": "航港局港勤中心", "event": "港區平均風速18m/s（蒲福7級）", "area": "南側高空作業區", "action": "高空作業即刻停止，起重機錨定" },
+      "acked": false
+    },
+    {
+      "id": "e4", "cat": "wx", "sev": "orange", "source": "weather",
+      "title": "雷擊警戒 · 雷雨胞 SW 8km", "body": "SW 8km · 油品區戒備 · 加油暫停", "time": "16:58", "ch": "CH 911",
+      "lngLat": [120.332, 22.564],
+      "fence": [[120.324, 22.572], [120.342, 22.566], [120.344, 22.552], [120.328, 22.556]],
+      "cellsLit": ["KH-06", "KH-07"],
+      "funnels": [{ "label": "人員", "triggered": 204, "published": 202, "delivered": 198, "acked": 171 }],
+      "trace": { "rule": "雷雨胞 < 10 km", "threshold": "8 / 10 km", "pws": "警訊通知", "ch": "CH 911", "publishSec": 2.9 },
+      "sms": { "unit": "航港局港勤中心", "event": "雷雨胞接近港區西南8km", "area": "油品裝卸區", "action": "加油作業暫停，人員離開露天高點" },
+      "acked": true
+    },
+    {
+      "id": "e5", "cat": "ok", "sev": "clear", "source": "weather",
+      "title": "解除 · 雷擊警戒", "body": "移出 10km · 恢復作業", "time": "17:05", "ch": "CH 919",
+      "lngLat": [120.332, 22.564],
+      "fence": [[120.324, 22.572], [120.342, 22.566], [120.344, 22.552], [120.328, 22.556]],
+      "cellsLit": [],
+      "funnels": [{ "label": "人員", "triggered": 204, "published": 202, "delivered": 199, "acked": 150 }],
+      "trace": { "rule": "條件消失 · 自動解除", "threshold": "> 10 km", "pws": "警訊通知", "ch": "CH 919", "publishSec": 2.4 },
+      "sms": { "unit": "航港局港勤中心", "event": "雷擊警戒解除", "area": "油品裝卸區", "action": "恢復加油作業，回報作業狀態" },
+      "acked": true
+    },
+    {
+      "id": "e6", "cat": "ok", "sev": "clear", "source": "epidemic",
+      "title": "解除 · 疫情黃級 EVER LUCENT", "body": "WHO 下修 · 恢復登輪", "time": "15:40", "ch": "CH 919",
+      "lngLat": [120.299, 22.597],
+      "fence": [[120.292, 22.604], [120.306, 22.604], [120.308, 22.592], [120.294, 22.590]],
+      "cellsLit": [],
+      "funnels": [{ "label": "人員", "triggered": 380, "published": 378, "delivered": 371, "acked": 290 }],
+      "trace": { "rule": "風險回落 < 40", "threshold": "34 / 40", "pws": "警訊通知", "ch": "CH 919", "publishSec": 2.7 },
+      "sms": { "unit": "航港局港勤中心", "event": "EVER LUCENT疫情黃級解除", "area": "港區西側作業區", "action": "恢復一般登輪程序" },
+      "acked": true
+    }
+  ],
+  "drillPool": [
+    {
+      "id": "d1", "cat": "wx", "sev": "notice", "source": "weather",
+      "title": "雷擊警戒 · 雷雨胞 SW 8km", "body": "SW 8km · 油品區戒備 · 加油暫停", "time": "19:41", "ch": "CH 911",
+      "lngLat": [120.334, 22.560],
+      "fence": [[120.326, 22.568], [120.344, 22.562], [120.346, 22.549], [120.330, 22.553]],
+      "cellsLit": ["KH-05", "KH-06", "KH-07"],
+      "funnels": [{ "label": "人員", "triggered": 182, "published": 180, "delivered": 176, "acked": 121 }],
+      "trace": { "rule": "雷雨胞 < 10 km", "threshold": "8 / 10 km", "pws": "警訊通知", "ch": "CH 911", "publishSec": 3.4 },
+      "sms": { "unit": "航港局港勤中心", "event": "雷雨胞接近港區西南8km", "area": "油品裝卸區", "action": "加油作業暫停，人員離開露天高點" },
+      "acked": false
+    },
+    {
+      "id": "d2", "cat": "wx", "sev": "red", "source": "system",
+      "title": "颱風海上陸上警報 · 全港停止作業", "body": "全港疏散 · 船舶加纜 · 2,400 人 / 47 艘", "time": "19:44", "ch": "CH 4371",
+      "lngLat": [120.308, 22.585],
+      "fence": [[120.268, 22.624], [120.310, 22.618], [120.350, 22.566], [120.344, 22.544], [120.296, 22.576], [120.270, 22.606]],
+      "cellsLit": ["KH-01", "KH-02", "KH-03", "KH-04", "KH-05", "KH-06", "KH-07", "KH-08", "KH-09"],
+      "funnels": [
+        { "label": "人員", "triggered": 2400, "published": 2400, "delivered": 2362, "acked": 1875 },
+        { "label": "船舶", "triggered": 47, "published": 47, "delivered": 47, "acked": 41 }
+      ],
+      "trace": { "rule": "CWA 颱風警報 · 7 級風停工", "threshold": "海上陸上警報", "pws": "緊急警報", "ch": "CH 4371", "publishSec": 2.1 },
+      "sms": { "unit": "交通部航港局", "event": "颱風海上陸上警報 全港區停止作業", "area": "高雄港全港區", "action": "露天作業人員即刻疏散，船舶加纜、小船進避風水域" },
+      "acked": false
+    }
   ]
 }

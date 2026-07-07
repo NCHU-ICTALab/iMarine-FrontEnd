@@ -118,12 +118,31 @@ export interface EpidemicSnapshot {
   inflowPool: EpidemicInflow[];
 }
 
+export type AlertSev = 'red' | 'orange' | 'notice' | 'clear';
 export interface AlertFunnel { label: string; triggered: number; published: number; delivered: number; acked: number }
-
+export interface AlertTrace { rule: string; threshold: string; pws: string; ch: string; publishSec: number }
+export interface AlertSms { unit: string; event: string; area: string; action: string }
+export interface AlertEvent {
+  id: string;
+  cat: 'epi' | 'wx' | 'ok';
+  sev: AlertSev;
+  source: 'epidemic' | 'dispatch' | 'weather' | 'system';
+  title: string; body: string; time: string;
+  ch: string;
+  lngLat: [number, number];
+  fence: [number, number][];
+  cellsLit: string[];
+  funnels: AlertFunnel[];
+  trace: AlertTrace;
+  sms: AlertSms;
+  acked: boolean;
+}
+export interface AlertCell { id: string; lngLat: [number, number]; delivered: number }
 export interface AlertSnapshot {
-  kpi: { today: number; reached: number; avgSec: number; pending: number };
-  feed: { cat: 'epi' | 'wx' | 'ok'; sev: string; title: string; body: string; time: string }[];
-  sms: { text: string; old: boolean }[];
+  kpi: { published: number; reachedPeople: number; reachedShips: number; avgSec: number; deliveryRate: number };
+  cells: AlertCell[];
+  feed: AlertEvent[];
+  drillPool: AlertEvent[];
 }
 
 export interface CarbonSummary { ok: boolean; issued: number; tonsCirculating: number; listed: number; retired: number }
