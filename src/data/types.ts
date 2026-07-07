@@ -118,6 +118,8 @@ export interface EpidemicSnapshot {
   inflowPool: EpidemicInflow[];
 }
 
+export interface AlertFunnel { label: string; triggered: number; published: number; delivered: number; acked: number }
+
 export interface AlertSnapshot {
   kpi: { today: number; reached: number; avgSec: number; pending: number };
   feed: { cat: 'epi' | 'wx' | 'ok'; sev: string; title: string; body: string; time: string }[];
