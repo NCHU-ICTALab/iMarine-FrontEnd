@@ -2,11 +2,36 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-07 系統設定頁（Settings）SDD 8 tasks + 最終 whole-branch review + 三項修復全數完成，使用者實機驗收通過，已合併回 main 並 push 到 origin（README 加系統設定頁畫面展示）（Epidemic 頁改版已於 2026-07-05 合併回 main，見下）
+最後更新：2026-07-07 Alert 頁改版 brainstorming 完成——spec 定案 + 互動 preview v2 使用者驗收通過，下一步 writing-plans 排 SDD tasks（Settings 頁已於同日合併 push 完結，見下）
 
 ---
 
 ## 1. 目前狀態
+
+**Alert 頁改版：brainstorming 完成，spec + preview v2 皆經使用者驗收，待寫實作計畫（writing-plans）。**
+- 定位：**獨立警報中心**——港區事件（疫情/派工/氣象）經分級規則引擎，以 Cell Broadcast 推播；
+  事件卡帶來源模組色點呈現跨模組關係。版面 A 三分割（左事件流 0.95fr / 中 Mapbox 高雄港 2.5fr /
+  右手機 mock + 送達漏斗 1fr）+ KPI 4 卡；分級體系＝港區三級（紅色警報/橙色警戒/作業提示）+
+  PWS 對映與 mono `CH 4371/911/919` 徽章（調研沉澱：台灣 CBS 官方分級與訊息碼、WEA polygon
+  geo-targeting、J-Alert 波紋、Grafana 狀態機、OneSignal 漏斗、NOC 5 秒可讀原則）。
+- 四互動定案：點事件下鑽（flyTo+圍欄+cell 點亮+漏斗切換+卡內分級軌跡展開）、模擬事件池兩發
+  （作業提示雷擊 → 紅色警報颱風頂格：cell 全亮 stagger+波紋+手機全螢幕插播抖動+雙漏斗滾數字，
+  第三按重置）、cell hover tooltip 送達數、Ack 鈕（脈動→靜止）。獨立分級切換器不做；
+  舊三顆推播規則 switch 移除（規則歸系統設定頁 alert 分區未來擴充）。
+- v2 修訂（使用者回饋定案）：無解釋性散文（卡摘要/軌跡全數據化）+ 引導性配色（橙紅級標題
+  常態帶 sev 色、選中卡光暈跟 sev 色）+ 進頁自動選中最高風險事件（重置亦然，不留空地圖）。
+- spec：`docs/superpowers/specs/2026-07-07-alert-redesign-design.md`（決策表 8 條、AlertSnapshot
+  資料契約、mock 劇本、互動規格、驗收標準、YAGNI）；視覺/互動基準
+  `docs/preview/preview-alert-redesign.html`（token 佔位 `__MAPBOX_TOKEN__`；本機測試副本
+  `docs/preview/.preview-alert-test.html` 含真 token **勿提交**）。
+- preview 驗收：獨立 headless Chrome（埠 9431、SwiftShader）+ 自寫 CDP 腳本 43 斷言全過、
+  console 零錯誤、截圖存 scratch。過程修掉兩個坑（已寫進 spec 開頭，實作必帶）：軌跡節點
+  state 未映射 CSS class 不亮；Mapbox marker 根元素設 `position:relative` 會蓋掉
+  `.mapboxgl-marker` 的 absolute 造成逐顆累積偏移。
+- **下一步**：writing-plans 寫 `docs/superpowers/plans/2026-07-07-alert-redesign.md`（SDD tasks，
+  比照 epidemic 前例：純邏輯 TDD → 契約+mock → 骨架+CSS → Mapbox → 互動 → 演練 → 全站驗收）。
+
+**（以下為前一輪 Settings 頁，已完結）**
 
 **系統設定頁（Settings）：SDD 8 tasks 全數逐 task review 通過 + 最終 whole-branch review (opus, Ready to merge) + 三項最終修復，使用者實機驗收通過，已合併回 main（fast-forward `b78e423`→`2474de9`、feature 分支已刪）並 push 到 origin。三綠燈 + CDP 全站驗收綠燈。README「畫面展示」已加系統設定頁截圖（`docs/screens/settings.png`）。本輪工作全部結束。**
 - 定位：左側 rail 底部新增「系統設定」入口（第 8 個 screen，模組色中性銀灰 `#9FB0C0`、mode `doc`、鍵盤 `7`），
@@ -753,7 +778,7 @@
 
 ## 4. 下一步（依序）
 
-**目前的下一步（2026-07-07 起）：系統設定頁（Settings）已完成、使用者實機驗收通過、合併回 main 並 push 到 origin（見第 1 節）。本輪無後續排定 task。**
+**目前的下一步（2026-07-07 起）：Alert 頁改版——brainstorming/spec/preview v2 已完成（見第 1 節），接續 writing-plans 排 SDD tasks 後實作。**
 - ~~swrap 版心缺陷~~ 已修（commit `cc44ec3`）。~~最終 whole-branch review（opus）~~＝Ready to merge，新發現的 Important（getDefaults 漏深拷貝）+ 兩 Minor 已於 `2474de9` 修完再審 clean。~~finishing~~ 本地合併 + push 完成。~~使用者實機驗收~~ 通過。
 - policy / dispatch / epidemic 頁改版皆已完成並合併回 main（見第 1 節）。
 - 六大功能頁改版進度：carbon(live)/twin(live 原生)/policy(已改版)/dispatch(已改版)/epidemic(已改版)；

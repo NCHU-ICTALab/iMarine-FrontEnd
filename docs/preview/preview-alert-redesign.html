@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自動警報推播 · Alert 頁改版範例</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../src/ui/liquid-glass.css">
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.js"></script>
+<style>
+  :root{ --flame:#FF7A59; --amber:#F5A54A; --green:#35E0A6; --cyan:#38BDF8; --rose:#F0648C;
+         --ink:#dbe3ec; --ink60:#8b9bad; --ink40:#6b7a8d; --panel:#0d1420; --line:rgba(255,255,255,.08);
+         --mono:ui-monospace,"Geist Mono",monospace; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#070b11;color:var(--ink);font-family:-apple-system,"Noto Sans TC",sans-serif;line-height:1.45;
+       background-image:radial-gradient(80% 60% at 25% 0%,#101a2c,transparent),radial-gradient(70% 50% at 100% 20%,#1c120e,transparent);min-height:100vh}
+  .swrap{max-width:1360px;margin:0 auto;padding:26px 24px 60px}
+  .eyebrow{font-size:10px;letter-spacing:.16em;color:var(--flame);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--flame);box-shadow:0 0 10px var(--flame)}
+  .hrow{display:flex;justify-content:space-between;align-items:flex-end;margin:8px 0 14px}
+  .hrow h1{font-size:26px;font-weight:800;margin:5px 0 0;letter-spacing:.01em}
+  .hactions{display:flex;gap:8px;align-items:center}
+  .chip{font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.12);color:var(--ink40)}
+  .chip.src{border-color:rgba(255,255,255,.18);color:var(--ink60)}
+  .simbtn{font-size:11px;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,122,89,.45);background:rgba(255,122,89,.1);color:var(--flame);cursor:pointer}
+  .simbtn:hover{background:rgba(255,122,89,.18)} .simbtn:disabled{opacity:.4;cursor:default}
+  .keyrow{display:flex;gap:10px;margin-bottom:14px}
+  .kchip{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 13px;font-size:10.5px;color:var(--ink60);flex:1}
+  .kchip b{display:block;font-size:17px;font-family:var(--mono);margin-top:3px;color:#c3d0de}
+  .kchip.hi b{color:var(--flame)}
+  .grid{display:grid;grid-template-columns:0.95fr 2.5fr 1fr;gap:14px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .cap{font-size:9.5px;letter-spacing:.14em;color:#55606f;text-transform:uppercase;margin-bottom:9px}
+  /* 事件流 */
+  .fbar{display:flex;gap:6px;margin-bottom:10px}
+  .fchip{font-size:10px;padding:4px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:none;color:var(--ink40);cursor:pointer}
+  .fchip.is-on{border-color:rgba(255,122,89,.5);color:var(--flame);background:rgba(255,122,89,.08)}
+  .ecard{position:relative;border:1px solid transparent;border-left:3px solid var(--sv,#4a5568);border-radius:8px;padding:9px 10px 9px 11px;margin-bottom:8px;font-size:11.5px;cursor:pointer;background:rgba(255,255,255,.02);transition:.2s}
+  .ecard.dim{opacity:.55}
+  .ecard.sel{background:color-mix(in srgb,var(--sv) 8%,transparent);border-color:color-mix(in srgb,var(--sv) 40%,transparent);border-left-color:var(--sv);box-shadow:0 0 18px color-mix(in srgb,var(--sv) 14%,transparent);opacity:1}
+  .etop{display:flex;align-items:center;gap:6px}
+  .sdot{width:7px;height:7px;border-radius:50%;flex:none}
+  .etitle{flex:1;font-weight:700;font-size:11.5px;letter-spacing:.01em}
+  .etime{font-size:9.5px;color:var(--ink40);font-family:var(--mono)}
+  .ebody{color:var(--ink60);font-size:10.5px;margin:4px 0 6px}
+  .emeta{display:flex;align-items:center;gap:6px}
+  .chb{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.15);color:var(--ink60);letter-spacing:.06em}
+  .ackbtn{margin-left:auto;font-size:9.5px;padding:3px 8px;border-radius:6px;border:1px solid;cursor:pointer;background:none}
+  .ackbtn.todo{border-color:var(--sv);color:var(--sv);animation:ackpl 1.2s infinite}
+  .ackbtn.done{border-color:rgba(245,165,74,.4);color:var(--amber);animation:none;cursor:default}
+  @keyframes ackpl{50%{opacity:.35}}
+  .unread{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--flame);box-shadow:0 0 8px var(--flame);animation:ackpl 1.2s infinite}
+  /* 分級軌跡（下鑽展開） */
+  .trace{margin-top:9px;border-top:1px solid var(--line);padding-top:8px;display:none}
+  .ecard.sel .trace{display:block}
+  .tnode{display:flex;gap:8px;align-items:flex-start;padding:3px 0;font-size:10px;color:var(--ink40)}
+  .tnode .lamp{width:7px;height:7px;border-radius:50%;background:#333d4d;margin-top:3px;flex:none}
+  .tnode.on{color:#c3d0de} .tnode.on .lamp{background:var(--green);box-shadow:0 0 7px var(--green)}
+  .tnode.on.run .lamp{background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:ackpl 1s infinite}
+  .tnode b{font-weight:700} .tnode .sub{display:block;font-size:9.5px;color:var(--ink40)}
+  .tnode .tmono{font-family:var(--mono);color:#c3d0de}
+  /* Mapbox */
+  .map{position:relative;width:100%;height:560px;border-radius:9px;overflow:hidden;background:#0a1220}
+  .mapfallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;text-align:center;color:var(--ink40);font-size:12px;padding:20px}
+  .mapfallback code{color:var(--cyan);font-size:11px}
+  .mapboxgl-ctrl-logo,.mapboxgl-ctrl-attrib{opacity:.35}
+  .cell{width:22px;height:24px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:rgba(139,155,173,.28);border:none;position:relative;transition:.3s;cursor:pointer}
+  /* 注意：不可對 .cellwrap 設 position——會蓋掉 .mapboxgl-marker 的 absolute 定位造成 marker 流式偏移 */
+  .cellwrap .tip{position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:#0a1220;border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:10px;color:#c3d0de;white-space:nowrap;display:none;z-index:30;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+  .cellwrap:hover .tip{display:block}
+  .cellwrap.lit .cell{background:rgba(255,122,89,.75);filter:drop-shadow(0 0 9px var(--flame))}
+  .pdot{width:12px;height:12px;border-radius:50%;background:var(--flame);box-shadow:0 0 12px var(--flame);position:relative}
+  .pdot::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--flame);animation:pd 1.4s infinite;opacity:.7}
+  @keyframes pd{to{transform:scale(2.1);opacity:0}}
+  .ripple{width:30px;height:30px;border-radius:50%;border:2px solid var(--flame);opacity:0;pointer-events:none}
+  .ripple.act{animation:rip 1.5s ease-out forwards}
+  @keyframes rip{0%{opacity:.85;transform:scale(.3)}100%{opacity:0;transform:scale(9)}}
+  /* 手機 mock */
+  .phone{position:relative;width:100%;max-width:230px;margin:0 auto;aspect-ratio:9/18.5;background:linear-gradient(170deg,#0c1320,#0a0f18);border:1.5px solid rgba(255,255,255,.16);border-radius:26px;padding:14px 12px;overflow:hidden}
+  .phone.shake{animation:shk .55s ease-in-out 2}
+  @keyframes shk{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+  .notch{width:78px;height:16px;background:#05080d;border-radius:0 0 12px 12px;margin:-14px auto 8px}
+  .ptime{text-align:center;font-size:26px;font-weight:200;letter-spacing:.04em}
+  .pdate{text-align:center;font-size:9.5px;color:var(--ink40);margin-bottom:12px}
+  .banner{background:rgba(20,28,42,.92);border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:9px 10px;font-size:10px;color:#cfe0f2;margin-bottom:7px}
+  .banner .bfrom{font-size:8.5px;color:var(--cyan);letter-spacing:.1em;font-weight:700;margin-bottom:3px;display:flex;gap:5px;align-items:center}
+  .banner.warn .bfrom{color:var(--amber)}
+  .banner.old{opacity:.45}
+  .palert{position:absolute;inset:0;background:rgba(28,10,6,.96);border:2px solid var(--flame);border-radius:26px;padding:38px 14px 14px;display:none;flex-direction:column;gap:8px;z-index:5}
+  .palert.show{display:flex}
+  .palert .ptag{font-size:9px;letter-spacing:.16em;color:var(--flame);font-weight:800;display:flex;align-items:center;gap:6px}
+  .palert .ptag .tri{animation:ackpl .8s infinite}
+  .palert h5{margin:0;font-size:14px;color:#ffd9cd;line-height:1.4}
+  .palert .pbody{font-size:10.5px;color:#f0c9bd;line-height:1.55}
+  .palert .pch{margin-top:auto;font-family:var(--mono);font-size:9px;color:var(--flame);letter-spacing:.08em}
+  /* 送達漏斗 */
+  .fun{margin-bottom:4px}
+  .funlbl{display:flex;justify-content:space-between;font-size:10px;color:var(--ink60);margin-bottom:3px}
+  .funlbl b{font-family:var(--mono);color:#c3d0de}
+  .frail{display:flex;flex-direction:column;gap:4px}
+  .fstep{display:flex;align-items:center;gap:7px;font-size:9.5px;color:var(--ink40)}
+  .fstep .nm{width:34px;flex:none}
+  .fstep .bar{height:9px;border-radius:3px;background:linear-gradient(90deg,rgba(255,122,89,.85),rgba(255,122,89,.45));transition:width .5s;min-width:2px}
+  .fstep .num{font-family:var(--mono);color:#c3d0de;margin-left:auto}
+  .fstep .pct{font-family:var(--mono);font-size:8.5px;color:var(--ink40);width:38px;text-align:right}
+  .note{max-width:1360px;margin:0 auto;padding:0 24px 40px;color:var(--ink40);font-size:12px} .note code{color:var(--ink60)}
+</style>
+</head>
+<body>
+<div class="swrap">
+  <div class="eyebrow"><span class="dot"></span>港區廣播中心 · MODULE 06</div>
+  <div class="hrow">
+    <h1>自動警報推播</h1>
+    <div class="hactions"><span class="chip">CELL BROADCAST · PWS 對映</span><span class="chip src">● MOCK</span><button class="simbtn" id="simBtn">模擬事件</button></div>
+  </div>
+  <div class="keyrow" id="kpis"></div>
+  <div class="grid">
+    <div class="col">
+      <div class="panel" style="flex:1">
+        <div class="cap">警報事件流</div>
+        <div class="fbar" id="fbar">
+          <button class="fchip is-on" data-cat="all">全部</button><button class="fchip" data-cat="epi">疫情</button><button class="fchip" data-cat="wx">氣象</button><button class="fchip" data-cat="ok">解除</button>
+        </div>
+        <div id="feed"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel"><div class="cap">Cell Broadcast 覆蓋 · 高雄港區</div>
+        <div class="map" id="map"><div class="mapfallback" id="mapfallback">Mapbox 地圖需要 access token<br>把公開 token（<code>pk.…</code>）填入本檔頂部 <code>MAPBOX_TOKEN</code></div></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel"><div class="cap">港區人員手機 · 接收端</div>
+        <div class="phone" id="phone">
+          <div class="notch"></div><div class="ptime">19:36</div><div class="pdate">7月7日 星期二 · 高雄港區</div>
+          <div id="phoneScr"></div>
+          <div class="palert" id="palert"></div>
+        </div>
+      </div>
+      <div class="panel"><div class="cap">送達漏斗</div><div id="funnel"></div></div>
+    </div>
+  </div>
+</div>
+<div class="note">範例頁（brainstorming 基準）。四互動：<code>點事件卡</code>下鑽（地圖飛越+圍欄+cell 點亮+漏斗切換+分級軌跡展開）· <code>模擬事件</code>池兩發（作業提示雷擊 → 紅色警報颱風頂格，第三按重置）· <code>hover 地圖 cell</code>看送達數 · <code>Ack 鈕</code>確認處置。港區三級（紅色警報/橙色警戒/作業提示）+ PWS 對映 CH 碼。常態壓灰、警報發亮。</div>
+
+<script src="../../src/ui/liquid-glass.js"></script>
+<script>
+/* ⚠️ 把你的 Mapbox 公開 token 貼進這裡（pk.…） */
+const MAPBOX_TOKEN = '__MAPBOX_TOKEN__';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const SEVC={red:'#FF7A59',orange:'#F5A54A',notice:'#9fb0c3',clear:'#35E0A6'};
+const SEVN={red:'紅色警報',orange:'橙色警戒',notice:'作業提示',clear:'解除'};
+const SRCC={epidemic:'#F0648C',dispatch:'#F5A54A',weather:'#38BDF8',system:'#6b7a8d'};
+const CELLS=[
+  {id:'KH-01',lngLat:[120.276,22.617],delivered:212},{id:'KH-02',lngLat:[120.288,22.608],delivered:305},
+  {id:'KH-03',lngLat:[120.297,22.598],delivered:388},{id:'KH-04',lngLat:[120.308,22.590],delivered:341},
+  {id:'KH-05',lngLat:[120.318,22.581],delivered:296},{id:'KH-06',lngLat:[120.327,22.570],delivered:254},
+  {id:'KH-07',lngLat:[120.338,22.559],delivered:230},{id:'KH-08',lngLat:[120.301,22.610],delivered:318},
+  {id:'KH-09',lngLat:[120.316,22.598],delivered:266}
+];
+const F=(l,a,b,c,d)=>({label:l,triggered:a,published:b,delivered:c,acked:d});
+const FEED0=[
+  {id:'e1',cat:'epi',sev:'orange',source:'epidemic',title:'疫情橙級 · NORDIC 88',body:'泊位 108 · 評分 68 · 限制登輪',time:'19:36',ch:'CH 911',lngLat:[120.299,22.597],
+   fence:[[120.292,22.604],[120.306,22.604],[120.308,22.592],[120.294,22.590]],cellsLit:['KH-03','KH-04','KH-08'],
+   funnels:[F('人員',420,415,408,377)],trace:{rule:'疫情風險 ≥ 60',threshold:'68 / 60',pws:'警訊通知',ch:'CH 911',publishSec:4.1},
+   sms:{unit:'航港局港勤中心',event:'泊位108靠泊船疫情風險橙級',area:'港區西側作業區',action:'限制非必要登輪，作業人員配戴N95'},acked:false},
+  {id:'e2',cat:'wx',sev:'notice',source:'dispatch',title:'強降雨 · 未來 30 分鐘',body:'降雨 80% · 吊掛暫緩',time:'19:12',ch:'CH 911',lngLat:[120.308,22.586],
+   fence:[[120.300,22.594],[120.316,22.592],[120.314,22.578],[120.302,22.580]],cellsLit:['KH-04','KH-09'],
+   funnels:[F('人員',320,318,312,236)],trace:{rule:'降雨機率 ≥ 70%',threshold:'80% / 70%',pws:'警訊通知',ch:'CH 911',publishSec:3.6},
+   sms:{unit:'航港局港勤中心',event:'未來30分鐘強降雨機率80%',area:'中央碼頭區',action:'橋式吊掛作業暫緩，倉儲區預防性排水'},acked:true},
+  {id:'e3',cat:'wx',sev:'orange',source:'weather',title:'強風 · 平均風速 18 m/s',body:'Beaufort 7 · 高空停止',time:'18:47',ch:'CH 911',lngLat:[120.320,22.575],
+   fence:[[120.310,22.586],[120.330,22.580],[120.334,22.564],[120.314,22.568]],cellsLit:['KH-05','KH-06','KH-09'],
+   funnels:[F('人員',560,554,545,489)],trace:{rule:'10min 風速 ≥ 15 m/s',threshold:'18 / 15',pws:'警訊通知',ch:'CH 911',publishSec:3.2},
+   sms:{unit:'航港局港勤中心',event:'港區平均風速18m/s（蒲福7級）',area:'南側高空作業區',action:'高空作業即刻停止，起重機錨定'},acked:false},
+  {id:'e4',cat:'wx',sev:'orange',source:'weather',title:'雷擊警戒 · 雷雨胞 SW 8km',body:'SW 8km · 油品區戒備 · 加油暫停',time:'16:58',ch:'CH 911',lngLat:[120.332,22.564],
+   fence:[[120.324,22.572],[120.342,22.566],[120.344,22.552],[120.328,22.556]],cellsLit:['KH-06','KH-07'],
+   funnels:[F('人員',204,202,198,171)],trace:{rule:'雷雨胞 < 10 km',threshold:'8 / 10 km',pws:'警訊通知',ch:'CH 911',publishSec:2.9},
+   sms:{unit:'航港局港勤中心',event:'雷雨胞接近港區西南8km',area:'油品裝卸區',action:'加油作業暫停，人員離開露天高點'},acked:true},
+  {id:'e5',cat:'ok',sev:'clear',source:'weather',title:'解除 · 雷擊警戒',body:'移出 10km · 恢復作業',time:'17:05',ch:'CH 919',lngLat:[120.332,22.564],
+   fence:[[120.324,22.572],[120.342,22.566],[120.344,22.552],[120.328,22.556]],cellsLit:[],
+   funnels:[F('人員',204,202,199,150)],trace:{rule:'條件消失 · 自動解除',threshold:'> 10 km',pws:'警訊通知',ch:'CH 919',publishSec:2.4},
+   sms:{unit:'航港局港勤中心',event:'雷擊警戒解除',area:'油品裝卸區',action:'恢復加油作業，回報作業狀態'},acked:true},
+  {id:'e6',cat:'ok',sev:'clear',source:'epidemic',title:'解除 · 疫情黃級 EVER LUCENT',body:'WHO 下修 · 恢復登輪',time:'15:40',ch:'CH 919',lngLat:[120.299,22.597],
+   fence:[[120.292,22.604],[120.306,22.604],[120.308,22.592],[120.294,22.590]],cellsLit:[],
+   funnels:[F('人員',380,378,371,290)],trace:{rule:'風險回落 < 40',threshold:'34 / 40',pws:'警訊通知',ch:'CH 919',publishSec:2.7},
+   sms:{unit:'航港局港勤中心',event:'EVER LUCENT疫情黃級解除',area:'港區西側作業區',action:'恢復一般登輪程序'},acked:true}
+];
+const POOL=[
+  {id:'d1',cat:'wx',sev:'notice',source:'weather',title:'雷擊警戒 · 雷雨胞 SW 8km',body:'SW 8km · 油品區戒備 · 加油暫停',time:'19:41',ch:'CH 911',lngLat:[120.334,22.560],
+   fence:[[120.326,22.568],[120.344,22.562],[120.346,22.549],[120.330,22.553]],cellsLit:['KH-05','KH-06','KH-07'],
+   funnels:[F('人員',182,180,176,121)],trace:{rule:'雷雨胞 < 10 km',threshold:'8 / 10 km',pws:'警訊通知',ch:'CH 911',publishSec:3.4},
+   sms:{unit:'航港局港勤中心',event:'雷雨胞接近港區西南8km',area:'油品裝卸區',action:'加油作業暫停，人員離開露天高點'},acked:false,
+   toast:'警訊通知已發布 · 作業提示 · 觸及 180 人'},
+  {id:'d2',cat:'wx',sev:'red',source:'system',title:'颱風海上陸上警報 · 全港停止作業',body:'全港疏散 · 船舶加纜 · 2,400 人 / 47 艘',time:'19:44',ch:'CH 4371',lngLat:[120.308,22.585],
+   fence:[[120.268,22.624],[120.310,22.618],[120.350,22.566],[120.344,22.544],[120.296,22.576],[120.270,22.606]],cellsLit:CELLS.map(c=>c.id),
+   funnels:[F('人員',2400,2400,2362,1875),F('船舶',47,47,47,41)],trace:{rule:'CWA 颱風警報 · 7 級風停工',threshold:'海上陸上警報',pws:'緊急警報',ch:'CH 4371',publishSec:2.1},
+   sms:{unit:'交通部航港局',event:'颱風海上陸上警報 全港區停止作業',area:'高雄港全港區',action:'露天作業人員即刻疏散，船舶加纜、小船進避風水域'},acked:false,
+   toast:'緊急警報已發布 · 紅色警報 · 全港廣播'}
+];
+let feed=FEED0.map(e=>({...e})),poolIdx=0,curId=null,curCat='all',simming=false;
+
+/* ===== KPI ===== */
+function renderKpis(){document.getElementById('kpis').innerHTML=
+  `<div class="kchip">今日發布<b id="kPub">14</b></div><div class="kchip">觸及 人員/船舶<b>2,610 / 47</b></div><div class="kchip hi">平均送達延遲<b>3.2 s</b></div><div class="kchip">送達率<b>98.2%</b></div>`;}
+
+/* ===== Mapbox ===== */
+let map=null,mapReady=false,cellMk={},dotMk=null,fenceBreath=null;
+function initMap(){
+  const hasToken=MAPBOX_TOKEN&&MAPBOX_TOKEN.indexOf('pk.')===0&&typeof mapboxgl!=='undefined';
+  if(!hasToken){document.getElementById('mapfallback').style.display='flex';return;}
+  const fb=document.getElementById('mapfallback');if(fb)fb.remove();
+  mapboxgl.accessToken=MAPBOX_TOKEN;
+  map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[120.308,22.585],zoom:12.15,attributionControl:false,cooperativeGestures:false});
+  map.on('load',()=>{
+    map.addSource('fence',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'fence-f',type:'fill',source:'fence',paint:{'fill-color':'#FF7A59','fill-opacity':.1}});
+    map.addLayer({id:'fence-l',type:'line',source:'fence',paint:{'line-color':'#FF7A59','line-width':1.6,'line-opacity':.8,'line-dasharray':[3,2]}});
+    CELLS.forEach(c=>{
+      const w=document.createElement('div');w.className='cellwrap';
+      w.innerHTML=`<div class="cell"></div><div class="tip"><b style="font-family:var(--mono)">${c.id}</b> · 送達 <b id="tip-${c.id}">${c.delivered}</b> 支</div>`;
+      cellMk[c.id]=w;
+      new mapboxgl.Marker({element:w,anchor:'center'}).setLngLat(c.lngLat).addTo(map);
+    });
+    const d=document.createElement('div');d.className='pdot';d.style.display='none';
+    dotMk=new mapboxgl.Marker({element:d,anchor:'center'}).setLngLat([120.3,22.59]).addTo(map);
+    mapReady=true;if(curId)renderMap(feed.find(e=>e.id===curId));
+  });
+}
+function setFence(ev){
+  if(!mapReady)return;
+  map.getSource('fence').setData(ev?{type:'Feature',geometry:{type:'Polygon',coordinates:[[...ev.fence,ev.fence[0]]]},properties:{}}:{type:'FeatureCollection',features:[]});
+  clearInterval(fenceBreath);
+  if(ev&&!RM){let t=0;fenceBreath=setInterval(()=>{t+=.14;map.getPaintProperty&&map.setPaintProperty('fence-l','line-opacity',.55+Math.sin(t)*.3);},120);}
+}
+function litCells(ids,stagger){
+  Object.values(cellMk).forEach(w=>w.classList.remove('lit'));
+  if(!stagger||RM){ids.forEach(id=>cellMk[id]&&cellMk[id].classList.add('lit'));return 0;}
+  ids.forEach((id,i)=>setTimeout(()=>cellMk[id]&&cellMk[id].classList.add('lit'),i*110));
+  return ids.length*110;
+}
+function ripple(lngLat){
+  if(!mapReady||RM)return;
+  for(let k=0;k<3;k++)setTimeout(()=>{
+    const r=document.createElement('div');r.className='ripple act';
+    const mk=new mapboxgl.Marker({element:r,anchor:'center'}).setLngLat(lngLat).addTo(map);
+    setTimeout(()=>mk.remove(),1600);
+  },k*380);
+}
+function renderMap(ev){
+  if(!mapReady)return;
+  setFence(ev);litCells(ev?ev.cellsLit:[],false);
+  if(ev){dotMk.getElement().style.display='';dotMk.setLngLat(ev.lngLat);
+    const b=new mapboxgl.LngLatBounds();ev.fence.forEach(p=>b.extend(p));CELLS.forEach(c=>{if(ev.cellsLit.includes(c.id))b.extend(c.lngLat);});
+    map.fitBounds(b,{padding:90,duration:RM?0:700,maxZoom:13.6});
+  }else dotMk.getElement().style.display='none';
+}
+
+/* ===== 手機 ===== */
+function renderPhone(ev,drill){
+  const scr=document.getElementById('phoneScr'),pa=document.getElementById('palert'),ph=document.getElementById('phone');
+  pa.classList.remove('show');ph.classList.remove('shake');
+  if(!ev){scr.innerHTML=`<div class="banner old"><div class="bfrom">▲ 橙色警戒 · CH 911</div><b>泊位108靠泊船疫情風險橙級</b><br>【航港局港勤中心】限制非必要登輪</div><div class="banner old"><div class="bfrom">▲ 作業提示 · CH 911</div><b>未來30分鐘強降雨機率80%</b><br>【航港局港勤中心】橋式吊掛作業暫緩</div>`;return;}
+  const s=ev.sms;
+  if(ev.sev==='red'){
+    pa.innerHTML=`<div class="ptag"><span class="tri">▲</span>緊急警報 EMERGENCY ALERT</div><h5>${s.event}</h5><div class="pbody">【${s.unit}】影響區域：${s.area}。${s.action}。</div><div class="pch">${ev.ch} · PWS 緊急警報 · ${ev.time}</div>`;
+    pa.classList.add('show');
+    if(drill&&!RM)ph.classList.add('shake');
+    scr.innerHTML='';
+  }else{
+    scr.innerHTML=`<div class="banner ${ev.sev==='orange'?'warn':''}"><div class="bfrom">▲ ${SEVN[ev.sev]} · ${ev.ch}</div><b>${s.event}</b><br>【${s.unit}】${s.area} · ${s.action}</div><div class="banner old"><div class="bfrom">▲ 前一則</div>港區平均風速18m/s，高空作業停止</div>`;
+  }
+}
+
+/* ===== 漏斗 ===== */
+const STEPS=[['triggered','觸發'],['published','發布'],['delivered','送達'],['acked','回報']];
+function renderFunnel(ev,countUp){
+  const el=document.getElementById('funnel');
+  if(!ev){el.innerHTML='<div style="font-size:10.5px;color:var(--ink40)">點選事件查看該次推播</div>';return;}
+  el.innerHTML=ev.funnels.map((f,fi)=>{
+    const max=f.triggered;
+    return `<div class="fun"><div class="funlbl"><span>${f.label}</span><b>${f.delivered.toLocaleString()} 送達</b></div><div class="frail">`+
+      STEPS.map(([k,nm],i)=>{
+        const v=f[k],pct=i===0?100:Math.round(v/f[STEPS[i-1][0]]*1000)/10;
+        return `<div class="fstep"><span class="nm">${nm}</span><div class="bar" data-fi="${fi}" data-k="${k}" style="width:${v/max*100}%"></div><span class="num" data-num data-fi="${fi}" data-k="${k}">${countUp?0:v.toLocaleString()}</span><span class="pct">${i===0?'':pct+'%'}</span></div>`;
+      }).join('')+`</div></div>`;
+  }).join('');
+  if(countUp&&!RM){
+    el.querySelectorAll('[data-num]').forEach(sp=>{
+      const f=ev.funnels[+sp.dataset.fi],target=f[sp.dataset.k];const t0=performance.now();
+      const tick=now=>{const p=Math.min((now-t0)/900,1);sp.textContent=Math.round(target*p).toLocaleString();if(p<1)requestAnimationFrame(tick);};
+      requestAnimationFrame(tick);
+    });
+  }else if(countUp){el.querySelectorAll('[data-num]').forEach(sp=>{sp.textContent=ev.funnels[+sp.dataset.fi][sp.dataset.k].toLocaleString();});}
+}
+
+/* ===== 事件流 ===== */
+function traceHtml(ev,states){
+  const t=ev.trace;const st=i=>{if(!states)return 'on';return states[i]==='done'?'on':states[i]==='run'?'on run':'';};
+  const node=(i,b,sub)=>`<div class="tnode ${st(i)}"><span class="lamp"></span><span><b>${b}</b><span class="sub">${sub}</span></span></div>`;
+  return `<div class="trace">${node(0,'偵測',ev.source==='epidemic'?'疫情自動追溯':ev.source==='dispatch'?'微氣候派工':'氣象監測')}${node(1,'規則命中',`${t.rule} · <span class="tmono">${t.threshold}</span>`)}${node(2,'分級',`<span style="color:${SEVC[ev.sev]}">${SEVN[ev.sev]}</span> · PWS ${t.pws}`)}${node(3,'發布',`<span class="tmono">${t.ch} · +${t.publishSec}s</span>`)}</div>`;
+}
+function renderFeed(){
+  const el=document.getElementById('feed');el.innerHTML='';
+  feed.filter(e=>curCat==='all'||e.cat===curCat).forEach(ev=>{
+    const c=SEVC[ev.sev];const card=document.createElement('div');
+    card.className='ecard'+(ev.id===curId?' sel':(ev.sev==='clear'||ev.sev==='notice'?' dim':''));
+    card.style.setProperty('--sv',c);
+    card.innerHTML=`<div class="etop"><span class="sdot" style="background:${SRCC[ev.source]};box-shadow:0 0 7px ${SRCC[ev.source]}66"></span><span class="etitle" style="color:${ev.sev==='red'||ev.sev==='orange'?c:'#aab6c4'}">${ev.title}</span><span class="etime">${ev.time}</span></div>
+      <div class="ebody">${ev.body}</div>
+      <div class="emeta"><span class="chb">${ev.ch}</span><span class="chb" style="border-color:${c}55;color:${c}">${SEVN[ev.sev]}</span><button class="ackbtn ${ev.acked?'done':'todo'}" style="--sv:${c}">${ev.acked?'已確認':'確認'}</button></div>
+      ${traceHtml(ev,ev._traceStates)}${ev._unread?'<span class="unread"></span>':''}`;
+    card.querySelector('.ackbtn').onclick=e=>{e.stopPropagation();if(!ev.acked){ev.acked=true;renderFeed();}};
+    card.onclick=()=>{ev._unread=false;select(ev.id);};
+    el.appendChild(card);
+  });
+}
+function select(id){
+  curId=id;const ev=feed.find(e=>e.id===id);
+  renderFeed();renderMap(ev);renderPhone(ev,false);renderFunnel(ev,false);
+}
+document.getElementById('fbar').addEventListener('click',e=>{
+  const b=e.target.closest('.fchip');if(!b)return;curCat=b.dataset.cat;
+  document.querySelectorAll('.fchip').forEach(x=>x.classList.toggle('is-on',x===b));renderFeed();
+});
+
+/* ===== 模擬事件（池兩發 → 重置） ===== */
+function toast(msg){if(window.LiquidGlass&&LiquidGlass.toast){LiquidGlass.toast({title:'自動警報推播',message:msg,duration:3400});return;}
+  const t=document.createElement('div');t.textContent=msg;t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1c0e08;border:1px solid rgba(255,122,89,.5);color:#ffd9cd;padding:10px 16px;border-radius:9px;font-size:12px;z-index:99';document.body.appendChild(t);setTimeout(()=>t.remove(),3200);}
+function simulate(){
+  if(simming)return;
+  const btn=document.getElementById('simBtn');
+  if(poolIdx>=POOL.length){feed=FEED0.map(e=>({...e}));poolIdx=0;
+    select('e1');document.getElementById('kPub').textContent='14';toast('演練池重置 · 回到初始事件流');return;}
+  const ev={...POOL[poolIdx++],_unread:true};simming=true;btn.disabled=true;
+  const finish=()=>{simming=false;btn.disabled=false;document.getElementById('kPub').textContent=String(14+poolIdx);};
+  if(RM){feed=[{...ev,_traceStates:null},...feed];curId=ev.id;
+    renderFeed();renderMap(ev);renderPhone(ev,false);renderFunnel(ev,true);toast(ev.toast);finish();return;}
+  /* 全鏈路動畫：插卡（軌跡逐節亮）→ 波紋+cell stagger → 手機 → 漏斗滾數字 */
+  ev._traceStates=['run','wait','wait','wait'];feed=[ev,...feed];curId=ev.id;
+  renderFeed();renderMap({...ev,cellsLit:[]});renderPhone(null);renderFunnel(null);
+  const TS=[['done','run','wait','wait'],['done','done','run','wait'],['done','done','done','run'],null];
+  TS.forEach((s,i)=>setTimeout(()=>{ev._traceStates=s;renderFeed();},600+i*600));
+  setTimeout(()=>{ripple(ev.lngLat);litCells(ev.cellsLit,true);},2200);
+  setTimeout(()=>{renderPhone(ev,true);toast(ev.toast);},2200+Math.min(ev.cellsLit.length*110,1100)+300);
+  setTimeout(()=>{renderFunnel(ev,true);},3600);
+  setTimeout(finish,5200);
+}
+document.getElementById('simBtn').onclick=simulate;
+
+/* ===== 啟動 ===== */
+if(window.LiquidGlass&&LiquidGlass.init)LiquidGlass.init();
+renderKpis();initMap();select('e1');
+let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(map)map.resize();},150);});
+</script>
+</body>
+</html>
