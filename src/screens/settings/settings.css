@@ -111,7 +111,54 @@
 #s-settings .chip.live{border-color:rgba(53,224,166,.4);color:var(--green)}
 #s-settings .dsrow .st{flex:1;text-align:right;font-size:10.5px;color:var(--ink40);font-family:var(--mono)}
 
+/* ===== Task 6 累加：policy 分區——供應商卡牆 + segmented + Setup modal ===== */
+/* 自 preview 第 104-116 行（.pgrid/.pcard）轉錄 */
+#s-settings .pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+#s-settings .pcard{border:1px solid var(--line);border-radius:10px;padding:12px;background:rgba(255,255,255,.02);
+  cursor:pointer;transition:.18s;display:flex;flex-direction:column;gap:7px;min-height:92px}
+#s-settings .pcard:hover{border-color:rgba(159,176,192,.4);background:rgba(255,255,255,.04)}
+#s-settings .pcard b{font-size:12.5px;color:#e8f0f6;letter-spacing:.02em}
+#s-settings .pcard .meta{font-size:10px;color:var(--ink40);font-family:var(--mono)}
+#s-settings .pcard .stt{font-size:10px;display:flex;align-items:center;gap:5px;margin-top:auto}
+#s-settings .pcard .stt .lamp{width:6px;height:6px;border-radius:50%;background:#333d4d}
+#s-settings .pcard.ok .stt .lamp{background:var(--green);box-shadow:0 0 7px var(--green)}
+#s-settings .pcard.ok .stt{color:var(--green)}
+#s-settings .pcard:not(.ok) .stt{color:var(--ink40)}
+#s-settings .pcard.addc{border-style:dashed;align-items:center;justify-content:center;color:var(--cyan);font-size:12px}
+#s-settings .pcard.addc:hover{background:rgba(56,189,248,.06);border-color:rgba(56,189,248,.4)}
+
+/* segmented（llm 接口，instant）——自 preview 第 132-135 行轉錄 */
+#s-settings .seg{display:inline-flex;gap:2px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:2px}
+#s-settings .seg button{border:0;background:transparent;color:var(--ink40);font-size:11px;padding:5px 14px;border-radius:20px;cursor:pointer;transition:.15s}
+#s-settings .seg button.on{background:rgba(56,189,248,.18);color:var(--cyan)}
+
+/* Modal——自 preview 第 137-149 行轉錄。全域限制：不手寫 backdrop-filter，
+   .mwrap 改純色壓暗（rgba(4,8,14,.82)）取代 preview 的 backdrop-filter:blur(4px)。 */
+#s-settings .mwrap{position:fixed;inset:0;background:rgba(4,8,14,.82);display:none;
+  align-items:center;justify-content:center;z-index:50}
+#s-settings .mwrap.open{display:flex}
+#s-settings .mbox{width:560px;max-width:92vw;max-height:86vh;overflow:auto;background:#0c1320;border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;padding:18px 20px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+#s-settings .mbox.wide{width:660px}
+#s-settings .mhead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+#s-settings .mhead h3{margin:0;font-size:15px;font-weight:800}
+#s-settings .mhead .sp{flex:1}
+#s-settings .mclose{width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;
+  color:var(--ink60);cursor:pointer;font-size:13px}
+#s-settings .mclose:hover{background:rgba(255,255,255,.06)}
+#s-settings .msec{font-size:9.5px;letter-spacing:.14em;color:#55606f;text-transform:uppercase;margin:14px 0 7px}
+
+/* 模型清單（modal 內）——自 preview 第 159-166 行轉錄 */
+#s-settings .mdlrow{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;font-size:11.5px;transition:.12s}
+#s-settings .mdlrow:hover{background:rgba(255,255,255,.03)}
+#s-settings .mdlrow .kind{font-size:9px;padding:1.5px 7px;border-radius:20px;border:1px solid rgba(255,255,255,.14);color:var(--ink40)}
+#s-settings .mdlrow .kind.emb{border-color:rgba(127,180,255,.4);color:var(--tblue)}
+#s-settings .mdlrow .kind.rr{border-color:rgba(233,188,99,.4);color:var(--gold)}
+#s-settings .mdlrow label{flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--mono)}
+#s-settings .mdlrow input{accent-color:#35E0A6}
+
 @media (max-width:1100px){
   #s-settings .sgrid{grid-template-columns:1fr}
   #s-settings .subnav{position:static;flex-direction:row;flex-wrap:wrap}
+  #s-settings .pgrid{grid-template-columns:repeat(2,1fr)}
 }

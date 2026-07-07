@@ -6,6 +6,7 @@ import { validateSections, type SettingsSection, type SettingsCtx } from './sche
 import { renderSection } from './renderer';
 import { frontendSection } from './sections/frontend';
 import { carbonSection } from './sections/carbon';
+import { policySection } from './sections/policy';
 import { twinSection } from './sections/twin';
 import { dispatchSection } from './sections/dispatch';
 import { epidemicSection } from './sections/epidemic';
@@ -48,7 +49,7 @@ const screen: Screen = {
     sctx = {
       data: ctx.data,
       toast: (o) => ctx.ui.toast(o),
-      rerender: () => renderPanel(),
+      rerender: () => { renderNav(); renderPanel(); }, // 狀態變更後左欄狀態小字（如「n 供應商已連線」）需同步更新
       goto: (sectionId: string, groupTitle?: string) => {
         select(sectionId);
         if (groupTitle) {
@@ -63,11 +64,11 @@ const screen: Screen = {
         }
       },
     };
-    // Task 3：frontend + 四佔位換成真 sections；Task 5：carbon 換真 section；policy 仍為 Task 2 stub（Task 6 才換）
+    // Task 3：frontend + 四佔位換成真 sections；Task 5：carbon 換真 section；Task 6：policy 換真 section
     SECTIONS = [
       frontendSection,
       carbonSection,
-      { id: 'policy', label: '政策報告', color: '#38BDF8', status: () => '', groups: [] },
+      policySection,
       twinSection,
       dispatchSection,
       epidemicSection,

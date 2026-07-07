@@ -5,7 +5,7 @@
 import type { Screen, ScreenCtx } from '../types';
 import type { PolicyBrief, PolicyQA, PolicySource } from '../../data/types';
 import { screenHeader } from '../../ui/components';
-import { prefersReduced } from '../settings/storage';
+import { getSetting, prefersReduced, setSetting, subscribe } from '../settings/storage';
 import { runTimeline, type TimelineHandle } from './generate';
 import template from './policy.html?raw';
 import './policy.css';
@@ -16,7 +16,7 @@ let briefs: PolicyBrief[] = [];
 let inflowPool: PolicyBrief[] = [];
 let globalQa: PolicyQA[] = [];
 let curId = '';
-let llm: keyof typeof MODEL = 'local';
+let llm: keyof typeof MODEL = getSetting('policy.llmMode', 'local') as keyof typeof MODEL;
 let sectionEl: HTMLElement;
 let sCtx: ScreenCtx;
 
@@ -516,8 +516,8 @@ const s: Screen = {
         // 本頁不顯示資料源 chip 與技術徽章（spec §2 標題列再減負）
         actionsHtml:
           '<nav class="llmswitch lg" data-lg aria-label="LLM 接口切換">' +
-          '<button class="lbtn on" data-llm="local">地端部署</button>' +
-          '<button class="lbtn" data-llm="cloud">雲端 API</button></nav>',
+          '<button class="lbtn' + (llm === 'local' ? ' on' : '') + '" data-llm="local">地端部署</button>' +
+          '<button class="lbtn' + (llm === 'cloud' ? ' on' : '') + '" data-llm="cloud">雲端 API</button></nav>',
       }) +
       template +
       '</div>';
@@ -529,12 +529,22 @@ const s: Screen = {
         el.querySelectorAll('.lbtn').forEach((x) => x.classList.remove('on'));
         btn.classList.add('on');
         llm = btn.getAttribute('data-llm') as keyof typeof MODEL;
+        setSetting('policy.llmMode', llm);
         ctx.ui.toast({
           title: '已切換 LLM 接口',
           message: `${llm === 'local' ? '地端部署' : '雲端 API'}（${MODEL[llm]}），下次生成生效`,
           duration: 3200,
         });
       });
+    });
+
+    // 設定頁改 llmMode → 本頁 segmented 跟隨（切換 handler 內 setSetting 會回射自己，值比對免震盪）
+    subscribe('policy.llmMode', (v) => {
+      if (v !== 'local' && v !== 'cloud') return;
+      if (v === llm) return;
+      llm = v;
+      el.querySelectorAll('.lbtn').forEach((x) =>
+        x.classList.toggle('on', x.getAttribute('data-llm') === llm));
     });
 
     // 收件匣點擊委派
