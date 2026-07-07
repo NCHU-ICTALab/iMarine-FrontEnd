@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>系統設定 · Settings 頁基準</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../src/ui/liquid-glass.css">
+<link rel="stylesheet" href="../../src/ui/tokens.css">
+<style>
+  :root{ --set:#9FB0C0; --rose:#F0648C; --amber:#F5A54A; --gold:#E9BC63; --green:#35E0A6; --cyan:#38BDF8;
+         --tblue:#7FB4FF; --flame:#FF7A59;
+         --ink:#dbe3ec; --ink60:#8b9bad; --ink40:#6b7a8d; --panel:#0d1420; --line:rgba(255,255,255,.08);
+         --mono:ui-monospace,"Geist Mono",monospace; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#070b11;color:var(--ink);font-family:-apple-system,"Noto Sans TC",sans-serif;line-height:1.45;
+       background-image:radial-gradient(80% 60% at 25% 0%,#101a2c,transparent),radial-gradient(70% 50% at 100% 20%,#14101c,transparent);min-height:100vh}
+  .swrap{max-width:1360px;margin:0 auto;padding:26px 24px 60px}
+  .eyebrow{font-size:10px;letter-spacing:.16em;color:var(--set);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--set);box-shadow:0 0 10px var(--set)}
+  .hrow{display:flex;justify-content:space-between;align-items:flex-end;margin:8px 0 18px}
+  .hrow h1{font-size:26px;font-weight:800;margin:5px 0 0;letter-spacing:.01em}
+
+  /* ===== 版面：左欄導覽 + 右側面板 ===== */
+  .grid{display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start}
+  .subnav{display:flex;flex-direction:column;gap:5px;position:sticky;top:20px}
+  .sitem{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;border:1px solid transparent;
+         font-size:12.5px;color:var(--ink60);cursor:pointer;transition:.18s;background:transparent}
+  .sitem:hover{background:rgba(255,255,255,.04)}
+  .sitem .d{width:8px;height:8px;border-radius:50%;flex:none}
+  .sitem .nm{flex:1;font-weight:600;letter-spacing:.02em}
+  .sitem .st{font-size:9.5px;color:var(--ink40);font-weight:400;white-space:nowrap}
+  .sitem.on{background:rgba(159,176,192,.1);border-color:rgba(159,176,192,.35);color:#e8f0f6}
+  .sitem.on .st{color:var(--ink60)}
+
+  .panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .gcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px}
+  .gcard.pend{opacity:.55}
+  .ghead{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+  .ghead h3{margin:0;font-size:13.5px;font-weight:700;letter-spacing:.02em}
+  .gbadge{font-size:9px;padding:2.5px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.14);color:var(--ink40);letter-spacing:.06em}
+  .gbadge.live{border-color:rgba(53,224,166,.4);color:var(--green)}
+  .gbadge.blue{border-color:rgba(56,189,248,.4);color:var(--cyan)}
+  .gbadge.wait{border-color:rgba(245,165,74,.4);color:var(--amber)}
+  .ghead .sp{flex:1}
+  .gnote{font-size:10.5px;color:var(--ink40);margin-top:10px;line-height:1.6}
+  .gnote a{color:var(--cyan);cursor:pointer;text-decoration:underline}
+
+  /* ===== 欄位 ===== */
+  .frow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .frow:last-child{border-bottom:0}
+  .flabel{width:170px;flex:none;font-size:12px;color:#c3d0de;font-weight:600}
+  .flabel .help{display:block;font-size:9.5px;color:var(--ink40);font-weight:400;margin-top:2px;letter-spacing:.02em}
+  .fctl{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+  .tin{flex:1;max-width:420px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);border-radius:8px;
+       padding:7px 10px;font-size:12px;color:var(--ink);font-family:var(--mono);outline:none;transition:.15s}
+  .tin:focus{border-color:rgba(159,176,192,.5)}
+  .tin::placeholder{color:#3d4a5c;font-family:-apple-system,"Noto Sans TC",sans-serif}
+  .tin[disabled]{opacity:.5;cursor:not-allowed}
+  .tin.num{max-width:110px;font-family:var(--mono)}
+  .sel{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:7px 10px;
+       font-size:12px;color:var(--ink);outline:none;min-width:190px;cursor:pointer}
+  .sel[disabled]{opacity:.5;cursor:not-allowed}
+  .sel option{background:#0d1420}
+  .eyebtn,.mini{font-size:10.5px;padding:6px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.14);
+       background:rgba(255,255,255,.04);color:var(--ink60);cursor:pointer;white-space:nowrap;transition:.15s}
+  .eyebtn:hover,.mini:hover{background:rgba(255,255,255,.09);color:#c3d0de}
+  .mini.acc{border-color:rgba(56,189,248,.4);color:var(--cyan);background:rgba(56,189,248,.08)}
+  .mini.acc:hover{background:rgba(56,189,248,.16)}
+  .mini.danger{border-color:rgba(240,100,140,.4);color:var(--rose)}
+  .mini[disabled]{opacity:.4;cursor:not-allowed}
+  .masked{font-family:var(--mono);font-size:12px;color:var(--ink60)}
+
+  /* toggle（instant） */
+  .tgl{position:relative;width:36px;height:20px;flex:none;cursor:pointer}
+  .tgl input{opacity:0;width:0;height:0;position:absolute}
+  .tgl .tr{position:absolute;inset:0;border-radius:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);transition:.2s}
+  .tgl .th{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#8b9bad;transition:.2s}
+  .tgl input:checked + .tr{background:rgba(53,224,166,.25);border-color:rgba(53,224,166,.5)}
+  .tgl input:checked + .tr + .th{left:19px;background:var(--green)}
+  .tgl.dis{opacity:.4;pointer-events:none}
+  .flash{font-size:10px;color:var(--green);opacity:0;transition:opacity .25s}
+  .flash.show{opacity:1}
+
+  /* 儲存列（explicit dirty） */
+  .savebar{display:none;align-items:center;gap:10px;margin-top:12px;padding:9px 12px;border-radius:9px;
+           background:rgba(245,165,74,.07);border:1px solid rgba(245,165,74,.3);font-size:11px;color:var(--amber)}
+  .savebar.show{display:flex}
+  .savebar .sp{flex:1}
+  .saved{display:none;margin-top:12px;font-size:11px;color:var(--green)}
+  .saved.show{display:block;animation:fadeout 1.8s forwards}
+  @keyframes fadeout{0%,70%{opacity:1}100%{opacity:0}}
+
+  /* ===== 資料源總覽表 ===== */
+  .dsrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px}
+  .dsrow:last-child{border-bottom:0}
+  .dsrow .d{width:8px;height:8px;border-radius:50%;flex:none}
+  .dsrow .nm{width:150px;font-weight:600;color:#c3d0de}
+  .chip{font-size:9px;padding:2.5px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.14);color:var(--ink40);letter-spacing:.08em}
+  .chip.live{border-color:rgba(53,224,166,.4);color:var(--green)}
+  .dsrow .st{flex:1;text-align:right;font-size:10.5px;color:var(--ink40);font-family:var(--mono)}
+
+  /* ===== 供應商卡牆 ===== */
+  .pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .pcard{border:1px solid var(--line);border-radius:10px;padding:12px;background:rgba(255,255,255,.02);
+         cursor:pointer;transition:.18s;display:flex;flex-direction:column;gap:7px;min-height:92px}
+  .pcard:hover{border-color:rgba(159,176,192,.4);background:rgba(255,255,255,.04)}
+  .pcard b{font-size:12.5px;color:#e8f0f6;letter-spacing:.02em}
+  .pcard .meta{font-size:10px;color:var(--ink40);font-family:var(--mono)}
+  .pcard .stt{font-size:10px;display:flex;align-items:center;gap:5px;margin-top:auto}
+  .pcard .stt .lamp{width:6px;height:6px;border-radius:50%;background:#333d4d}
+  .pcard.ok .stt .lamp{background:var(--green);box-shadow:0 0 7px var(--green)}
+  .pcard.ok .stt{color:var(--green)}
+  .pcard:not(.ok) .stt{color:var(--ink40)}
+  .pcard.addc{border-style:dashed;align-items:center;justify-content:center;color:var(--cyan);font-size:12px}
+  .pcard.addc:hover{background:rgba(56,189,248,.06);border-color:rgba(56,189,248,.4)}
+
+  /* ===== 知識庫卡牆 ===== */
+  .kbgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .kbcard{position:relative;border:1px solid var(--line);border-radius:10px;padding:12px;background:rgba(255,255,255,.02);
+          cursor:pointer;transition:.18s;min-height:78px;display:flex;flex-direction:column;gap:5px}
+  .kbcard:hover{border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.04)}
+  .kbcard b{font-size:12.5px;color:#e8f0f6}
+  .kbcard .meta{font-size:10px;color:var(--ink40);font-family:var(--mono);margin-top:auto}
+  .kbcard .del{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:6px;border:1px solid rgba(240,100,140,.4);
+               background:rgba(240,100,140,.1);color:var(--rose);font-size:12px;line-height:18px;text-align:center;
+               cursor:pointer;opacity:0;transition:.15s}
+  .kbcard:hover .del{opacity:1}
+  .kbcard.addc{border-style:dashed;align-items:center;justify-content:center;color:var(--cyan);font-size:12px}
+  .kbcard.addc:hover{background:rgba(56,189,248,.06)}
+
+  /* segmented（llm 接口，instant） */
+  .seg{display:inline-flex;gap:2px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:2px}
+  .seg button{border:0;background:transparent;color:var(--ink40);font-size:11px;padding:5px 14px;border-radius:20px;cursor:pointer;transition:.15s}
+  .seg button.on{background:rgba(56,189,248,.18);color:var(--cyan)}
+
+  /* ===== Modal ===== */
+  .mwrap{position:fixed;inset:0;background:rgba(4,8,14,.72);backdrop-filter:blur(4px);display:none;
+         align-items:center;justify-content:center;z-index:50}
+  .mwrap.open{display:flex}
+  .mbox{width:560px;max-width:92vw;max-height:86vh;overflow:auto;background:#0c1320;border:1px solid rgba(255,255,255,.12);
+        border-radius:14px;padding:18px 20px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .mbox.wide{width:660px}
+  .mhead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .mhead h3{margin:0;font-size:15px;font-weight:800}
+  .mhead .sp{flex:1}
+  .mclose{width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;
+          color:var(--ink60);cursor:pointer;font-size:13px}
+  .mclose:hover{background:rgba(255,255,255,.06)}
+  .msec{font-size:9.5px;letter-spacing:.14em;color:#55606f;text-transform:uppercase;margin:14px 0 7px}
+
+  /* 測試連線狀態 */
+  .tstate{font-size:11px;display:flex;align-items:center;gap:6px;min-height:18px}
+  .tstate.run{color:var(--cyan)} .tstate.ok{color:var(--green)} .tstate.err{color:var(--rose)}
+  .spin{width:11px;height:11px;border:2px solid rgba(56,189,248,.3);border-top-color:var(--cyan);border-radius:50%;
+        animation:sp 0.8s linear infinite;flex:none}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* 模型清單（modal 內） */
+  .mdlrow{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;font-size:11.5px;transition:.12s}
+  .mdlrow:hover{background:rgba(255,255,255,.03)}
+  .mdlrow .kind{font-size:9px;padding:1.5px 7px;border-radius:20px;border:1px solid rgba(255,255,255,.14);color:var(--ink40)}
+  .mdlrow .kind.emb{border-color:rgba(127,180,255,.4);color:var(--tblue)}
+  .mdlrow .kind.rr{border-color:rgba(233,188,99,.4);color:var(--gold)}
+  .mdlrow label{flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--mono)}
+  .mdlrow input{accent-color:#35E0A6}
+
+  /* 文件表（知識庫 modal） */
+  .docrow{display:flex;align-items:center;gap:9px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11.5px}
+  .docrow .fn{flex:1;font-family:var(--mono);color:#c3d0de;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .docrow .stat{font-size:10px;letter-spacing:.04em}
+  .docrow .stat.ok{color:var(--green)} .docrow .stat.idx{color:var(--amber)}
+  .docrow .rm{border:0;background:transparent;color:var(--ink40);cursor:pointer;font-size:12px;padding:2px 5px}
+  .docrow .rm:hover{color:var(--rose)}
+  .drop{border:1.5px dashed rgba(56,189,248,.35);border-radius:9px;padding:13px;text-align:center;font-size:11px;
+        color:var(--cyan);cursor:pointer;margin-top:8px;transition:.15s}
+  .drop:hover{background:rgba(56,189,248,.06)}
+
+  /* 檢索策略 radio 卡 */
+  .strat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .scard{border:1px solid var(--line);border-radius:9px;padding:9px 10px;cursor:pointer;font-size:11px;color:var(--ink60);transition:.15s}
+  .scard b{display:block;font-size:11.5px;color:#c3d0de;margin-bottom:2px}
+  .scard.on{border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.07);color:#c3d0de}
+  .subopt{margin-top:10px;padding:10px 12px;border-radius:9px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06)}
+  .rng{width:100%;accent-color:#38BDF8}
+  .rlab{display:flex;justify-content:space-between;font-size:10px;color:var(--ink40);font-family:var(--mono)}
+  .guide{font-size:10.5px;color:var(--amber)}
+  .guide a{color:var(--cyan);cursor:pointer;text-decoration:underline}
+
+  .hl{animation:hlp 1.6s ease-out}
+  @keyframes hlp{0%{box-shadow:0 0 0 2px rgba(56,189,248,.7)}100%{box-shadow:0 0 0 2px transparent}}
+
+  .anim{opacity:0;transform:translateY(8px);animation:up .5s forwards}
+  @keyframes up{to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){.anim{animation:none;opacity:1;transform:none}.flash,.saved{transition:none}}
+  @media (max-width:1100px){.grid{grid-template-columns:1fr}.subnav{position:static;flex-direction:row;flex-wrap:wrap}
+    .pgrid{grid-template-columns:repeat(2,1fr)}.kbgrid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body data-lg-theme="dark">
+<div class="swrap">
+  <div class="eyebrow anim" style="animation-delay:0s"><span class="dot"></span>SYSTEM SETTINGS</div>
+  <div class="hrow anim" style="animation-delay:.05s">
+    <h1>系統設定</h1>
+  </div>
+
+  <div class="grid">
+    <nav class="subnav anim" id="subnav" style="animation-delay:.1s"></nav>
+    <main class="panel anim" id="panel" style="animation-delay:.15s"></main>
+  </div>
+</div>
+
+<!-- 供應商 Setup modal -->
+<div class="mwrap" id="pmodal"><div class="mbox">
+  <div class="mhead"><h3 id="pm-title">設定供應商</h3><span class="sp"></span><button class="mclose" data-x="p">×</button></div>
+  <div class="frow"><div class="flabel">API URL</div>
+    <div class="fctl"><input class="tin" id="pm-url" placeholder="https://api.example.com/v1"></div></div>
+  <div class="frow"><div class="flabel">API KEY<span class="help" id="pm-keyhelp"></span></div>
+    <div class="fctl"><input class="tin" id="pm-key" type="password" placeholder="sk-...">
+      <button class="eyebtn" id="pm-eye">顯示</button></div></div>
+  <div class="frow"><div class="flabel">連線驗證</div>
+    <div class="fctl"><button class="mini acc" id="pm-test">測試連線</button>
+      <div class="tstate" id="pm-state"></div></div></div>
+  <div id="pm-models"></div>
+  <div class="savebar show" style="background:transparent;border-color:rgba(255,255,255,.1);color:var(--ink60)">
+    <span id="pm-hint">通過連線驗證後可儲存</span><span class="sp"></span>
+    <button class="mini danger" id="pm-remove" style="display:none">移除供應商</button>
+    <button class="mini acc" id="pm-save" disabled>儲存</button>
+  </div>
+</div></div>
+
+<!-- 知識庫 modal -->
+<div class="mwrap" id="kbmodal"><div class="mbox wide">
+  <div class="mhead"><h3 id="kb-title">知識庫</h3><span class="sp"></span><button class="mclose" data-x="kb">×</button></div>
+  <div class="msec">文件（即時生效）</div>
+  <div id="kb-docs"></div>
+  <div class="drop" id="kb-drop">拖放或點擊上傳文件（PDF / DOCX / TXT）</div>
+  <input type="file" id="kb-file" multiple style="display:none">
+  <div class="msec">分段與索引（需儲存）</div>
+  <div class="frow"><div class="flabel">Chunk 長度<span class="help">tokens</span></div>
+    <div class="fctl"><input class="tin num" id="kb-chunk" type="number" min="64" max="4096" step="64"></div></div>
+  <div class="frow"><div class="flabel">Chunk 重疊<span class="help">tokens</span></div>
+    <div class="fctl"><input class="tin num" id="kb-overlap" type="number" min="0" max="1024" step="16"></div></div>
+  <div class="frow"><div class="flabel">Embedding 模型</div>
+    <div class="fctl"><select class="sel" id="kb-emb"></select></div></div>
+  <div class="msec">檢索策略（需儲存）</div>
+  <div class="strat" id="kb-strat"></div>
+  <div class="subopt" id="kb-hybrid" style="display:none">
+    <div class="rlab"><span>語意權重</span><span id="kb-wlab">0.6</span><span>關鍵字權重</span></div>
+    <input type="range" class="rng" id="kb-weight" min="0" max="100" value="60">
+  </div>
+  <div class="frow" style="margin-top:8px"><div class="flabel">Rerank 重排序</div>
+    <div class="fctl">
+      <label class="tgl" id="kb-rrwrap"><input type="checkbox" id="kb-rerank"><span class="tr"></span><span class="th"></span></label>
+      <select class="sel" id="kb-rrmodel" style="display:none"></select>
+      <span class="guide" id="kb-rrguide" style="display:none">尚無可用 rerank 模型 — <a id="kb-goprov">先至模型管理設定</a></span>
+    </div></div>
+  <div class="savebar" id="kb-savebar"><span>未儲存變更</span><span class="sp"></span>
+    <button class="mini" id="kb-discard">捨棄</button><button class="mini acc" id="kb-save">儲存</button></div>
+  <div class="saved" id="kb-saved">✓ 已儲存</div>
+</div></div>
+
+<!-- 新增知識庫 modal -->
+<div class="mwrap" id="nkmodal"><div class="mbox" style="width:440px">
+  <div class="mhead"><h3>新增知識庫</h3><span class="sp"></span><button class="mclose" data-x="nk">×</button></div>
+  <div class="frow"><div class="flabel">名稱</div><div class="fctl"><input class="tin" id="nk-name" placeholder="例：綠色航運政策"></div></div>
+  <div class="frow"><div class="flabel">描述（選填）</div><div class="fctl"><input class="tin" id="nk-desc" placeholder="這個知識庫收錄什麼"></div></div>
+  <div class="savebar show" style="background:transparent;border-color:rgba(255,255,255,.1);color:var(--ink60)">
+    <span></span><span class="sp"></span><button class="mini acc" id="nk-create">建立</button></div>
+</div></div>
+
+<script>
+/* =========================================================
+   Preview 基準：互動全為 mock（in-memory）。實作版將以
+   schema 驅動渲染 + localStorage 落地，形狀見 spec §5-§6。
+   ========================================================= */
+
+/* ---------- 狀態 ---------- */
+const S = {
+  cur: 'frontend',
+  frontend: { reduceMotion:false, entrance:true, mapboxToken:'' },
+  carbon: { apiBase:'' },
+  policy: {
+    llmMode: 'local',
+    providers: [
+      { id:'ollama', name:'Ollama（地端）', urlPh:'http://localhost:11434', keyOptional:true,
+        url:'http://localhost:11434', key:'', connected:true,
+        models:[ {id:'qwen3:8b',kind:'chat',enabled:true}, {id:'bge-m3',kind:'embedding',enabled:true},
+                 {id:'bge-reranker-v2',kind:'rerank',enabled:false} ] },
+      { id:'openai', name:'OpenAI 相容', urlPh:'https://api.openai.com/v1', keyOptional:false,
+        url:'', key:'', connected:false,
+        catalog:[ {id:'gpt-4.1-mini',kind:'chat'}, {id:'gpt-4.1',kind:'chat'},
+                  {id:'text-embedding-3-small',kind:'embedding'} ] },
+      { id:'anthropic', name:'Anthropic', urlPh:'https://api.anthropic.com', keyOptional:false,
+        url:'', key:'', connected:false,
+        catalog:[ {id:'claude-sonnet-5',kind:'chat'}, {id:'claude-haiku-4-5',kind:'chat'} ] },
+    ],
+    defaults: { reasoning:'qwen3:8b', embedding:'bge-m3', rerank:'' },
+    kbs: [
+      { id:'law',  name:'航港法令',     docs:mkdocs(['商港法施行細則.pdf','航路標識條例.pdf','船舶法.pdf','海商法.pdf','引水法.pdf','商港服務費收取保管辦法.pdf','航業法.pdf','船員法.pdf','港區安全檢查作業.pdf','IMO_NZF_2025.pdf','MARPOL附則VI.pdf','SOLAS修正案彙編.pdf']),
+        chunk:{size:512,overlap:64}, retrieval:{strategy:'hybrid',hybridWeight:60,rerank:false,rerankModel:'',embeddingModel:'bge-m3'} },
+      { id:'news', name:'海運焦點新聞',  docs:mkdocs(['紅海航線中斷追蹤.pdf','巴拿馬運河配額.pdf','馬六甲碰撞管制.pdf','聯盟重組分析.pdf','塞港指數週報.pdf','運價走勢0630.pdf','綠色燃料補給網.pdf','船員短缺調查.pdf','港口自動化案例.pdf']),
+        chunk:{size:512,overlap:64}, retrieval:{strategy:'vector',hybridWeight:60,rerank:false,rerankModel:'',embeddingModel:'bge-m3'} },
+      { id:'idx',  name:'全球航運指數',  docs:mkdocs(['SCFI週資料.csv','CCFI月報.pdf','BDI日更彙整.csv','WCI貨櫃運價.pdf','港口壅塞指數.csv','燃油價格追蹤.csv','汰舊換新統計.pdf']),
+        chunk:{size:256,overlap:32}, retrieval:{strategy:'vector',hybridWeight:60,rerank:false,rerankModel:'',embeddingModel:'bge-m3'} },
+      { id:'tw',   name:'台灣數據統計',  docs:mkdocs(['高雄港年報2025.pdf','進出港船舶統計.csv','貨物吞吐量月報.csv','散雜貨作業統計.pdf','港勤船調度紀錄.csv','氣象觀測彙整.csv','危險品申報統計.pdf','岸電使用率.csv']),
+        chunk:{size:512,overlap:64}, retrieval:{strategy:'fulltext',hybridWeight:60,rerank:false,rerankModel:'',embeddingModel:'bge-m3'} },
+      { id:'alt',  name:'替代能源專區',  docs:mkdocs(['甲醇動力船隊盤點.pdf','氨燃料安全指引.pdf','岸電設施規範.pdf','綠色航運走廊MOU.pdf','碳強度指標CII.pdf','生質燃料試航報告.pdf']),
+        chunk:{size:512,overlap:64}, retrieval:{strategy:'vector',hybridWeight:60,rerank:false,rerankModel:'',embeddingModel:'bge-m3'} },
+    ],
+  },
+};
+function mkdocs(names){ return names.map((n,i)=>({ id:'d'+i+'-'+n.length, name:n, status:'available' })); }
+
+const PRESET_KBS = JSON.parse(JSON.stringify(S.policy.kbs));
+
+/* 佔位分區骨架定義（spec §6.4） */
+const PENDING = {
+  twin:     { color:'#7FB4FF', label:'2.5D 沙盤推演', fields:[
+              ['AIS 資料源端點','text','wss://ais.example.tw/stream'],
+              ['快照更新頻率','select','每 10 分鐘'] ] },
+  dispatch: { color:'#F5A54A', label:'即時派工建議', fields:[
+              ['ConvLSTM 推論端點','text','http://backend/dispatch/infer'],
+              ['模型更新週期','select','每 10 分鐘'],
+              ['CWA 資料源 KEY','password','CWA-XXXXXXXX'] ] },
+  epidemic: { color:'#F0648C', label:'疫情自動追溯', fields:[
+              ['情資爬蟲來源','text','WHO DON / 疾管署 / 新聞 RSS'],
+              ['WHO / 疾管署 API 端點','text','https://api.example/who'],
+              ['比對排程','select','每小時'] ] },
+  alert:    { color:'#FF7A59', label:'自動警報推播', fields:[
+              ['細胞簡訊發送 API','text','https://cbs.example.tw/send'],
+              ['發送門檻','select','紅色警戒以上'],
+              ['測試發送','action','—'] ] },
+};
+
+const NAV = [
+  { id:'frontend', color:'#35E0A6', label:'前端設定' },
+  { id:'carbon',   color:'#E9BC63', label:'碳權代幣化' },
+  { id:'policy',   color:'#38BDF8', label:'政策報告' },
+  { id:'twin',     color:'#7FB4FF', label:'沙盤推演' },
+  { id:'dispatch', color:'#F5A54A', label:'派工建議' },
+  { id:'epidemic', color:'#F0648C', label:'疫情追溯' },
+  { id:'alert',    color:'#FF7A59', label:'警報推播' },
+];
+
+/* ---------- 工具 ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const tail4 = k => k.length >= 4 ? '••••' + k.slice(-4) : '••••';
+function connectedModels(kind){
+  const out = [];
+  S.policy.providers.forEach(p => { if(!p.connected) return;
+    p.models && p.models.forEach(m => { if(m.enabled && m.kind===kind) out.push(m.id); }); });
+  return out;
+}
+function statusOf(id){
+  if(id==='frontend') return '生效中';
+  if(id==='carbon')   return 'API 可設定';
+  if(id==='policy'){ const n = S.policy.providers.filter(p=>p.connected).length; return n + ' 供應商已連線'; }
+  return '後端待接入';
+}
+
+/* ---------- 左欄導覽 ---------- */
+function renderNav(){
+  $('#subnav').innerHTML = NAV.map(n => `
+    <div class="sitem${S.cur===n.id?' on':''}" data-nav="${n.id}">
+      <span class="d" style="background:${n.color}"></span>
+      <span class="nm">${n.label}</span><span class="st">${statusOf(n.id)}</span>
+    </div>`).join('');
+}
+document.addEventListener('click', e => {
+  const nv = e.target.closest('[data-nav]');
+  if(nv){ S.cur = nv.dataset.nav; renderNav(); renderPanel(); }
+});
+
+/* ---------- 面板渲染 ---------- */
+function renderPanel(){
+  const el = $('#panel');
+  if(S.cur==='frontend') el.innerHTML = viewFrontend();
+  else if(S.cur==='carbon') el.innerHTML = viewCarbon();
+  else if(S.cur==='policy') el.innerHTML = viewPolicy();
+  else el.innerHTML = viewPending(S.cur);
+  bindPanel();
+}
+
+/* --- 前端設定 --- */
+function viewFrontend(){
+  const f = S.frontend;
+  const ds = [
+    ['#E9BC63','碳權代幣化交易','LIVE','PoC FastAPI · 偵測中…','carbon'],
+    ['#38BDF8','AI 政策輔助報告','MOCK','等待協作者後端',''],
+    ['#7FB4FF','2.5D 沙盤推演','LIVE','內建資料（vendored）',''],
+    ['#F5A54A','即時派工建議','MOCK','等待協作者後端',''],
+    ['#F0648C','疫情自動追溯','MOCK','等待協作者後端',''],
+    ['#FF7A59','自動警報推播','MOCK','等待協作者後端',''],
+  ];
+  return `
+  <div class="gcard"><div class="ghead"><h3>資料源總覽</h3><span class="gbadge">唯讀</span></div>
+    ${ds.map(d=>`<div class="dsrow"><span class="d" style="background:${d[0]}"></span><span class="nm">${d[1]}</span>
+      <span class="chip${d[2]==='LIVE'?' live':''}">${d[2]}</span><span class="st" ${d[4]?'id="carbon-health"':''}>${d[3]}</span></div>`).join('')}
+    <div class="gnote">後端接入後，此表即時反映各模組 provider 的 source 與連線狀態。</div>
+  </div>
+  <div class="gcard"><div class="ghead"><h3>動效</h3><span class="gbadge live">即時生效</span></div>
+    <div class="frow"><div class="flabel">減少動態效果<span class="help">覆寫系統 prefers-reduced-motion，全站生效</span></div>
+      <div class="fctl"><label class="tgl"><input type="checkbox" data-tgl="frontend.reduceMotion" ${f.reduceMotion?'checked':''}><span class="tr"></span><span class="th"></span></label>
+      <span class="flash" data-flash="frontend.reduceMotion">✓ 已生效</span></div></div>
+    <div class="frow"><div class="flabel">進場動畫<span class="help">關閉後各頁 stagger 進場直接顯示終態</span></div>
+      <div class="fctl"><label class="tgl"><input type="checkbox" data-tgl="frontend.entrance" ${f.entrance?'checked':''}><span class="tr"></span><span class="th"></span></label>
+      <span class="flash" data-flash="frontend.entrance">✓ 已生效</span></div></div>
+  </div>
+  <div class="gcard"><div class="ghead"><h3>地圖服務</h3><span class="gbadge blue">Mapbox</span></div>
+    <div class="frow"><div class="flabel">Mapbox Token<span class="help">優先於 .env 的 VITE_MAPBOX_TOKEN，疫情頁地圖使用</span></div>
+      <div class="fctl" id="mbx-ctl">${f.mapboxToken
+        ? `<span class="masked">${tail4(f.mapboxToken)}</span><button class="mini" id="mbx-change">更換</button><button class="mini danger" id="mbx-clear">清除</button>`
+        : `<input class="tin" id="mbx-in" type="password" placeholder="pk.eyJ1Ijoi..."><button class="eyebtn" id="mbx-eye">顯示</button>`}
+      </div></div>
+    <div class="savebar" id="mbx-bar"><span>未儲存變更</span><span class="sp"></span>
+      <button class="mini" id="mbx-discard">捨棄</button><button class="mini acc" id="mbx-save">儲存</button></div>
+    <div class="saved" id="mbx-saved">✓ 已儲存 — token 已覆寫 .env 設定</div>
+  </div>`;
+}
+
+/* --- 碳權 --- */
+function viewCarbon(){
+  const c = S.carbon;
+  return `
+  <div class="gcard"><div class="ghead"><h3>API 連線</h3><span class="gbadge live">生效中</span></div>
+    <div class="frow"><div class="flabel">API Base URL<span class="help">留空使用 .env 的 VITE_CARBON_API；變更後重新整理生效</span></div>
+      <div class="fctl"><input class="tin" id="cb-base" placeholder="http://127.0.0.1:8000" value="${esc(c.apiBase)}"></div></div>
+    <div class="frow"><div class="flabel">連線驗證</div>
+      <div class="fctl"><button class="mini acc" id="cb-test">測試連線</button><div class="tstate" id="cb-state"></div></div></div>
+    <div class="savebar" id="cb-bar"><span>未儲存變更</span><span class="sp"></span>
+      <button class="mini" id="cb-discard">捨棄</button><button class="mini acc" id="cb-save">儲存</button></div>
+    <div class="saved" id="cb-saved">✓ 已儲存 — 重新整理後生效</div>
+  </div>
+  <div class="gcard"><div class="ghead"><h3>鏈路資訊</h3><span class="gbadge">唯讀</span></div>
+    <div class="gnote" id="cb-chain">後端離線 — 依 README 前置步驟啟動 PoC 的 make chain + make api 後，此處顯示鏈上狀態摘要（SU 總數、合約位址、資料雜湊）。</div>
+  </div>`;
+}
+
+/* --- 政策（重頭戲） --- */
+function viewPolicy(){
+  const P = S.policy;
+  const chat = connectedModels('chat'), emb = connectedModels('embedding'), rr = connectedModels('rerank');
+  const selOpts = (list, cur) => list.length
+    ? list.map(m=>`<option value="${esc(m)}"${m===cur?' selected':''}>${esc(m)}</option>`).join('')
+    : '';
+  return `
+  <div class="gcard"><div class="ghead"><h3>生成接口</h3><span class="gbadge live">即時生效 · 與政策頁同步</span></div>
+    <div class="frow"><div class="flabel">LLM 接口<span class="help">政策頁標題列的切換器與此雙向同步</span></div>
+      <div class="fctl"><div class="seg" id="llmseg">
+        <button data-llm="local" class="${P.llmMode==='local'?'on':''}">地端部署</button>
+        <button data-llm="cloud" class="${P.llmMode==='cloud'?'on':''}">雲端 API</button>
+      </div><span class="flash" data-flash="llm">✓ 已生效</span></div></div>
+  </div>
+  <div class="gcard"><div class="ghead"><h3>模型管理</h3>
+      <span class="gbadge live">${P.providers.filter(p=>p.connected).length}/${P.providers.length} 已連線</span></div>
+    <div class="pgrid">
+      ${P.providers.map(p=>`
+        <div class="pcard${p.connected?' ok':''}" data-prov="${p.id}">
+          <b>${esc(p.name)}</b>
+          <span class="meta">${p.connected ? (p.keyOptional && !p.key ? '免金鑰（地端）' : tail4(p.key)) : '未設定'}</span>
+          <span class="stt"><span class="lamp"></span>${p.connected
+            ? '已連線 · ' + p.models.filter(m=>m.enabled).length + ' 模型'
+            : 'Setup'}</span>
+        </div>`).join('')}
+      <div class="pcard addc" data-prov="__new">+ 自訂供應商</div>
+    </div>
+    <div class="msec">系統預設模型</div>
+    <div class="frow"><div class="flabel">推理模型</div><div class="fctl">
+      <select class="sel" data-def="reasoning" ${chat.length?'':'disabled'}>${selOpts(chat,P.defaults.reasoning)}</select>
+      ${chat.length?'':'<span class="guide">請先設定至少一個供應商</span>'}<span class="flash" data-flash="def">✓ 已生效</span></div></div>
+    <div class="frow"><div class="flabel">Embedding 模型</div><div class="fctl">
+      <select class="sel" data-def="embedding" ${emb.length?'':'disabled'}>${selOpts(emb,P.defaults.embedding)}</select>
+      ${emb.length?'':'<span class="guide">請先設定至少一個供應商</span>'}</div></div>
+    <div class="frow"><div class="flabel">Rerank 模型</div><div class="fctl">
+      <select class="sel" data-def="rerank" ${rr.length?'':'disabled'}>
+        <option value="">未設定</option>${selOpts(rr,P.defaults.rerank)}</select>
+      ${rr.length?'':'<span class="guide">尚無已啟用的 rerank 模型（至供應商卡啟用）</span>'}</div></div>
+  </div>
+  <div class="gcard" id="kbgroup"><div class="ghead"><h3>知識庫管理</h3>
+      <span class="gbadge blue">${P.kbs.length} 庫 · ${P.kbs.reduce((a,k)=>a+k.docs.length,0)} 文件</span>
+      <span class="sp"></span><button class="mini" id="kb-reset">重置為預設</button></div>
+    <div class="kbgrid">
+      ${P.kbs.map(k=>`
+        <div class="kbcard" data-kb="${k.id}">
+          <b>${esc(k.name)}</b>
+          <span class="meta">${k.docs.length} 文件 · ${k.retrieval.strategy}${k.retrieval.rerank?' · rerank':''}</span>
+          <span class="del" data-delkb="${k.id}" title="刪除知識庫">×</span>
+        </div>`).join('')}
+      <div class="kbcard addc" id="kb-add">+ 新增知識庫</div>
+    </div>
+    <div class="gnote">點知識庫卡片管理文件與分段/檢索參數。刪除與上傳為即時生效；參數需儲存。</div>
+  </div>`;
+}
+
+/* --- 佔位分區 --- */
+function viewPending(id){
+  const d = PENDING[id];
+  return `
+  <div class="gcard pend"><div class="ghead"><h3>${d.label} · 後端整合</h3><span class="gbadge wait">後端待接入</span></div>
+    ${d.fields.map(f=>{
+      const [label,kind,ph] = f;
+      let ctl = '';
+      if(kind==='text'||kind==='password') ctl = `<input class="tin" type="${kind==='password'?'password':'text'}" placeholder="${esc(ph)}" disabled>`;
+      else if(kind==='select') ctl = `<select class="sel" disabled><option>${esc(ph)}</option></select>`;
+      else ctl = `<button class="mini" disabled>執行</button>`;
+      return `<div class="frow"><div class="flabel">${esc(label)}</div><div class="fctl">${ctl}</div></div>`;
+    }).join('')}
+    <div class="gnote">此區為預留骨架 — 後端整合後由協作者依實際需求增修欄位（見 README 協作者指南：新增一筆 schema 物件即可）。</div>
+  </div>`;
+}
+
+/* ---------- 面板事件 ---------- */
+let mbxDraft = null, cbDraft = null;
+function bindPanel(){
+  /* instant toggles */
+  document.querySelectorAll('[data-tgl]').forEach(t => t.addEventListener('change', e => {
+    const key = e.target.closest('[data-tgl]').dataset.tgl || e.target.dataset.tgl;
+    const [sec, k] = e.target.dataset.tgl.split('.');
+    S[sec][k] = e.target.checked;
+    const fl = document.querySelector(`[data-flash="${e.target.dataset.tgl}"]`);
+    if(fl){ fl.classList.add('show'); setTimeout(()=>fl.classList.remove('show'), 1400); }
+  }));
+
+  /* mapbox token（explicit） */
+  const mbxIn = $('#mbx-in');
+  if(mbxIn){
+    mbxIn.addEventListener('input', () => { mbxDraft = mbxIn.value; $('#mbx-bar').classList.add('show'); });
+    $('#mbx-eye') && $('#mbx-eye').addEventListener('click', () => {
+      mbxIn.type = mbxIn.type==='password' ? 'text' : 'password';
+      $('#mbx-eye').textContent = mbxIn.type==='password' ? '顯示' : '隱藏';
+    });
+  }
+  $('#mbx-change') && $('#mbx-change').addEventListener('click', () => { S.frontend.mapboxToken=''; renderPanel(); });
+  $('#mbx-clear') && $('#mbx-clear').addEventListener('click', () => {
+    if(confirm('清除已儲存的 Mapbox token？')){ S.frontend.mapboxToken=''; renderPanel(); } });
+  $('#mbx-save') && $('#mbx-save').addEventListener('click', () => {
+    if(mbxDraft){ S.frontend.mapboxToken = mbxDraft; mbxDraft = null; renderPanel();
+      $('#mbx-saved').classList.add('show'); }
+  });
+  $('#mbx-discard') && $('#mbx-discard').addEventListener('click', () => { mbxDraft=null; renderPanel(); });
+
+  /* carbon（explicit + 測試連線） */
+  const cbBase = $('#cb-base');
+  if(cbBase){
+    cbBase.addEventListener('input', () => { cbDraft = cbBase.value; $('#cb-bar').classList.add('show'); });
+    $('#cb-save').addEventListener('click', () => {
+      S.carbon.apiBase = cbDraft !== null ? cbDraft : S.carbon.apiBase; cbDraft = null;
+      $('#cb-bar').classList.remove('show'); $('#cb-saved').classList.add('show');
+      setTimeout(()=>$('#cb-saved') && $('#cb-saved').classList.remove('show'), 2000);
+    });
+    $('#cb-discard').addEventListener('click', () => { cbDraft=null; renderPanel(); });
+    $('#cb-test').addEventListener('click', () => {
+      const st = $('#cb-state'); const url = cbBase.value || 'http://127.0.0.1:8000';
+      st.className = 'tstate run'; st.innerHTML = '<span class="spin"></span>連線中…';
+      setTimeout(() => {   /* preview 模擬：實作將真打 {base}/health */
+        if(/^https?:\/\/.+/.test(url)){ st.className='tstate ok'; st.textContent='✓ 連線成功 · 108 SU · chain ok（preview 模擬）';
+          $('#cb-chain').textContent = '鏈上狀態：SU 108 筆 · 合約 0x5FbD…0aa3 · 最新 dataHash 0x9c41…77e2（preview 模擬資料）'; }
+        else { st.className='tstate err'; st.textContent='✗ 無法連線：URL 格式不正確'; }
+      }, 1100);
+    });
+  }
+
+  /* policy：llm segmented */
+  const seg = $('#llmseg');
+  if(seg) seg.addEventListener('click', e => {
+    const b = e.target.closest('[data-llm]'); if(!b) return;
+    S.policy.llmMode = b.dataset.llm;
+    seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b));
+    const fl = document.querySelector('[data-flash="llm"]');
+    if(fl){ fl.classList.add('show'); setTimeout(()=>fl.classList.remove('show'),1400); }
+  });
+
+  /* policy：系統預設模型（instant） */
+  document.querySelectorAll('[data-def]').forEach(s => s.addEventListener('change', e => {
+    S.policy.defaults[e.target.dataset.def] = e.target.value;
+    const fl = document.querySelector('[data-flash="def"]');
+    if(fl){ fl.classList.add('show'); setTimeout(()=>fl.classList.remove('show'),1400); }
+  }));
+
+  /* policy：供應商卡 */
+  document.querySelectorAll('[data-prov]').forEach(c => c.addEventListener('click', () => openProv(c.dataset.prov)));
+
+  /* policy：知識庫 */
+  document.querySelectorAll('[data-kb]').forEach(c => c.addEventListener('click', e => {
+    if(e.target.closest('[data-delkb]')) return;
+    openKb(c.dataset.kb);
+  }));
+  document.querySelectorAll('[data-delkb]').forEach(d => d.addEventListener('click', e => {
+    e.stopPropagation();
+    const kb = S.policy.kbs.find(k=>k.id===e.target.dataset.delkb);
+    if(kb && confirm(`刪除知識庫「${kb.name}」？（${kb.docs.length} 份文件將一併移除）`)){
+      S.policy.kbs = S.policy.kbs.filter(k=>k.id!==kb.id); renderNav(); renderPanel();
+    }
+  }));
+  $('#kb-add') && $('#kb-add').addEventListener('click', () => { $('#nk-name').value=''; $('#nk-desc').value=''; $('#nkmodal').classList.add('open'); });
+  $('#kb-reset') && $('#kb-reset').addEventListener('click', () => {
+    if(confirm('重置知識庫為預設五庫？（自訂庫與變更將移除）')){
+      S.policy.kbs = JSON.parse(JSON.stringify(PRESET_KBS)); renderNav(); renderPanel();
+    }
+  });
+}
+
+/* ---------- 供應商 modal ---------- */
+let pmProv = null, pmTested = false, pmTestedModels = null;
+function openProv(id){
+  pmTested = false; pmTestedModels = null;
+  if(id === '__new'){
+    pmProv = { id:'custom-'+Date.now()%100000, name:'自訂供應商', urlPh:'https://api.example.com/v1',
+               keyOptional:false, url:'', key:'', connected:false,
+               catalog:[ {id:'custom-chat-model',kind:'chat'}, {id:'custom-embed-model',kind:'embedding'}, {id:'custom-rerank-model',kind:'rerank'} ] };
+  } else {
+    pmProv = S.policy.providers.find(p=>p.id===id);
+  }
+  $('#pm-title').textContent = pmProv.connected ? '管理供應商 — '+pmProv.name : '設定供應商 — '+pmProv.name;
+  $('#pm-url').value = pmProv.url || ''; $('#pm-url').placeholder = pmProv.urlPh;
+  $('#pm-key').value = ''; $('#pm-key').type='password'; $('#pm-eye').textContent='顯示';
+  $('#pm-key').placeholder = pmProv.connected && pmProv.key ? '已儲存（'+tail4(pmProv.key)+'）— 輸入以更換' : (pmProv.keyOptional ? '地端可留空' : 'sk-...');
+  $('#pm-keyhelp').textContent = pmProv.keyOptional ? '地端服務可留空' : '';
+  $('#pm-state').className='tstate'; $('#pm-state').textContent='';
+  $('#pm-models').innerHTML = pmProv.connected ? modelListHtml(pmProv.models) : '';
+  $('#pm-save').disabled = !pmProv.connected;
+  $('#pm-hint').textContent = pmProv.connected ? '' : '通過連線驗證後可儲存';
+  $('#pm-remove').style.display = pmProv.connected && S.policy.providers.includes(pmProv) ? '' : 'none';
+  $('#pmodal').classList.add('open');
+}
+function modelListHtml(models){
+  return `<div class="msec">模型（勾選以啟用）</div>` + models.map((m,i)=>`
+    <div class="mdlrow"><label><input type="checkbox" data-mdl="${i}" ${m.enabled?'checked':''}>${esc(m.id)}</label>
+      <span class="kind${m.kind==='embedding'?' emb':m.kind==='rerank'?' rr':''}">${m.kind}</span></div>`).join('');
+}
+$('#pm-eye').addEventListener('click', () => {
+  const k = $('#pm-key'); k.type = k.type==='password' ? 'text' : 'password';
+  $('#pm-eye').textContent = k.type==='password' ? '顯示' : '隱藏';
+});
+$('#pm-test').addEventListener('click', () => {
+  const st = $('#pm-state'); const url = $('#pm-url').value.trim(); const key = $('#pm-key').value.trim();
+  st.className='tstate run'; st.innerHTML='<span class="spin"></span>驗證中…';
+  setTimeout(() => {   /* preview 模擬：實作為真實 credential 驗證 */
+    if(!/^https?:\/\/.+/.test(url)){ st.className='tstate err'; st.textContent='✗ API URL 格式不正確'; return; }
+    if(!key && !pmProv.keyOptional && !(pmProv.connected && pmProv.key)){ st.className='tstate err'; st.textContent='✗ 需要 API KEY'; return; }
+    pmTested = true;
+    pmTestedModels = pmProv.models || (pmProv.catalog||[]).map(m=>({ ...m, enabled:m.kind==='chat' }));
+    st.className='tstate ok'; st.textContent='✓ 驗證通過 · 已載入 '+pmTestedModels.length+' 個模型';
+    $('#pm-models').innerHTML = modelListHtml(pmTestedModels);
+    $('#pm-save').disabled = false; $('#pm-hint').textContent='';
+  }, 1200);
+});
+$('#pm-models').addEventListener('change', e => {
+  const i = e.target.dataset.mdl; if(i===undefined) return;
+  (pmTestedModels || pmProv.models)[Number(i)].enabled = e.target.checked;
+});
+$('#pm-save').addEventListener('click', () => {
+  if($('#pm-save').disabled) return;
+  pmProv.url = $('#pm-url').value.trim() || pmProv.url;
+  const key = $('#pm-key').value.trim(); if(key) pmProv.key = key;
+  if(pmTestedModels) pmProv.models = pmTestedModels;
+  pmProv.connected = true;
+  if(!S.policy.providers.includes(pmProv)) S.policy.providers.push(pmProv);
+  closeModals(); renderNav(); renderPanel();
+});
+$('#pm-remove').addEventListener('click', () => {
+  if(confirm(`移除供應商「${pmProv.name}」？其模型將自可選清單消失`)){
+    S.policy.providers = S.policy.providers.filter(p=>p!==pmProv);
+    ['reasoning','embedding','rerank'].forEach(k => {
+      const pool = connectedModels(k==='reasoning'?'chat':k);
+      if(!pool.includes(S.policy.defaults[k])) S.policy.defaults[k] = pool[0] || '';
+    });
+    closeModals(); renderNav(); renderPanel();
+  }
+});
+
+/* ---------- 知識庫 modal ---------- */
+let kbCur = null, kbDraft = null;
+function openKb(id){
+  kbCur = S.policy.kbs.find(k=>k.id===id); if(!kbCur) return;
+  kbDraft = JSON.parse(JSON.stringify({ chunk:kbCur.chunk, retrieval:kbCur.retrieval }));
+  $('#kb-title').textContent = '知識庫 — ' + kbCur.name;
+  renderKbDocs(); renderKbParams();
+  $('#kb-savebar').classList.remove('show'); $('#kb-saved').classList.remove('show');
+  $('#kbmodal').classList.add('open');
+}
+function renderKbDocs(){
+  $('#kb-docs').innerHTML = kbCur.docs.map(d=>`
+    <div class="docrow"><span class="fn">${esc(d.name)}</span>
+      <span class="stat ${d.status==='available'?'ok':'idx'}">${d.status==='available'?'available':'indexing…'}</span>
+      <button class="rm" data-rmdoc="${d.id}" title="刪除">×</button></div>`).join('')
+    || '<div class="gnote">尚無文件 — 由下方上傳。</div>';
+}
+function renderKbParams(){
+  const r = kbDraft.retrieval;
+  $('#kb-chunk').value = kbDraft.chunk.size; $('#kb-overlap').value = kbDraft.chunk.overlap;
+  const emb = connectedModels('embedding');
+  $('#kb-emb').innerHTML = emb.length
+    ? emb.map(m=>`<option value="${esc(m)}"${m===r.embeddingModel?' selected':''}>${esc(m)}</option>`).join('')
+    : '<option value="">（無可用 embedding 模型）</option>';
+  $('#kb-emb').disabled = !emb.length;
+  $('#kb-strat').innerHTML = [
+    ['vector','向量檢索','語意相似度'],
+    ['fulltext','全文檢索','關鍵字倒排索引'],
+    ['hybrid','Hybrid','語意 + 關鍵字加權'],
+  ].map(s=>`<div class="scard${r.strategy===s[0]?' on':''}" data-strat="${s[0]}"><b>${s[1]}</b>${s[2]}</div>`).join('');
+  $('#kb-hybrid').style.display = r.strategy==='hybrid' ? '' : 'none';
+  $('#kb-weight').value = r.hybridWeight; $('#kb-wlab').textContent = (r.hybridWeight/100).toFixed(1);
+  $('#kb-rerank').checked = r.rerank;
+  const rr = connectedModels('rerank');
+  if(r.rerank){
+    if(rr.length){ $('#kb-rrmodel').style.display=''; $('#kb-rrguide').style.display='none';
+      $('#kb-rrmodel').innerHTML = rr.map(m=>`<option value="${esc(m)}"${m===r.rerankModel?' selected':''}>${esc(m)}</option>`).join('');
+    } else { $('#kb-rrmodel').style.display='none'; $('#kb-rrguide').style.display=''; }
+  } else { $('#kb-rrmodel').style.display='none'; $('#kb-rrguide').style.display='none'; }
+}
+function kbDirty(){ $('#kb-savebar').classList.add('show'); $('#kb-saved').classList.remove('show'); }
+$('#kb-chunk').addEventListener('input', e => { kbDraft.chunk.size = Number(e.target.value)||512; kbDirty(); });
+$('#kb-overlap').addEventListener('input', e => { kbDraft.chunk.overlap = Number(e.target.value)||0; kbDirty(); });
+$('#kb-emb').addEventListener('change', e => { kbDraft.retrieval.embeddingModel = e.target.value; kbDirty(); });
+$('#kb-strat').addEventListener('click', e => {
+  const s = e.target.closest('[data-strat]'); if(!s) return;
+  kbDraft.retrieval.strategy = s.dataset.strat; renderKbParams(); kbDirty();
+});
+$('#kb-weight').addEventListener('input', e => {
+  kbDraft.retrieval.hybridWeight = Number(e.target.value);
+  $('#kb-wlab').textContent = (kbDraft.retrieval.hybridWeight/100).toFixed(1); kbDirty();
+});
+$('#kb-rerank').addEventListener('change', e => { kbDraft.retrieval.rerank = e.target.checked; renderKbParams(); kbDirty(); });
+$('#kb-rrmodel').addEventListener('change', e => { kbDraft.retrieval.rerankModel = e.target.value; kbDirty(); });
+$('#kb-goprov').addEventListener('click', () => {
+  closeModals();
+  const grp = document.querySelectorAll('.gcard')[1];   /* policy 分區的模型管理卡 */
+  if(grp){ grp.scrollIntoView({behavior:'smooth', block:'center'}); grp.classList.remove('hl'); void grp.offsetWidth; grp.classList.add('hl'); }
+});
+$('#kb-save').addEventListener('click', () => {
+  kbCur.chunk = kbDraft.chunk; kbCur.retrieval = kbDraft.retrieval;
+  kbDraft = JSON.parse(JSON.stringify({ chunk:kbCur.chunk, retrieval:kbCur.retrieval }));
+  $('#kb-savebar').classList.remove('show');
+  const sv = $('#kb-saved'); sv.classList.remove('show'); void sv.offsetWidth; sv.classList.add('show');
+  renderPanel();   /* 卡牆 meta 更新 */
+});
+$('#kb-discard').addEventListener('click', () => {
+  kbDraft = JSON.parse(JSON.stringify({ chunk:kbCur.chunk, retrieval:kbCur.retrieval }));
+  renderKbParams(); $('#kb-savebar').classList.remove('show');
+});
+$('#kb-docs').addEventListener('click', e => {
+  const rm = e.target.closest('[data-rmdoc]'); if(!rm) return;
+  const d = kbCur.docs.find(x=>x.id===rm.dataset.rmdoc);
+  if(d && confirm(`刪除文件「${d.name}」？`)){
+    kbCur.docs = kbCur.docs.filter(x=>x.id!==d.id); renderKbDocs(); renderNav(); renderPanel();
+  }
+});
+$('#kb-drop').addEventListener('click', () => $('#kb-file').click());
+$('#kb-file').addEventListener('change', e => {
+  const files = Array.from(e.target.files||[]); if(!files.length) return;
+  const kb = kbCur;
+  files.forEach(f => {
+    const doc = { id:'u'+Date.now()+Math.floor(Math.random()*1e4), name:f.name, status:'indexing' };
+    kb.docs.push(doc);
+    setTimeout(() => { doc.status='available';
+      if(kbCur===kb && $('#kbmodal').classList.contains('open')) renderKbDocs();
+      renderPanel();
+    }, 3000);
+  });
+  e.target.value=''; renderKbDocs(); renderNav(); renderPanel();
+});
+
+/* ---------- 新增知識庫 ---------- */
+$('#nk-create').addEventListener('click', () => {
+  const name = $('#nk-name').value.trim(); if(!name){ $('#nk-name').focus(); return; }
+  S.policy.kbs.push({ id:'kb'+Date.now()%100000, name, desc:$('#nk-desc').value.trim(),
+    docs:[], chunk:{size:512,overlap:64},
+    retrieval:{strategy:'vector',hybridWeight:60,rerank:false,rerankModel:'',embeddingModel:connectedModels('embedding')[0]||''} });
+  closeModals(); renderNav(); renderPanel();
+});
+
+/* ---------- modal 通用 ---------- */
+function closeModals(){ document.querySelectorAll('.mwrap').forEach(m=>m.classList.remove('open')); }
+document.querySelectorAll('.mclose').forEach(b=>b.addEventListener('click', closeModals));
+document.querySelectorAll('.mwrap').forEach(m=>m.addEventListener('click', e=>{ if(e.target===m) closeModals(); }));
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModals(); });
+
+/* ---------- 開機 ---------- */
+renderNav(); renderPanel();
+</script>
+</body>
+</html>
