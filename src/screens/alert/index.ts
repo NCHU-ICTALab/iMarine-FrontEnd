@@ -2,8 +2,9 @@
    互動基準：docs/preview/preview-alert-redesign.html（v2，已驗收）。
    Task 3：三分割骨架 + alert.css + 靜態渲染（KPI/事件流/軌跡展開/手機/漏斗）+
    篩選/Ack/下鑽（非地圖部分）。Task 4：地圖膠合層走 ./broadcastmap（真 Mapbox，
-   cell/圍欄/pdot/波紋）+ renderMap 下鑽連動 + show()/resize 生命週期；模擬事件鈕
-   （SIM_BTN）先靜態渲染、Task 5 才綁 click + 池兩發全鏈路動畫 + 重置 + hide()。 */
+   cell/圍欄/pdot/波紋）+ renderMap 下鑽連動 + show()/resize 生命週期。Task 5：
+   #simBtn 綁 simulate()（池兩發全鏈路動畫 + 池盡重置，reduced-motion 直達終態）+
+   cancelTimers()/hide()（切頁不洩漏 timeline，半途中斷不回滾）。 */
 import type { Screen, ScreenCtx } from '../types';
 import type { AlertSnapshot, AlertEvent, AlertSev, AlertFunnel } from '../../data/types';
 import { funnelRates, sumDelivered, FUNNEL_STEPS } from './funnel';
@@ -39,6 +40,19 @@ let curCat = 'all';
 let sectionEl: HTMLElement;
 let sCtx: ScreenCtx;
 let map: BroadcastMap;
+
+/* 模擬事件演練（Task 5）：池兩發全鏈路動畫 + 池盡重置。timers 集中管理，
+   切頁（hide()）時全數 cancelTimers()，避免動畫 timeline 洩漏到別頁（同 policy 前例）。 */
+let poolIdx = 0;
+let simming = false;
+const timers: number[] = [];
+const later = (fn: () => void, ms: number): void => {
+  timers.push(window.setTimeout(fn, ms));
+};
+function cancelTimers(): void {
+  timers.forEach(clearTimeout);
+  timers.length = 0;
+}
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string): T => sectionEl.querySelector(sel) as T;
 
@@ -187,6 +201,75 @@ function select(id: string): void {
   renderMap(ev);
 }
 
+/* 演練池兩發全鏈路動畫 + 池盡重置（逐字轉錄 docs/preview/preview-alert-redesign.html
+   的 simulate()，型別化）。防重入：simming 為 true 時直接早退。 */
+function simulate(): void {
+  if (simming) return;
+  const btn = $<HTMLButtonElement>('#simBtn');
+  if (poolIdx >= drillPool.length) {
+    feed = snap0.feed.map((e) => ({ ...e }));
+    poolIdx = 0;
+    select(snap0.feed[0].id);
+    $('#kPub').textContent = String(snap0.kpi.published);
+    sCtx.ui.toast({ title: '自動警報推播', message: '演練池重置 · 回到初始事件流' });
+    return;
+  }
+  const ev: FeedItem = { ...drillPool[poolIdx++], _unread: true };
+  simming = true;
+  btn.disabled = true;
+  const toastMsg =
+    ev.sev === 'red'
+      ? '緊急警報已發布 · 紅色警報 · 全港廣播'
+      : `警訊通知已發布 · ${SEVN[ev.sev]} · 觸及 ${sumDelivered(ev.funnels).toLocaleString()} 人`;
+  const finish = (): void => {
+    simming = false;
+    btn.disabled = false;
+    $('#kPub').textContent = String(snap0.kpi.published + poolIdx);
+  };
+  if (prefersReduced()) {
+    ev._traceStates = null;
+    feed = [ev, ...feed];
+    curId = ev.id;
+    renderFeed();
+    renderMap(ev);
+    renderPhone(ev, false);
+    renderFunnel(ev, true);
+    sCtx.ui.toast({ title: '自動警報推播', message: toastMsg });
+    finish();
+    return;
+  }
+  // 全鏈路動畫：插卡（軌跡逐節亮）→ 波紋+cell stagger → 手機 → 漏斗滾數字
+  ev._traceStates = ['run', 'wait', 'wait', 'wait'];
+  feed = [ev, ...feed];
+  curId = ev.id;
+  renderFeed();
+  map.renderEvent({ ...ev, cellsLit: [] }); // 圍欄+pdot 先上、cell 等 stagger（later 內 litCells 補亮）
+  const TS: (string[] | null)[] = [
+    ['done', 'run', 'wait', 'wait'],
+    ['done', 'done', 'run', 'wait'],
+    ['done', 'done', 'done', 'run'],
+    null,
+  ];
+  TS.forEach((st, i) => {
+    later(() => {
+      ev._traceStates = st;
+      renderFeed();
+    }, 600 + i * 600);
+  });
+  later(() => {
+    map.ripple(ev.lngLat);
+    map.litCells(ev.cellsLit, true);
+  }, 2200);
+  later(() => {
+    renderPhone(ev, true);
+    sCtx.ui.toast({ title: '自動警報推播', message: toastMsg });
+  }, 2200 + Math.min(ev.cellsLit.length * 110, 1100) + 300);
+  later(() => {
+    renderFunnel(ev, true);
+  }, 3600);
+  later(finish, 5200);
+}
+
 const s: Screen = {
   async mount(el, ctx) {
     sectionEl = el;
@@ -218,6 +301,7 @@ const s: Screen = {
       sectionEl.querySelectorAll('.fchip').forEach((x) => x.classList.toggle('is-on', x === b));
       renderFeed();
     });
+    $('#simBtn').addEventListener('click', simulate);
     select(snap.feed[0].id);
     // 本頁 active 時的視窗 resize（對齊 epidemic/dispatch 定案手法）
     window.addEventListener('resize', () => {
@@ -229,6 +313,16 @@ const s: Screen = {
     // section 從 mount() 當下的 display:none 變 .active 後容器才有真實尺寸，
     // 首次 show() 前用 0 寬量出的地圖畫布是錯的，故比照 epidemic/dispatch 的既有慣例在此補一次 resize()。
     map.resize();
+  },
+  hide() {
+    // 切出時停掉演練 timeline（同 policy 前例：動畫不可洩漏到別頁）；若中斷於演練半途，
+    // 只釋放 simming 狀態、鈕恢復可按——半途畫面允許停在當下，重進頁可再操作，不自動回滾。
+    const wasSimming = simming;
+    cancelTimers();
+    if (!wasSimming) return;
+    simming = false;
+    const btn = sectionEl.querySelector<HTMLButtonElement>('#simBtn');
+    if (btn) btn.disabled = false;
   },
 };
 export default s;
