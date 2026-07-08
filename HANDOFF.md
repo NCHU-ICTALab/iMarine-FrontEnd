@@ -2,13 +2,13 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-08 Alert 頁改版全案完結——SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復，已本地合併回 main（fast-forward `94a896a`→`7f6b437`、feature 分支已刪、**未 push**）。**六大功能頁深度改版至此全部完成。** demo 前建議真 Chrome 人工 click-through 一輪（Settings 頁已於 2026-07-07 合併 push 完結，見下）
+最後更新：2026-07-08 Alert 頁改版全案完結並 **push 到 origin**——SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復 + 合併後手機 mock 比例微調（使用者回饋，改窄身 16:9）+ README 加畫面展示（`docs/screens/alert.png` 紅色警報頂格），已本地合併回 main 並 push。**六大功能頁深度改版至此全部完成。**（Settings 頁已於 2026-07-07 合併 push 完結，見下）
 
 ---
 
 ## 1. 目前狀態
 
-**Alert 頁改版：全案完結。SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復，已本地合併回 main（fast-forward `94a896a`→`7f6b437`、feature 分支 `alert-redesign` 已刪、未 push；合併後 main 三綠燈 tsc 0 / vitest 16 檔 61 / build ok）。六大功能頁深度改版全部完成。**
+**Alert 頁改版：全案完結並 push 到 origin。SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復，本地合併回 main（fast-forward `94a896a`→`7f6b437`、feature 分支 `alert-redesign` 已刪）；合併後兩筆 follow-up：(a) 手機 mock 比例微調（使用者回饋——`.phone` aspect-ratio `9/18.5`→`9/16` + max-width `230`→`205px`，改成窄身 16:9、減少空白，alert.css + preview 同步；systematic-debugging 確認非溢出而是比例過高），(b) README「畫面展示」加 alert 段 + `docs/screens/alert.png`（紅色警報頂格全港廣播，SwiftShader 3200×2000）。合併後 main 三綠燈 tsc 0 / vitest 16 檔 61 / build ok。已 push origin。六大功能頁深度改版全部完成。**
 - 定位：**獨立警報中心**——港區事件（疫情/派工/氣象）經分級規則引擎，以 Cell Broadcast 推播；
   事件卡帶來源模組色點呈現跨模組關係。版面 A 三分割（左事件流 / 中 Mapbox 高雄港覆蓋地圖 /
   右手機 mock + 送達漏斗）+ KPI 4 卡；分級＝港區三級（紅色警報/橙色警戒/作業提示）+ PWS 對映
@@ -51,9 +51,9 @@
   `var(--ink40)`→`var(--ink-40)`（未定義變數落回近白）+ broadcastmap 加 `stop()` 切頁停圍欄呼吸
   interval（hide 呼叫、show 補 renderMap 對稱恢復）。其餘 Minor（KPI 測試斷言可收緊、renderer innerHTML
   未 escape 待 live provider 前補）triage=defer。
-- **finishing 完成**：使用者選「本地合併回 main」→ fast-forward 到 `7f6b437`、feature 分支已刪、未 push。
-  本輪無後續排定 task。demo/競賽前建議：(1) 真 Chrome 人工 click-through（下鑽/演練兩發/tooltip/Ack 手感）；
-  (2) 若要 README 加畫面展示，`docs/screens/alert.png`（紅色警報頂格，SwiftShader 實拍）。
+- **finishing 完成 + push**：使用者選「本地合併回 main」→ fast-forward 到 `7f6b437`、feature 分支已刪；
+  合併後兩筆 follow-up（手機比例微調 + README 畫面展示）→ **push 到 origin**。本輪無後續排定 task。
+  demo/競賽前建議真 Chrome 人工 click-through（下鑽/演練兩發/tooltip/Ack 手感）；carbon LIVE 需先起 PoC 後端。
 
 **（以下為前一輪 Settings 頁，已完結）**
 
