@@ -1,0 +1,71 @@
+/* Hero — 影片底圖兩段式（2026-07-08 spec）。全部 #s-hero 前綴；
+   罩幕兩態走 body[data-hero]；禁止對 video 套 filter（hardware overlay）。 */
+
+/* ── 底層：影片 + 罩幕 ── */
+#s-hero .herobg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;pointer-events:none;}
+#s-hero .heroscrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(7,11,17,.5),rgba(7,11,17,.15) 45%,rgba(7,11,17,.62));}
+#s-hero .heroscrim::after{content:'';position:absolute;inset:0;background:rgba(7,11,17,.66);
+  opacity:0;transition:opacity .25s var(--ease);}
+body[data-hero="ov"] #s-hero .heroscrim::after{opacity:1;}
+
+/* ── 封面 ── */
+#s-hero .cover{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;text-align:center;transition:opacity .28s var(--ease),transform .28s var(--ease);}
+body[data-hero="ov"] #s-hero .cover{opacity:0;transform:translateY(-24px);pointer-events:none;}
+#s-hero .cover .k{font-size:12px;letter-spacing:.34em;color:var(--ink-60);font-family:var(--mono);margin-bottom:20px;}
+#s-hero .cover h1{font-size:clamp(44px,9vh,104px);margin:0 0 16px;font-weight:800;letter-spacing:.06em;line-height:1.15;
+  text-wrap:balance;background:linear-gradient(180deg,#fff,rgba(255,255,255,.72));
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+#s-hero .cover .sub{color:var(--ink-60);font-size:15.5px;letter-spacing:.12em;margin-bottom:34px;}
+#s-hero .hchips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:56rem;}
+#s-hero .hchip{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;cursor:pointer;
+  border:1px solid var(--hair);background:rgba(255,255,255,.06);color:var(--ink-90);font-size:13px;font-family:inherit;
+  outline:1px solid transparent;transition:transform .4s var(--ease),outline-color .4s var(--ease);}
+#s-hero .hchip:hover{transform:translateY(-3px);outline-color:var(--mc);}
+#s-hero .hchip i{width:7px;height:7px;border-radius:50%;background:var(--mc);box-shadow:0 0 8px var(--mc);}
+#s-hero .hcta{margin-top:42px;display:inline-flex;align-items:center;gap:10px;padding:10px 22px;border-radius:999px;cursor:pointer;
+  border:1px solid var(--hair);background:rgba(255,255,255,.07);color:var(--ink-90);font-size:13.5px;font-family:inherit;}
+#s-hero .hkbd{padding:3px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.3);font-family:var(--mono);font-size:11px;
+  letter-spacing:.08em;animation:hkbdpulse 2.4s ease-in-out infinite;}
+@keyframes hkbdpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}50%{box-shadow:0 0 12px 0 rgba(255,255,255,.28);}}
+#s-hero .cover .comp{margin-top:30px;font-size:11px;color:var(--ink-40);font-family:var(--mono);letter-spacing:.22em;}
+
+/* ── 總覽（模組儀表牆）── */
+#s-hero .overview{position:absolute;inset:0;z-index:2;overflow-y:auto;opacity:0;transform:translateY(20px);pointer-events:none;
+  transition:opacity .5s var(--ease),transform .5s var(--ease);}
+body[data-hero="ov"] #s-hero .overview{opacity:1;transform:none;pointer-events:auto;transition-delay:.15s;}
+#s-hero .overview .swrap{display:flex;flex-direction:column;min-height:100%;}
+#s-hero .ovhead{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+#s-hero .ovhead h1{font-size:24px;margin:0;font-weight:700;}
+#s-hero .ovspacer{flex:1;}
+#s-hero .kpiline{font-family:var(--mono);font-size:13px;color:var(--ink-60);letter-spacing:.06em;white-space:nowrap;}
+#s-hero .modwall{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:minmax(180px,1fr);gap:14px;}
+#s-hero .mcard{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:10px;padding:20px 22px;
+  border-radius:18px;cursor:pointer;border:none;text-align:left;font-family:inherit;color:var(--ink-90);
+  outline:1px solid transparent;transition:transform .35s var(--ease),outline-color .35s var(--ease);
+  opacity:0;transform:translateY(14px);}
+body[data-hero="ov"] #s-hero .mcard{opacity:1;transform:none;
+  transition:opacity .5s var(--ease),transform .5s var(--ease),outline-color .35s var(--ease);
+  transition-delay:calc(.2s + var(--i) * .08s);}
+body[data-hero="ov"] #s-hero .mcard:hover{transform:translateY(-4px);outline-color:var(--mc);transition-delay:0s;}
+#s-hero .mcard .t{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600;}
+#s-hero .mcard .t i{width:8px;height:8px;border-radius:50%;background:var(--mc);box-shadow:0 0 10px var(--mc);}
+#s-hero .mcard .v{font-size:clamp(26px,3.4vh,34px);font-family:var(--mono);font-weight:600;letter-spacing:-.01em;}
+#s-hero .mcard .tr{width:100%;height:26px;overflow:visible;}
+#s-hero .mcard .tr polyline{fill:none;stroke:var(--mc);stroke-width:2;opacity:.65;stroke-linecap:round;stroke-linejoin:round;}
+
+/* reduced-motion：轉場直達終態（.anim 三通道 tokens.css 已內建，這裡補 hero 專屬過場） */
+@media(prefers-reduced-motion:reduce){
+  #s-hero .cover,#s-hero .overview,#s-hero .mcard,#s-hero .heroscrim::after{transition:none!important;}
+  #s-hero .hkbd{animation:none;}
+}
+body[data-motion="reduce"] #s-hero .cover,body[data-motion="reduce"] #s-hero .overview,
+body[data-motion="reduce"] #s-hero .mcard,body[data-motion="reduce"] #s-hero .heroscrim::after{transition:none!important;}
+body[data-motion="reduce"] #s-hero .hkbd{animation:none;}
+
+/* 窄螢幕降級（demo 以 16:9 為準，僅保底不破版） */
+@media(max-width:900px){
+  #s-hero .modwall{grid-template-columns:1fr 1fr;}
+  #s-hero .kpiline{display:none;}
+}
