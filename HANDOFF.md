@@ -2,11 +2,47 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-08 Alert 頁改版全案完結並 **push 到 origin**——SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復 + 合併後手機 mock 比例微調（使用者回饋，改窄身 16:9）+ README 加畫面展示（`docs/screens/alert.png` 紅色警報頂格），已本地合併回 main 並 push。**六大功能頁深度改版至此全部完成。**（Settings 頁已於 2026-07-07 合併 push 完結，見下）
+最後更新：2026-07-08 Hero 頁改版 SDD 三 task 全數完成、**全站迴歸驗收全綠（零缺陷）**，分支 `hero-redesign`。封面改「中置＋六模組 chips」、總覽改「模組儀表牆 3×2」、底圖換成自架波浪 loop 影片。三綠燈（tsc 0 / vitest 17 檔 63 / build ok）+ 8 頁 CDP 迴歸全 PASS。**待最終 whole-branch review → 使用者實機驗收 → finishing。**（六大功能頁深度改版於 alert 已全部完成，見下；本輪為 hero 封面/總覽的視覺升級。）
 
 ---
 
 ## 1. 目前狀態
+
+**Hero 頁改版：SDD 三 task 全數完成並各通過獨立 review，全站迴歸驗收全綠、零缺陷，分支 `hero-redesign`（自 main，baseline `c1a2490`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
+- 定位：**PPT 開場封面 + 戰情總覽**兩段式。封面改為「電影感中置標題 + 六模組 chips（同色點錨定）+ ENTER CTA」、
+  底圖從舊的 `#harbor` canvas 點雲假資料換成**自架波浪 loop 影片**（`src/screens/hero/hero-bg.mp4`，1.4MB、
+  H.264、1620×1080、無縫 loop）+ gradient scrim 壓對比；Enter/點擊/`hero:toggle` → **總覽「模組儀表牆 3×2」**
+  （六卡＝色點 + mono 數值 + 對色 sparkline，讀 overview mock 的 `modules.trend`）+ LIVE chip + KPI 行。
+  chips/CTA 用半透明實色（不對 video 套 filter/blend），模組卡走 `lg lg-static`（無手寫 backdrop-filter）。
+- **成果檔案**：`src/screens/hero/{hero.html 重寫,index.ts 重寫,hero.css 新增,hero-bg.mp4 新增,hero-poster.jpg 新增}`
+  + 刪 `ovmap.ts`；`src/data/types.ts`（OverviewSnapshot：`modules` 加 `trend`、刪 `sparks`/`weekly`/`delta`）
+  + `src/data/mock/overview.json`（全面改寫）+ `src/ui/tokens.css`（清 hero 舊段：`.cover`/`.modcard`/`.entry`/
+  `.entries`/`.overview`/`.ov-head`/`.mapbox`/`.tagrow`/`.modrow` 等，grep 佐證無 hero 以外引用）
+  + `tests/overview-mock.test.ts` 新增（vitest 16 檔 61 → 17 檔 63）。
+- **SDD 三 task（各獨立 code review 皆 Spec ✅ + Quality Approved）**：(1) OverviewSnapshot 契約改版 + mock 改寫
+  + hero 降過渡殼 TDD；(2) 影片資產 + hero 全面重寫（hero.html/index.ts/hero.css）+ tokens.css 清舊（CDP 28/28）；
+  (3) 全站迴歸驗收 + 本文件收尾（純驗收，除 HANDOFF.md 外不動產品碼）。
+- **驗收（誠實分野）**：三綠燈全過（`tsc` 0 / `vitest` 17 檔 63 tests / `build` ok；`hero-bg.mp4` 為獨立 asset
+  1,428,625 bytes、非 inline）。純邏輯（overview mock 契約：`modules.trend` 長度、kpi 五欄）走 vitest；
+  渲染/影片生命週期/鍵盤/reduced-motion 以獨立 headless Chrome + CDP（port 9455、SwiftShader flags、勿加
+  `--disable-gpu`、前景同步 + 硬 watchdog、跑畢自行 pkill 無殘留）逐項實機驗證——**8 頁全站迴歸全 PASS**：
+  hero 封面 video 播放 + currentTime 前進、Enter→總覽（`data-hero=ov`）、8 頁 sweep 逐頁 `.screen.active` 正確
+  + 版面 `w=1620` 非空、carbon `.fchip .n`／policy `.gbar` 跨頁補償正常、twin WebGL context alive、鍵盤
+  `Enter`/`1`/`0` + 生命週期（切走 video 暫停、`0` 切回 video 恢復播放且**總覽態保留**）、carbon modal 輸入框
+  打數字不跳頁（既有 bail-out）、reduced-motion 全站（hero 顯 poster 靜態 video.paused + autoplay 移除、
+  其餘頁完整渲染非空白）、**console 全程零 JS 例外**。**驗收零缺陷。** 完整逐項證據見
+  `.superpowers/sdd/task-3-report.md`（scratch，未進版控）。
+- 設計事實與 schema/決策見 `docs/superpowers/specs/2026-07-08-hero-redesign-design.md`；實作計畫
+  `docs/superpowers/plans/2026-07-08-hero-redesign.md`（3 tasks）；逐 task review 摘要見 `.superpowers/sdd/`。
+- **待最終 whole-branch review triage 的殘留（非缺陷，Task 2 review 提出、已於驗收再確認不影響）**：
+  (a) `#ovMap`/`.cols` 為 tokens.css 孤兒死 CSS（新版 hero 已移除 `<canvas id="ovMap">`，現無消費者；不在 Task 2
+  刪除清單，依 CORE RULE 未擅自清）；(b) `sparkPoints` 對長度 1 的 trend 會產生 NaN（現行 mock 六模組 trend
+  皆長度 7，不觸發）；(c) 全域 `.stack`（tokens.css）保留——policy 使用 `class="stack"`，刪除對其無實害但保守
+  保留。三項交最終 whole-branch review 決策是否收斂。
+- demo/競賽前建議：真 Chrome 人工 click-through 一輪（封面影片觀感 / 總覽儀表牆 stagger / chips hover / Enter 轉場手感）；
+  carbon LIVE 需先起 PoC 後端（:8000）。
+
+**（以下為前一輪 Alert 頁，已完結並 push）**
 
 **Alert 頁改版：全案完結並 push 到 origin。SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復，本地合併回 main（fast-forward `94a896a`→`7f6b437`、feature 分支 `alert-redesign` 已刪）；合併後兩筆 follow-up：(a) 手機 mock 比例微調（使用者回饋——`.phone` aspect-ratio `9/18.5`→`9/16` + max-width `230`→`205px`，改成窄身 16:9、減少空白，alert.css + preview 同步；systematic-debugging 確認非溢出而是比例過高），(b) README「畫面展示」加 alert 段 + `docs/screens/alert.png`（紅色警報頂格全港廣播，SwiftShader 3200×2000）。合併後 main 三綠燈 tsc 0 / vitest 16 檔 61 / build ok。已 push origin。六大功能頁深度改版全部完成。**
 - 定位：**獨立警報中心**——港區事件（疫情/派工/氣象）經分級規則引擎，以 Cell Broadcast 推播；
@@ -802,12 +838,11 @@
 
 ## 4. 下一步（依序）
 
-**目前的下一步（2026-07-08 起）：Alert 頁改版 SDD 6 tasks 全數完成、全站驗收綠燈（見第 1 節），分支 `alert-redesign`。接續：最終 whole-branch review（opus）→ 使用者實機驗收 → finishing（決定合併方式）。**
-- 六大功能頁改版進度：carbon(live)/twin(live 原生)/policy(已改版合併)/dispatch(已改版合併)/
-  epidemic(已改版合併)/**alert(已改版，待 review+合併)**——**六大功能頁深度改版至此全部完成**。
-- Settings（第 8 個 screen）已於 2026-07-07 合併 push 完結；alert 為六大功能頁最後一塊。
-- alert 分支 finishing 前建議事項：(1) 真 Chrome 人工 click-through（下鑽/演練兩發/tooltip/Ack）；
-  (2) 若合併後要 README 加畫面展示，可用 `docs/screens/alert.png`（紅色警報頂格，SwiftShader 實拍）。
+**目前的下一步（2026-07-08 起）：Hero 頁改版 SDD 三 task 全數完成、全站迴歸驗收全綠（零缺陷，見第 1 節），分支 `hero-redesign`。接續：最終 whole-branch review（opus，整支 `c1a2490..HEAD`）→ 使用者實機驗收 → finishing（決定合併方式）。**
+- hero 改版三 commit：`9425455`（spec+plan）→ `696cab3`（契約改版 + mock + 降過渡殼）→ `72d88b8`（影片底圖 + 封面 chips + 模組儀表牆全面重寫 + tokens 清舊）；Task 3（本輪驗收）為純文件（HANDOFF.md），待使用者 commit。
+- whole-branch review 三個 triage 候選（第 1 節有詳述，皆非缺陷）：`#ovMap`/`.cols` 孤兒死 CSS、`sparkPoints` length-1 NaN 不觸發、全域 `.stack` 保留是否收斂。
+- finishing 前建議事項：(1) 真 Chrome 人工 click-through（封面影片觀感 / Enter 轉場 / 總覽儀表牆 stagger / chips hover 手感）；(2) 若合併後要 README 加畫面展示，可補 hero 封面/總覽截圖（比照 alert/settings 前例）。
+- 六大功能頁改版已於 alert 全部完成並 push；Settings（第 8 screen）已於 2026-07-07 完結。**本輪 hero 為封面/總覽的視覺升級，完結後六頁 + hero + settings 全數改版到位。**
 
 （以下為 shell 建置期的歷史步驟，皆已完成）
 
