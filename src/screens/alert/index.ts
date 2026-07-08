@@ -122,12 +122,18 @@ function renderFeed(): void {
     });
 }
 
-function renderPhone(ev: AlertEvent, drill: boolean): void {
+function renderPhone(ev: AlertEvent | null, drill: boolean): void {
   const scr = $('#aphoneScr');
   const pa = $('#apalert');
   const ph = $('#aphone');
   pa.classList.remove('show');
   ph.classList.remove('shake');
+  if (!ev) {
+    scr.innerHTML =
+      '<div class="banner old"><div class="bfrom">▲ 橙色警戒 · CH 911</div><b>泊位108靠泊船疫情風險橙級</b><br>【航港局港勤中心】限制非必要登輪</div>' +
+      '<div class="banner old"><div class="bfrom">▲ 作業提示 · CH 911</div><b>未來30分鐘強降雨機率80%</b><br>【航港局港勤中心】橋式吊掛作業暫緩</div>';
+    return;
+  }
   const s = ev.sms;
   if (ev.sev === 'red') {
     pa.innerHTML =
@@ -146,8 +152,12 @@ function renderPhone(ev: AlertEvent, drill: boolean): void {
   }
 }
 
-function renderFunnel(ev: AlertEvent, countUp: boolean): void {
+function renderFunnel(ev: AlertEvent | null, countUp: boolean): void {
   const el = $('#afunnel');
+  if (!ev) {
+    el.innerHTML = '<div style="font-size:10.5px;color:var(--ink40)">點選事件查看該次推播</div>';
+    return;
+  }
   el.innerHTML = ev.funnels
     .map((f: AlertFunnel, fi: number) => {
       const max = f.triggered;
@@ -243,7 +253,9 @@ function simulate(): void {
   feed = [ev, ...feed];
   curId = ev.id;
   renderFeed();
-  map.renderEvent({ ...ev, cellsLit: [] }); // 圍欄+pdot 先上、cell 等 stagger（later 內 litCells 補亮）
+  renderMap({ ...ev, cellsLit: [] }); // 圍欄+pdot 先上、cell 等 stagger（later 內 litCells 補亮）
+  renderPhone(null, false); // 手機/漏斗先清成空狀態，避免動畫前半段與新插卡錯配舊事件（對齊 preview 第 344 行）
+  renderFunnel(null, false);
   const TS: (string[] | null)[] = [
     ['done', 'run', 'wait', 'wait'],
     ['done', 'done', 'run', 'wait'],
