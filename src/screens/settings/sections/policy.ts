@@ -1,5 +1,10 @@
 import { getSetting, setSetting } from '../storage';
 import { tail4 } from '../renderer';
+import {
+  createKb, deleteDoc, deleteKb, listDocs, listOllamaModels, listSources,
+  pushLlmConfig, setSourceEnabled, testConnection, uploadDoc,
+} from '../backend';
+import type { BackendDoc, BackendSource } from '../backend';
 import type { SettingGroup, SettingsCtx, SettingsSection } from '../schema';
 
 /* policy 分區：生成接口（llmMode segmented）+ 模型管理（供應商 Setup modal + 系統預設模型）。
@@ -164,6 +169,27 @@ export function connectedModels(kind: 'chat' | 'embedding' | 'rerank'): string[]
   return out;
 }
 
+/* 供應商 URL → 後端可用的 OpenAI 相容 base（Ollama 補 /v1；已含 /vN 則原樣）。 */
+export function openaiBase(p: ProviderCfg): string {
+  const u = p.url.replace(/\/+$/, '');
+  if (/\/v\d+$/.test(u)) return u;
+  if (p.keyOptional || /:11434(\/|$)/.test(u)) return u + '/v1';
+  return u;
+}
+
+/* 把「系統預設推理模型」+ 其所屬供應商寫入後端 llm_config（後端不在則靜默略過）。 */
+export async function syncLlmToBackend(): Promise<void> {
+  const model = getDefaults().reasoning;
+  if (!model) return;
+  const prov = getProviders().find(
+    (p) => p.connected && p.models.some((m) => m.enabled && m.kind === 'chat' && m.id === model),
+  );
+  if (!prov) return;
+  try {
+    await pushLlmConfig(prov.name, openaiBase(prov), prov.key, model);
+  } catch { /* 後端未啟動，維持 UI 設定 */ }
+}
+
 /* ---------- 生成接口 group（instant segmented） ---------- */
 function llmGroup(): SettingGroup {
   return {
@@ -294,6 +320,7 @@ function modelGroup(): SettingGroup {
           const d = getDefaults();
           d[key] = s.value;
           setSetting('policy.defaults', d);
+          if (key === 'reasoning') void syncLlmToBackend();  // 推理模型 → 後端 llm_config
           const fl = el.querySelector('[data-flash="def"]');
           if (fl) {
             fl.classList.add('show');
@@ -384,33 +411,52 @@ function modelGroup(): SettingGroup {
         eyeBtn.textContent = keyIn.type === 'password' ? '顯示' : '隱藏';
       });
 
-      testBtn.addEventListener('click', () => {
+      testBtn.addEventListener('click', async () => {
         if (!pmProv) return;
         const prov = pmProv;
         const url = urlIn.value.trim();
         const key = keyIn.value.trim();
+        if (!/^https?:\/\/.+/.test(url)) {
+          stateEl.className = 'tstate err';
+          stateEl.textContent = '✗ API URL 格式不正確';
+          return;
+        }
+        const effKey = key || (prov.connected ? prov.key : '');
+        if (!effKey && !prov.keyOptional) {
+          stateEl.className = 'tstate err';
+          stateEl.textContent = '✗ 需要 API KEY';
+          return;
+        }
         stateEl.className = 'tstate run';
         stateEl.innerHTML = '<span class="spin"></span>驗證中…';
-        setTimeout(() => {
-          if (!/^https?:\/\/.+/.test(url)) {
-            stateEl.className = 'tstate err';
-            stateEl.textContent = '✗ API URL 格式不正確';
-            return;
+        const u = url.replace(/\/+$/, '');
+        const isOllama = prov.keyOptional || /:11434(\/|$)/.test(u);
+        const base = /\/v\d+$/.test(u) ? u : (isOllama ? u + '/v1' : u);
+        try {
+          if (isOllama) {
+            // Ollama：列出真實已安裝模型即為連線驗證
+            const ms = await listOllamaModels(base);
+            if (!ms.length) throw new Error('no models');
+            pmTestedModels = ms.map((id, i) => ({ id, kind: 'chat' as const, enabled: i === 0 }));
+            stateEl.className = 'tstate ok';
+            stateEl.textContent = '✓ 已連線 · 載入 ' + ms.length + ' 個模型';
+          } else {
+            const testModel = (prov.catalog ?? []).find((m) => m.kind === 'chat')?.id ?? 'gpt-4.1-mini';
+            const res = await testConnection(base, effKey, testModel);
+            if (!res.ok) throw new Error(res.message);
+            pmTestedModels = prov.models.length
+              ? prov.models
+              : (prov.catalog ?? []).map((m) => ({ ...m, enabled: m.kind === 'chat' }));
+            stateEl.className = 'tstate ok';
+            stateEl.textContent = '✓ ' + res.message.slice(0, 40);
           }
-          if (!key && !prov.keyOptional && !(prov.connected && prov.key)) {
-            stateEl.className = 'tstate err';
-            stateEl.textContent = '✗ 需要 API KEY';
-            return;
-          }
-          pmTestedModels = prov.models.length
-            ? prov.models
-            : (prov.catalog ?? []).map((m) => ({ ...m, enabled: m.kind === 'chat' }));
-          stateEl.className = 'tstate ok';
-          stateEl.textContent = '✓ 驗證通過 · 已載入 ' + pmTestedModels.length + ' 個模型';
           modelsEl.innerHTML = modelListHtml(pmTestedModels);
           saveBtn.disabled = false;
           hintEl.textContent = '';
-        }, 1200);
+        } catch {
+          stateEl.className = 'tstate err';
+          stateEl.textContent = '✗ 連線失敗（確認後端 :8100 與供應商設定）';
+        }
       });
 
       modelsEl.addEventListener('change', (e) => {
@@ -434,6 +480,7 @@ function modelGroup(): SettingGroup {
         const idx = list.findIndex((p) => p.id === prov.id);
         if (idx >= 0) list[idx] = prov; else list.push(prov);
         setProviders(list);
+        void syncLlmToBackend();   // 供應商 url/key/模型變更 → 同步後端 llm_config
         closeModal();
         ctx.rerender();
       });
@@ -457,24 +504,13 @@ function modelGroup(): SettingGroup {
 }
 
 /* ---------- 知識庫管理 group（卡牆 + KB modal + 新增庫 modal） ---------- */
-function docsListHtml(kb: Kb): string {
-  if (!kb.docs.length) return '<div class="gnote">尚無文件 — 由下方上傳。</div>';
-  return kb.docs.map((d) =>
-    '<div class="docrow"><span class="fn">' + esc(d.name) + '</span>' +
-    '<span class="stat ' + (d.status === 'available' ? 'ok' : 'idx') + '">' +
-    (d.status === 'available' ? 'available' : 'indexing…') + '</span>' +
-    '<button type="button" class="rm" data-rmdoc="' + esc(d.id) + '" title="刪除">×</button></div>',
+function docsListHtml(docs: BackendDoc[]): string {
+  if (!docs.length) return '<div class="gnote">尚無文件 — 由下方上傳。</div>';
+  return docs.map((d) =>
+    '<div class="docrow"><span class="fn">' + esc(d.filename) + '</span>' +
+    '<span class="stat ok">' + d.chunk_count + ' 段</span>' +
+    '<button type="button" class="rm" data-rmdoc="' + d.id + '" title="刪除">×</button></div>',
   ).join('');
-}
-
-function stratCardsHtml(r: Kb['retrieval']): string {
-  return (
-    [
-      ['vector', '向量檢索', '語意相似度'],
-      ['fulltext', '全文檢索', '關鍵字倒排索引'],
-      ['hybrid', 'Hybrid', '語意 + 關鍵字加權'],
-    ] as const
-  ).map((s) => '<div class="scard' + (r.strategy === s[0] ? ' on' : '') + '" data-strat="' + s[0] + '"><b>' + s[1] + '</b>' + s[2] + '</div>').join('');
 }
 
 function kbModalHtml(): string {
@@ -482,29 +518,15 @@ function kbModalHtml(): string {
     '<div class="mwrap" id="kbmodal"><div class="mbox wide">' +
     '<div class="mhead"><h3 id="kb-title">知識庫</h3><span class="sp"></span>' +
     '<button type="button" class="mclose" id="kb-close">×</button></div>' +
-    '<div class="msec">文件（即時生效）</div><div id="kb-docs"></div>' +
-    '<div class="drop" id="kb-drop">拖放或點擊上傳文件（PDF / DOCX / TXT）</div>' +
-    '<input type="file" id="kb-file" multiple style="display:none">' +
-    '<div class="msec">分段與索引（需儲存）</div>' +
+    '<div class="msec">文件</div><div id="kb-docs"></div>' +
+    '<div class="drop" id="kb-drop">拖放或點擊上傳文件（TXT / MD / PDF / DOCX）</div>' +
+    '<input type="file" id="kb-file" accept=".txt,.md,.pdf,.docx" multiple style="display:none">' +
+    '<div class="kbup" id="kb-upstate"></div>' +
+    '<div class="msec">分段參數（上傳時套用）</div>' +
     '<div class="frow"><div class="flabel">Chunk 長度<span class="help">tokens</span></div>' +
-    '<div class="fctl"><input class="tin num" id="kb-chunk" type="number" min="64" max="4096" step="64"></div></div>' +
+    '<div class="fctl"><input class="tin num" id="kb-chunk" type="number" min="64" max="4096" step="64" value="512"></div></div>' +
     '<div class="frow"><div class="flabel">Chunk 重疊<span class="help">tokens</span></div>' +
-    '<div class="fctl"><input class="tin num" id="kb-overlap" type="number" min="0" max="1024" step="16"></div></div>' +
-    '<div class="frow"><div class="flabel">Embedding 模型</div>' +
-    '<div class="fctl"><select class="sel" id="kb-emb"></select></div></div>' +
-    '<div class="msec">檢索策略（需儲存）</div><div class="strat" id="kb-strat"></div>' +
-    '<div class="subopt" id="kb-hybrid" style="display:none">' +
-    '<div class="rlab"><span>語意權重</span><span id="kb-wlab">0.6</span><span>關鍵字權重</span></div>' +
-    '<input type="range" class="rng" id="kb-weight" min="0" max="100" value="60"></div>' +
-    '<div class="frow" style="margin-top:8px"><div class="flabel">Rerank 重排序</div><div class="fctl">' +
-    '<label class="tgl" id="kb-rrwrap"><input type="checkbox" id="kb-rerank"><span class="tr"></span><span class="th"></span></label>' +
-    '<select class="sel" id="kb-rrmodel" style="display:none"></select>' +
-    '<span class="guide" id="kb-rrguide" style="display:none">尚無可用 rerank 模型 — <a id="kb-goprov">先至模型管理設定</a></span>' +
-    '</div></div>' +
-    '<div class="savebar" id="kb-savebar"><span>未儲存變更</span><span class="sp"></span>' +
-    '<button type="button" class="mini" id="kb-discard">捨棄</button>' +
-    '<button type="button" class="mini acc" id="kb-save">儲存</button></div>' +
-    '<div class="saved" id="kb-saved">✓ 已儲存</div>' +
+    '<div class="fctl"><input class="tin num" id="kb-overlap" type="number" min="0" max="1024" step="16" value="64"></div></div>' +
     '</div></div>'
   );
 }
@@ -516,134 +538,31 @@ function nkModalHtml(): string {
     '<button type="button" class="mclose" id="nk-close">×</button></div>' +
     '<div class="frow"><div class="flabel">名稱</div>' +
     '<div class="fctl"><input class="tin" id="nk-name" placeholder="例：綠色航運政策"></div></div>' +
-    '<div class="frow"><div class="flabel">描述（選填）</div>' +
-    '<div class="fctl"><input class="tin" id="nk-desc" placeholder="這個知識庫收錄什麼"></div></div>' +
     '<div class="savebar show" style="background:transparent;border-color:rgba(255,255,255,.1);color:var(--ink60)">' +
     '<span></span><span class="sp"></span><button type="button" class="mini acc" id="nk-create">建立</button></div>' +
     '</div></div>'
   );
 }
 
+/* 知識庫管理接真後端：列出 /api/sources、啟用停用、建/刪庫、上傳/列/刪文件。
+   後端不在時顯示提示（mock 資料層 KB_PRESET/getKbs 保留供 preset 契約測試，不在此使用）。 */
 function kbGroup(): SettingGroup {
   return {
     title: '知識庫管理',
     saveMode: 'instant',
-    custom(el, ctx: SettingsCtx) {
-      let kbs = getKbs();
-      let kbCur: Kb | null = null;
-      let kbDraft: { chunk: Kb['chunk']; retrieval: Kb['retrieval'] } | null = null;
-      // 兩個 modal（知識庫 / 新增知識庫）各自獨立的 Escape 生命週期，沿用 modelGroup 的
-      // escOff 模式：卡片無 tabindex，開 modal 後 focus 停在 body，keydown 只會冒泡到
-      // document，故監聽必須掛在 document、且開一次掛一次、關一次卸一次，避免疊加殘留。
+    custom(el) {
+      let sources: BackendSource[] = [];
+      let curKb: BackendSource | null = null;
       let escOffKb: (() => void) | null = null;
       let escOffNk: (() => void) | null = null;
 
-      // 動態「n 庫 · m 文件」badge + 「重置為預設」鈕：schema 的 g.badge 是靜態字串，無法反映
-      // 即時庫/文件數，故不設 g.badge，改在 custom 執行當下手動插入 ghead（同 modelGroup 手法）。
-      const card = el.parentElement;
-      const ghead = card?.querySelector('.ghead');
-      if (ghead && !ghead.querySelector('.gbadge')) {
-        const badge = document.createElement('span');
-        badge.className = 'gbadge blue';
-        badge.textContent = kbs.length + ' 庫 · ' + kbs.reduce((a, k) => a + k.docs.length, 0) + ' 文件';
-        ghead.insertBefore(badge, ghead.querySelector('.sp'));
-        const resetBtn = document.createElement('button');
-        resetBtn.type = 'button';
-        resetBtn.className = 'mini';
-        resetBtn.id = 'kb-reset';
-        resetBtn.textContent = '重置為預設';
-        ghead.appendChild(resetBtn);
-        resetBtn.addEventListener('click', () => {
-          if (!confirm('重置知識庫為預設五庫？（自訂庫與變更將移除）')) return;
-          setKbs(JSON.parse(JSON.stringify(KB_PRESET)));
-          ctx.rerender();
-        });
-      }
-
       el.innerHTML =
-        '<div class="kbgrid">' +
-        kbs.map((k) =>
-          '<div class="kbcard" data-kb="' + esc(k.id) + '">' +
-          '<b>' + esc(k.name) + '</b>' +
-          '<span class="meta">' + k.docs.length + ' 文件 · ' + k.retrieval.strategy +
-          (k.retrieval.rerank ? ' · rerank' : '') + '</span>' +
-          '<span class="del" data-delkb="' + esc(k.id) + '" title="刪除知識庫">×</span></div>',
-        ).join('') +
-        '<div class="kbcard addc" id="kb-add">+ 新增知識庫</div></div>' +
-        '<div class="gnote">點知識庫卡片管理文件與分段/檢索參數。刪除與上傳為即時生效；參數需儲存。</div>' +
+        '<div class="kbgrid" id="kbgrid"><div class="gnote">載入知識庫…</div></div>' +
+        '<div class="gnote">上傳文件即時切段與索引；停用的知識庫不進檢索。自建知識庫可刪除。</div>' +
         kbModalHtml() + nkModalHtml();
 
-      // ---- 卡牆外層局部刷新（doc 級操作 modal 開著時不能整組 rerender，否則會把 modal 拆掉）----
-      function refreshBadge(): void {
-        const b = ghead?.querySelector('.gbadge');
-        if (b) b.textContent = kbs.length + ' 庫 · ' + kbs.reduce((a, k) => a + k.docs.length, 0) + ' 文件';
-      }
-      function refreshCard(kb: Kb): void {
-        const c = el.querySelector('.kbcard[data-kb="' + kb.id + '"]');
-        const m = c?.querySelector('.meta');
-        if (m) m.textContent = kb.docs.length + ' 文件 · ' + kb.retrieval.strategy + (kb.retrieval.rerank ? ' · rerank' : '');
-      }
-
-      el.querySelectorAll<HTMLElement>('[data-kb]').forEach((c) => {
-        c.addEventListener('click', (e) => {
-          if ((e.target as HTMLElement).closest('[data-delkb]')) return;
-          openKb(c.getAttribute('data-kb') as string);
-        });
-      });
-      el.querySelectorAll<HTMLElement>('[data-delkb]').forEach((d) => {
-        d.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = d.getAttribute('data-delkb');
-          const kb = kbs.find((k) => k.id === id);
-          if (!kb) return;
-          if (!confirm('刪除知識庫「' + kb.name + '」？（' + kb.docs.length + ' 份文件將一併移除）')) return;
-          kbs = kbs.filter((k) => k.id !== kb.id);
-          setKbs(kbs);
-          ctx.rerender();
-        });
-      });
-
-      const nkWrap = el.querySelector('#nkmodal') as HTMLElement;
-      const nkNameIn = nkWrap.querySelector('#nk-name') as HTMLInputElement;
-      const nkDescIn = nkWrap.querySelector('#nk-desc') as HTMLInputElement;
-
-      function closeNkModal(): void {
-        nkWrap.classList.remove('open');
-        if (escOffNk) { escOffNk(); escOffNk = null; }
-      }
-      function openNk(): void {
-        nkNameIn.value = '';
-        nkDescIn.value = '';
-        nkWrap.classList.add('open');
-        if (escOffNk) { escOffNk(); escOffNk = null; }
-        const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeNkModal(); };
-        document.addEventListener('keydown', onEsc);
-        escOffNk = () => document.removeEventListener('keydown', onEsc);
-      }
-      (el.querySelector('#kb-add') as HTMLElement).addEventListener('click', openNk);
-      (nkWrap.querySelector('#nk-close') as HTMLElement).addEventListener('click', closeNkModal);
-      nkWrap.addEventListener('click', (e) => { if (e.target === nkWrap) closeNkModal(); });
-      (nkWrap.querySelector('#nk-create') as HTMLElement).addEventListener('click', () => {
-        const name = nkNameIn.value.trim();
-        if (!name) { nkNameIn.focus(); return; }
-        const kb: Kb = {
-          id: 'kb' + (Date.now() % 100000),
-          name,
-          desc: nkDescIn.value.trim(),
-          docs: [],
-          chunk: { size: 512, overlap: 64 },
-          retrieval: {
-            strategy: 'vector', hybridWeight: 60, rerank: false, rerankModel: '',
-            embeddingModel: connectedModels('embedding')[0] || '',
-          },
-        };
-        kbs.push(kb);
-        setKbs(kbs);
-        closeNkModal();
-        ctx.rerender();
-      });
-
-      // ---- 知識庫 modal ----
+      const grid = el.querySelector('#kbgrid') as HTMLElement;
+      const ghead = el.parentElement?.querySelector('.ghead');
       const kbWrap = el.querySelector('#kbmodal') as HTMLElement;
       const kbTitle = kbWrap.querySelector('#kb-title') as HTMLElement;
       const kbDocsEl = kbWrap.querySelector('#kb-docs') as HTMLElement;
@@ -651,192 +570,154 @@ function kbGroup(): SettingGroup {
       const kbFileEl = kbWrap.querySelector('#kb-file') as HTMLInputElement;
       const kbChunkIn = kbWrap.querySelector('#kb-chunk') as HTMLInputElement;
       const kbOverlapIn = kbWrap.querySelector('#kb-overlap') as HTMLInputElement;
-      const kbEmbSel = kbWrap.querySelector('#kb-emb') as HTMLSelectElement;
-      const kbStratEl = kbWrap.querySelector('#kb-strat') as HTMLElement;
-      const kbHybridEl = kbWrap.querySelector('#kb-hybrid') as HTMLElement;
-      const kbWeightIn = kbWrap.querySelector('#kb-weight') as HTMLInputElement;
-      const kbWlabEl = kbWrap.querySelector('#kb-wlab') as HTMLElement;
-      const kbRerankCk = kbWrap.querySelector('#kb-rerank') as HTMLInputElement;
-      const kbRrModelSel = kbWrap.querySelector('#kb-rrmodel') as HTMLSelectElement;
-      const kbRrGuideEl = kbWrap.querySelector('#kb-rrguide') as HTMLElement;
-      const kbGoProvA = kbWrap.querySelector('#kb-goprov') as HTMLElement;
-      const kbSavebarEl = kbWrap.querySelector('#kb-savebar') as HTMLElement;
-      const kbSavedEl = kbWrap.querySelector('#kb-saved') as HTMLElement;
-      const kbSaveBtn = kbWrap.querySelector('#kb-save') as HTMLButtonElement;
-      const kbDiscardBtn = kbWrap.querySelector('#kb-discard') as HTMLButtonElement;
+      const kbUpState = kbWrap.querySelector('#kb-upstate') as HTMLElement;
+      const nkWrap = el.querySelector('#nkmodal') as HTMLElement;
+      const nkNameIn = nkWrap.querySelector('#nk-name') as HTMLInputElement;
 
-      function renderKbDocs(): void {
-        if (!kbCur) return;
-        kbDocsEl.innerHTML = docsListHtml(kbCur);
-      }
-      function renderKbParams(): void {
-        if (!kbCur || !kbDraft) return;
-        const r = kbDraft.retrieval;
-        kbChunkIn.value = String(kbDraft.chunk.size);
-        kbOverlapIn.value = String(kbDraft.chunk.overlap);
-        const emb = connectedModels('embedding');
-        kbEmbSel.innerHTML = emb.length
-          ? emb.map((m) => '<option value="' + esc(m) + '"' + (m === r.embeddingModel ? ' selected' : '') + '>' + esc(m) + '</option>').join('')
-          : '<option value="">（無可用 embedding 模型）</option>';
-        kbEmbSel.disabled = !emb.length;
-        kbStratEl.innerHTML = stratCardsHtml(r);
-        kbHybridEl.style.display = r.strategy === 'hybrid' ? '' : 'none';
-        kbWeightIn.value = String(r.hybridWeight);
-        kbWlabEl.textContent = (r.hybridWeight / 100).toFixed(1);
-        kbRerankCk.checked = r.rerank;
-        const rr = connectedModels('rerank');
-        if (r.rerank) {
-          if (rr.length) {
-            kbRrModelSel.style.display = '';
-            kbRrGuideEl.style.display = 'none';
-            kbRrModelSel.innerHTML = rr.map((m) => '<option value="' + esc(m) + '"' + (m === r.rerankModel ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
-          } else {
-            kbRrModelSel.style.display = 'none';
-            kbRrGuideEl.style.display = '';
-          }
-        } else {
-          kbRrModelSel.style.display = 'none';
-          kbRrGuideEl.style.display = 'none';
+      function updateBadge(): void {
+        if (!ghead) return;
+        let b = ghead.querySelector('.gbadge') as HTMLElement | null;
+        if (!b) {
+          b = document.createElement('span');
+          b.className = 'gbadge blue';
+          ghead.insertBefore(b, ghead.querySelector('.sp'));
         }
+        const segs = sources.reduce((a, s) => a + s.chunk_count, 0);
+        b.textContent = sources.length + ' 庫 · ' + segs + ' 段';
       }
-      function kbDirty(): void {
-        kbSavebarEl.classList.add('show');
-        kbSavedEl.classList.remove('show');
+
+      async function refresh(): Promise<void> {
+        try {
+          sources = await listSources();
+        } catch {
+          grid.innerHTML =
+            '<div class="gnote">後端未連線（VITE_POLICY_API 指定的 rag-agent），無法載入知識庫。</div>';
+          return;
+        }
+        updateBadge();
+        renderGrid();
       }
-      function closeKbModal(): void {
+
+      function renderGrid(): void {
+        grid.innerHTML = sources.map((s) =>
+          '<div class="kbcard' + (s.enabled ? '' : ' off') + '" data-kb="' + esc(s.source_id) + '">' +
+          '<b>' + esc(s.source_name) + '</b>' +
+          '<span class="meta">' + s.chunk_count + ' 段 · ' + esc(s.source_type) + '</span>' +
+          '<label class="kbtgl"><input type="checkbox" class="kben"' + (s.enabled ? ' checked' : '') + '>啟用</label>' +
+          (s.source_type === 'uploaded'
+            ? '<span class="del" data-delkb="' + esc(s.source_id) + '" title="刪除知識庫">×</span>' : '') +
+          '</div>',
+        ).join('') + '<div class="kbcard addc" id="kb-add">+ 新增知識庫</div>';
+
+        grid.querySelectorAll<HTMLElement>('.kbcard[data-kb]').forEach((c) => {
+          c.addEventListener('click', (e) => {
+            const t = e.target as HTMLElement;
+            if (t.closest('.kbtgl') || t.closest('[data-delkb]')) return;
+            void openKb(c.getAttribute('data-kb')!);
+          });
+        });
+        grid.querySelectorAll<HTMLInputElement>('.kben').forEach((chk) => {
+          chk.addEventListener('change', async () => {
+            const sid = (chk.closest('[data-kb]') as HTMLElement).getAttribute('data-kb')!;
+            const s = sources.find((x) => x.source_id === sid);
+            if (s) s.enabled = chk.checked;
+            try {
+              await setSourceEnabled(sid, chk.checked);
+            } catch {
+              chk.checked = !chk.checked;
+              if (s) s.enabled = chk.checked;
+            }
+          });
+        });
+        grid.querySelectorAll<HTMLElement>('[data-delkb]').forEach((d) => {
+          d.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const sid = d.getAttribute('data-delkb')!;
+            const s = sources.find((x) => x.source_id === sid);
+            if (!confirm('刪除知識庫「' + (s?.source_name ?? sid) + '」？其文件與 chunk 將一併移除')) return;
+            try { await deleteKb(sid); await refresh(); } catch { alert('刪除失敗（後端未連線）'); }
+          });
+        });
+        (grid.querySelector('#kb-add') as HTMLElement).addEventListener('click', openNk);
+      }
+
+      function closeKb(): void {
         kbWrap.classList.remove('open');
         if (escOffKb) { escOffKb(); escOffKb = null; }
       }
-      function openKb(id: string): void {
-        const kb = kbs.find((k) => k.id === id);
-        if (!kb) return;
-        kbCur = kb;
-        kbDraft = JSON.parse(JSON.stringify({ chunk: kb.chunk, retrieval: kb.retrieval }));
-        kbTitle.textContent = '知識庫 — ' + kb.name;
-        renderKbDocs();
-        renderKbParams();
-        kbSavebarEl.classList.remove('show');
-        kbSavedEl.classList.remove('show');
+      async function renderDocs(): Promise<void> {
+        if (!curKb) return;
+        try {
+          kbDocsEl.innerHTML = docsListHtml(await listDocs(curKb.source_id));
+        } catch {
+          kbDocsEl.innerHTML = '<div class="gnote">無法載入文件（後端未連線）。</div>';
+        }
+      }
+      async function openKb(sid: string): Promise<void> {
+        const s = sources.find((x) => x.source_id === sid);
+        if (!s) return;
+        curKb = s;
+        kbTitle.textContent = '知識庫 — ' + s.source_name;
+        kbUpState.textContent = '';
+        kbDocsEl.innerHTML = '<div class="gnote">載入文件…</div>';
         kbWrap.classList.add('open');
         if (escOffKb) { escOffKb(); escOffKb = null; }
-        const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeKbModal(); };
+        const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeKb(); };
         document.addEventListener('keydown', onEsc);
         escOffKb = () => document.removeEventListener('keydown', onEsc);
+        await renderDocs();
       }
 
-      (kbWrap.querySelector('#kb-close') as HTMLElement).addEventListener('click', closeKbModal);
-      kbWrap.addEventListener('click', (e) => { if (e.target === kbWrap) closeKbModal(); });
-
-      kbChunkIn.addEventListener('input', () => {
-        if (!kbDraft) return;
-        kbDraft.chunk.size = Number(kbChunkIn.value) || 512;
-        kbDirty();
-      });
-      kbOverlapIn.addEventListener('input', () => {
-        if (!kbDraft) return;
-        kbDraft.chunk.overlap = Number(kbOverlapIn.value) || 0;
-        kbDirty();
-      });
-      kbEmbSel.addEventListener('change', () => {
-        if (!kbDraft) return;
-        kbDraft.retrieval.embeddingModel = kbEmbSel.value;
-        kbDirty();
-      });
-      kbStratEl.addEventListener('click', (e) => {
-        const s = (e.target as HTMLElement).closest('[data-strat]') as HTMLElement | null;
-        if (!s || !kbDraft) return;
-        kbDraft.retrieval.strategy = s.getAttribute('data-strat') as Kb['retrieval']['strategy'];
-        renderKbParams();
-        kbDirty();
-      });
-      kbWeightIn.addEventListener('input', () => {
-        if (!kbDraft) return;
-        kbDraft.retrieval.hybridWeight = Number(kbWeightIn.value);
-        kbWlabEl.textContent = (kbDraft.retrieval.hybridWeight / 100).toFixed(1);
-        kbDirty();
-      });
-      kbRerankCk.addEventListener('change', () => {
-        if (!kbDraft) return;
-        kbDraft.retrieval.rerank = kbRerankCk.checked;
-        renderKbParams();
-        kbDirty();
-      });
-      kbRrModelSel.addEventListener('change', () => {
-        if (!kbDraft) return;
-        kbDraft.retrieval.rerankModel = kbRrModelSel.value;
-        kbDirty();
-      });
-      kbGoProvA.addEventListener('click', () => {
-        closeKbModal();
-        ctx.goto('policy', '模型管理');
-      });
-      kbSaveBtn.addEventListener('click', () => {
-        if (!kbCur || !kbDraft) return;
-        kbCur.chunk = kbDraft.chunk;
-        kbCur.retrieval = kbDraft.retrieval;
-        setKbs(kbs);
-        kbDraft = JSON.parse(JSON.stringify({ chunk: kbCur.chunk, retrieval: kbCur.retrieval }));
-        kbSavebarEl.classList.remove('show');
-        kbSavedEl.classList.remove('show');
-        void kbSavedEl.offsetWidth;
-        kbSavedEl.classList.add('show');
-        refreshCard(kbCur);
-      });
-      kbDiscardBtn.addEventListener('click', () => {
-        if (!kbCur) return;
-        kbDraft = JSON.parse(JSON.stringify({ chunk: kbCur.chunk, retrieval: kbCur.retrieval }));
-        renderKbParams();
-        kbSavebarEl.classList.remove('show');
-      });
-      kbDocsEl.addEventListener('click', (e) => {
-        const rm = (e.target as HTMLElement).closest('[data-rmdoc]') as HTMLElement | null;
-        if (!rm || !kbCur) return;
-        const docId = rm.getAttribute('data-rmdoc');
-        const doc = kbCur.docs.find((x) => x.id === docId);
-        if (!doc) return;
-        if (!confirm('刪除文件「' + doc.name + '」？')) return;
-        kbCur.docs = kbCur.docs.filter((x) => x.id !== doc.id);
-        setKbs(kbs);
-        renderKbDocs();
-        refreshCard(kbCur);
-        refreshBadge();
-      });
+      (kbWrap.querySelector('#kb-close') as HTMLElement).addEventListener('click', closeKb);
+      kbWrap.addEventListener('click', (e) => { if (e.target === kbWrap) closeKb(); });
       kbDropEl.addEventListener('click', () => kbFileEl.click());
-      kbFileEl.addEventListener('change', () => {
-        if (!kbCur) return;
-        const kb = kbCur;
-        const files = Array.from(kbFileEl.files ?? []);
-        if (!files.length) return;
-        files.forEach((f) => {
-          const doc: Kb['docs'][number] = {
-            id: 'u' + Date.now() + Math.floor(Math.random() * 1e4),
-            name: f.name,
-            status: 'indexing',
-          };
-          kb.docs.push(doc);
-          // 3 秒後轉 available：對「當下最新的 storage 快照」做針對性 patch 再寫回，
-          // 避免這個非同步 callback（可能在使用者已離開/切換分區後才觸發）用本次
-          // render 捕捉到的舊 kbs 陣列整批覆寫，蓋掉期間發生的其他變更。
-          setTimeout(() => {
-            const latest = getKbs();
-            const li = latest.findIndex((k) => k.id === kb.id);
-            if (li >= 0) {
-              const di = latest[li].docs.findIndex((x) => x.id === doc.id);
-              if (di >= 0) latest[li].docs[di].status = 'available';
-              setKbs(latest);
-            }
-            doc.status = 'available';
-            if (kbCur === kb && kbWrap.classList.contains('open')) renderKbDocs();
-            refreshCard(kb);
-            refreshBadge();
-          }, 3000);
-        });
-        kbFileEl.value = '';
-        setKbs(kbs);
-        renderKbDocs();
-        refreshCard(kb);
-        refreshBadge();
+      kbDocsEl.addEventListener('click', async (e) => {
+        const rm = (e.target as HTMLElement).closest('[data-rmdoc]') as HTMLElement | null;
+        if (!rm || !curKb) return;
+        if (!confirm('刪除此文件及其 chunk？')) return;
+        try {
+          await deleteDoc(curKb.source_id, Number(rm.getAttribute('data-rmdoc')));
+          await renderDocs();
+          await refresh();
+        } catch { alert('刪除失敗'); }
       });
+      kbFileEl.addEventListener('change', async () => {
+        if (!curKb) return;
+        const files = Array.from(kbFileEl.files ?? []);
+        kbFileEl.value = '';
+        if (!files.length) return;
+        const size = Number(kbChunkIn.value) || 512;
+        const overlap = Number(kbOverlapIn.value) || 64;
+        for (const f of files) {
+          kbUpState.textContent = '上傳中：' + f.name + ' …';
+          const res = await uploadDoc(curKb.source_id, f, size, overlap);
+          kbUpState.textContent = (res.ok ? '✓ ' : '✗ ') + f.name + '：' + res.message;
+        }
+        await renderDocs();
+        await refresh();
+      });
+
+      function closeNk(): void {
+        nkWrap.classList.remove('open');
+        if (escOffNk) { escOffNk(); escOffNk = null; }
+      }
+      function openNk(): void {
+        nkNameIn.value = '';
+        nkWrap.classList.add('open');
+        if (escOffNk) { escOffNk(); escOffNk = null; }
+        const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeNk(); };
+        document.addEventListener('keydown', onEsc);
+        escOffNk = () => document.removeEventListener('keydown', onEsc);
+      }
+      (nkWrap.querySelector('#nk-close') as HTMLElement).addEventListener('click', closeNk);
+      nkWrap.addEventListener('click', (e) => { if (e.target === nkWrap) closeNk(); });
+      (nkWrap.querySelector('#nk-create') as HTMLElement).addEventListener('click', async () => {
+        const name = nkNameIn.value.trim();
+        if (!name) { nkNameIn.focus(); return; }
+        try { await createKb(name); closeNk(); await refresh(); } catch { alert('建立失敗（後端未連線）'); }
+      });
+
+      void refresh();
     },
   };
 }

@@ -25,6 +25,7 @@ export interface PolicySource {
   cat: string;            // iMarine 五類之一：全球航運指數/台灣數據統計/海運焦點新聞/航港法令/替代能源專區
   date: string;
   checked: boolean;       // 參與生成（右欄勾選初始值）
+  sourceId?: string;      // live 知識庫的後端 source_id（產報告選來源用；mock 無此欄）
 }
 export interface PolicyQA {
   q: string;              // 建議追問（chip 文字 = 使用者氣泡）
@@ -63,6 +64,32 @@ export interface PolicySnapshot {
   briefs: PolicyBrief[];
   inflow: PolicyBrief[];
   globalQa: PolicyQA[];
+}
+
+/* 綜合對話 live 模式（policy provider 走真後端 rag-agent /api/chat）：
+   收件匣情報仍走 snapshot() 的 mock 展示；只有「綜合對話 · 全部來源」的自由提問打 live。 */
+export interface PolicyChatMsg { role: 'user' | 'assistant'; content: string }
+export interface PolicyChatResult {
+  answerHtml: string;              // 已把 [ev_xxx] 轉成 <span class="cite" data-src="n"> 的回答 HTML
+  answerText: string;             // 原始純文字回答（供對話歷史回填）
+  sources: PolicySource[];        // evidence_package.evidence_items 映射，no 對齊 answerHtml 的引用編號
+  grounding: number;              // 後端 citation_coverage（0..100），供 Grounding bar 顯示
+  provider: string;               // 實際生成的供應商（照實顯示，如「Ollama（本地）」）
+  model: string;                 // 實際生成的模型 id（照實顯示，如「gemma3n:e4b」）
+}
+
+/* 產報告（NotebookLM 式：選來源 + 需求 + 模版 → /api/report）。 */
+export interface PolicyReportTemplate { id: string; label: string; description: string }
+export interface PolicyReportSection {
+  key: string; label: string;
+  html: string;                   // 已把 [ev_xxx] 轉成 cite span 的章節 HTML
+  citations: string[];
+}
+export interface PolicyReportResult {
+  reportId: string; topic: string; templateId: string;
+  sections: PolicyReportSection[];
+  sources: PolicySource[];        // 報告引用來源，no 對齊各章節 cite 編號
+  grounding: number; provider: string; model: string;
 }
 
 // ── dispatch（2026-07-05 spec 改版：ConvLSTM 90 分鐘單一預測 + 三情境劇本）──
@@ -153,7 +180,13 @@ export interface TwinSnapshot { berths: { id: string; name: string }[]; trackCou
 
 export interface DataExchange {
   overview: Provider<OverviewSnapshot>;
-  policy: Provider<PolicySnapshot>;
+  // policy.chat / knowledgeBases 只在 live provider 存在；mock provider 無此方法，UI 據此 fallback。
+  policy: Provider<PolicySnapshot> & {
+    chat?(message: string, history: PolicyChatMsg[]): Promise<PolicyChatResult>;
+    knowledgeBases?(): Promise<PolicySource[]>;   // 綜合對話右欄的真實知識庫清單
+    reportTemplates?(): Promise<PolicyReportTemplate[]>;
+    report?(prompt: string, sourceIds: string[], templateId: string): Promise<PolicyReportResult>;
+  };
   dispatch: Provider<DispatchSnapshot>;
   epidemic: Provider<EpidemicSnapshot>;
   alert: Provider<AlertSnapshot>;
