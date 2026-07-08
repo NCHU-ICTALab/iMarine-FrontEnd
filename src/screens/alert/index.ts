@@ -155,7 +155,7 @@ function renderPhone(ev: AlertEvent | null, drill: boolean): void {
 function renderFunnel(ev: AlertEvent | null, countUp: boolean): void {
   const el = $('#afunnel');
   if (!ev) {
-    el.innerHTML = '<div style="font-size:10.5px;color:var(--ink40)">點選事件查看該次推播</div>';
+    el.innerHTML = '<div style="font-size:10.5px;color:var(--ink-40)">點選事件查看該次推播</div>';
     return;
   }
   el.innerHTML = ev.funnels
@@ -325,12 +325,16 @@ const s: Screen = {
     // section 從 mount() 當下的 display:none 變 .active 後容器才有真實尺寸，
     // 首次 show() 前用 0 寬量出的地圖畫布是錯的，故比照 epidemic/dispatch 的既有慣例在此補一次 resize()。
     map.resize();
+    // hide() 會 map.stop() 掉圍欄呼吸；重新切回本頁時比照 mount() 內 onReady callback 的作法
+    // 重繪目前選中事件，讓呼吸/圍欄自然恢復（首次進頁當下 map 多半尚未 ready，renderEvent 內建 guard 會 no-op）。
+    if (curId) renderMap(feed.find((e) => e.id === curId)!);
   },
   hide() {
     // 切出時停掉演練 timeline（同 policy 前例：動畫不可洩漏到別頁）；若中斷於演練半途，
     // 只釋放 simming 狀態、鈕恢復可按——半途畫面允許停在當下，重進頁可再操作，不自動回滾。
     const wasSimming = simming;
     cancelTimers();
+    map.stop();
     if (!wasSimming) return;
     simming = false;
     const btn = sectionEl.querySelector<HTMLButtonElement>('#simBtn');

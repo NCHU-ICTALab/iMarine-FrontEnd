@@ -17,6 +17,7 @@ export interface BroadcastMap {
   litCells(ids: string[], stagger: boolean): number;
   ripple(lngLat: [number, number]): void;
   resize(): void;
+  stop(): void;
   readonly ready: boolean;
 }
 
@@ -42,6 +43,7 @@ export function createBroadcastMap(
       },
       ripple() {},
       resize() {},
+      stop() {},
       ready: false,
     };
   }
@@ -173,6 +175,12 @@ export function createBroadcastMap(
       // map 物件在 new mapboxgl.Map() 當下即同步建立（'load' 事件只影響 source/layer 是否就緒），
       // 容器由 display:none 變 active 後尺寸才確定，resize() 不必等 ready，否則首次 show() 會漏 resize。
       map.resize();
+    },
+    stop() {
+      // 切頁隱藏時停掉圍欄呼吸 interval + 未觸發的 cell stagger timer（不清視覺，留給下次 select 重繪）。
+      if (fenceBreath) clearInterval(fenceBreath);
+      fenceBreath = null;
+      clearLitTimers();
     },
   };
 }
