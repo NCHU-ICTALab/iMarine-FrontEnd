@@ -1,21 +1,11 @@
 {
-  "kpi": { "vessels": 128, "vesselsDelta": 6.2, "berthsUsed": 47, "berthsTotal": 62, "waitHr": 3.4, "waitDelta": -12, "co2T": 4820 },
-  "sparks": {
-    "vessels": [98, 104, 112, 109, 118, 124, 128],
-    "berths": [41, 44, 42, 45, 47, 46, 47],
-    "wait": [4.4, 4.1, 3.9, 4.0, 3.7, 3.5, 3.4],
-    "co2": [5100, 4980, 5020, 4890, 4930, 4860, 4820]
-  },
-  "weekly": {
-    "labels": ["六", "日", "一", "二", "三", "四", "五"],
-    "points": [102, 96, 110, 118, 105, 121, 128]
-  },
+  "kpi": { "vessels": 128, "berthsUsed": 47, "berthsTotal": 62, "waitHr": 3.4, "co2T": 4820 },
   "modules": [
-    { "id": "carbon", "label": "碳權代幣化", "value": "流通 SU 21,560" },
-    { "id": "policy", "label": "政策報告", "value": "Grounding 93%" },
-    { "id": "twin", "label": "沙盤推演", "value": "Pareto 方案 5" },
-    { "id": "dispatch", "label": "即時派工", "value": "強降雨 80%" },
-    { "id": "epidemic", "label": "疫情追溯", "value": "橙級 1 · 追蹤 14" },
-    { "id": "alert", "label": "自動警報", "value": "今日推播 3 則" }
+    { "id": "carbon", "label": "碳權代幣化", "value": "流通 SU 21,560", "trend": [19800, 20150, 20480, 20760, 21050, 21320, 21560] },
+    { "id": "policy", "label": "政策報告", "value": "Grounding 93%", "trend": [88, 90, 89, 91, 92, 92, 93] },
+    { "id": "twin", "label": "沙盤推演", "value": "在港 443 艘", "trend": [402, 418, 425, 431, 437, 440, 443] },
+    { "id": "dispatch", "label": "即時派工", "value": "強降雨 80%", "trend": [20, 35, 45, 40, 60, 75, 80] },
+    { "id": "epidemic", "label": "疫情追溯", "value": "橙級 1 · 追蹤 14", "trend": [6, 8, 9, 11, 12, 13, 14] },
+    { "id": "alert", "label": "自動警報", "value": "今日推播 3 則", "trend": [1, 0, 2, 1, 3, 2, 3] }
   ]
 }

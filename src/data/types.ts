@@ -10,10 +10,8 @@ export interface Provider<T> {
 }
 
 export interface OverviewSnapshot {
-  kpi: { vessels: number; vesselsDelta: number; berthsUsed: number; berthsTotal: number; waitHr: number; waitDelta: number; co2T: number };
-  sparks: { vessels: number[]; berths: number[]; wait: number[]; co2: number[] };
-  weekly: { labels: string[]; points: number[] };
-  modules: { id: string; label: string; value: string }[];
+  kpi: { vessels: number; berthsUsed: number; berthsTotal: number; waitHr: number; co2T: number };
+  modules: { id: string; label: string; value: string; trend: number[] }[];
 }
 
 /* Policy 頁（政策情報中心）契約 — 2026-07-04 spec 改版。
