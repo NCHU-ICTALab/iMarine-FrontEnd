@@ -2,34 +2,51 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-07 Alert 頁改版 brainstorming 完成——spec 定案 + 互動 preview v2 使用者驗收通過，下一步 writing-plans 排 SDD tasks（Settings 頁已於同日合併 push 完結，見下）
+最後更新：2026-07-08 Alert 頁改版 SDD 6 tasks 全數逐 task review 通過（Task 3/5 各含一個 Important 修復再驗）+ 全站驗收綠燈，分支 `alert-redesign`（自 main）；待最終 whole-branch review + 使用者實機驗收 + finishing（Settings 頁已於 2026-07-07 合併 push 完結，見下）
 
 ---
 
 ## 1. 目前狀態
 
-**Alert 頁改版：brainstorming 完成，spec + preview v2 皆經使用者驗收，待寫實作計畫（writing-plans）。**
+**Alert 頁改版：SDD 6 tasks 全數完成並通過逐 task review，全站驗收綠燈，分支 `alert-redesign`（自 main，baseline `b40aed0`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
 - 定位：**獨立警報中心**——港區事件（疫情/派工/氣象）經分級規則引擎，以 Cell Broadcast 推播；
-  事件卡帶來源模組色點呈現跨模組關係。版面 A 三分割（左事件流 0.95fr / 中 Mapbox 高雄港 2.5fr /
-  右手機 mock + 送達漏斗 1fr）+ KPI 4 卡；分級體系＝港區三級（紅色警報/橙色警戒/作業提示）+
-  PWS 對映與 mono `CH 4371/911/919` 徽章（調研沉澱：台灣 CBS 官方分級與訊息碼、WEA polygon
-  geo-targeting、J-Alert 波紋、Grafana 狀態機、OneSignal 漏斗、NOC 5 秒可讀原則）。
-- 四互動定案：點事件下鑽（flyTo+圍欄+cell 點亮+漏斗切換+卡內分級軌跡展開）、模擬事件池兩發
-  （作業提示雷擊 → 紅色警報颱風頂格：cell 全亮 stagger+波紋+手機全螢幕插播抖動+雙漏斗滾數字，
-  第三按重置）、cell hover tooltip 送達數、Ack 鈕（脈動→靜止）。獨立分級切換器不做；
-  舊三顆推播規則 switch 移除（規則歸系統設定頁 alert 分區未來擴充）。
-- v2 修訂（使用者回饋定案）：無解釋性散文（卡摘要/軌跡全數據化）+ 引導性配色（橙紅級標題
-  常態帶 sev 色、選中卡光暈跟 sev 色）+ 進頁自動選中最高風險事件（重置亦然，不留空地圖）。
-- spec：`docs/superpowers/specs/2026-07-07-alert-redesign-design.md`（決策表 8 條、AlertSnapshot
-  資料契約、mock 劇本、互動規格、驗收標準、YAGNI）；視覺/互動基準
+  事件卡帶來源模組色點呈現跨模組關係。版面 A 三分割（左事件流 / 中 Mapbox 高雄港覆蓋地圖 /
+  右手機 mock + 送達漏斗）+ KPI 4 卡；分級＝港區三級（紅色警報/橙色警戒/作業提示）+ PWS 對映
+  mono `CH 4371/911/919` 徽章（調研沉澱：台灣 CBS 官方分級與訊息碼、WEA polygon geo-targeting、
+  J-Alert 波紋、Grafana 狀態機、OneSignal 漏斗、NOC 5 秒可讀原則）。
+- 四互動全做：點事件下鑽（flyTo+圍欄+cell 點亮+漏斗切換+卡內分級軌跡展開，互斥）、模擬事件池
+  兩發（作業提示雷擊 → 紅色警報颱風頂格：cell 全亮 stagger+波紋+手機全螢幕插播抖動+雙漏斗滾數字，
+  第三按重置、動畫中防重入）、cell hover tooltip 送達數、Ack 鈕（脈動→靜止）。無解釋性散文（卡
+  摘要/軌跡全數據化）+ 引導性配色（橙紅級標題常態帶 sev 色、選中卡光暈跟 sev 色）+ 進頁自動選中
+  最高風險事件（重置亦然，不留空地圖）。獨立分級切換器不做；舊三顆推播規則 switch 移除。
+- **成果檔案**：`src/screens/alert/{funnel.ts 新增,broadcastmap.ts 新增,index.ts 重寫,alert.html 重寫,
+  alert.css 新增}` + `src/data/types.ts`（AlertSnapshot 全面改寫：AlertSev/AlertFunnel/AlertTrace/
+  AlertSms/AlertEvent/AlertCell）+ `src/data/mock/alert.json`（全面改寫，逐字轉錄自驗收 preview v2）+
+  `src/ui/tokens.css`（刪 alert 舊佔位段）+ `tests/{alert-funnel,alert-mock}.test.ts` 新增；接線只換
+  讀取點：`src/screens/carbon/carbon.css`（還原 `.fchip .n` 等寬字，補償 tokens 清理的回歸）。
+- **SDD 6 tasks（每個獨立 code review 皆 Spec ✅ + Quality Approved）**：(1) funnel.ts 送達漏斗
+  轉換率純函式 TDD；(2) AlertSnapshot 新契約 + mock 逐字轉錄 + 降過渡殼 TDD；(3) 三分割骨架 +
+  alert.css（#s-alert 前綴、keyframes 改名 aackpl/apd/arip/ashk）+ 靜態渲染（篩選/Ack/軌跡展開/
+  自動選中）+ tokens.css 清舊；(4) broadcastmap.ts Mapbox 覆蓋地圖（cell/圍欄/pdot/波紋）+ 下鑽
+  連動；(5) 模擬事件池兩發全鏈路動畫 + 重置 + show/hide 生命週期 + reduced-motion；(6) 全站驗收
+  + 本文件。Task 3 兩個 Important（`.frail` 全域洩漏進漏斗 rail、tokens 清理誤傷 carbon `.fchip .n`
+  等寬字）已修再驗；Task 5 一個 Important（動畫 t=0 未清手機/漏斗致「選中卡=新事件、手機/漏斗=舊
+  事件」錯配，且切頁再切回會永久停舊事件）已修再驗（還原 renderPhone/renderFunnel 的 null 空狀態
+  分支對齊 preview 第 344 行）。
+- **驗收（誠實分野）**：三綠燈全過（tsc 0 / vitest 16 檔 61 tests / build ok）。純邏輯（funnel 轉換率/
+  mock 契約：sev↔CH 對映、紅級雙漏斗、cellsLit 存在性、漏斗遞減）走 vitest；渲染/地圖/互動每個
+  task 皆以獨立 headless Chrome + CDP（SwiftShader、勿加 --disable-gpu、.env 有 token 故地圖真渲染）
+  逐項驗證；Task 6 全站整合 spec §10 實質 30/30（唯一 CDP FAIL 是主腳本對 Mapbox 重載頁 sleep 不足
+  的時序假象——鍵盤 7→settings 慢速三路徑重測全正確、非缺陷）、**8 頁全站迴歸 console 零 JS 例外**。
+  截圖 3 張（初始/下鑽/紅色警報頂格，SwiftShader 真實 app）存 scratch。demo 前建議真 Chrome 人工
+  click-through 一輪（下鑽/演練兩發/tooltip/Ack 手感），carbon LIVE 需先起 PoC 後端。
+- 設計事實與 schema/決策見 `docs/superpowers/specs/2026-07-07-alert-redesign-design.md`；實作計畫
+  `docs/superpowers/plans/2026-07-07-alert-redesign.md`（6 tasks）；視覺/互動基準
   `docs/preview/preview-alert-redesign.html`（token 佔位 `__MAPBOX_TOKEN__`；本機測試副本
-  `docs/preview/.preview-alert-test.html` 含真 token **勿提交**）。
-- preview 驗收：獨立 headless Chrome（埠 9431、SwiftShader）+ 自寫 CDP 腳本 43 斷言全過、
-  console 零錯誤、截圖存 scratch。過程修掉兩個坑（已寫進 spec 開頭，實作必帶）：軌跡節點
-  state 未映射 CSS class 不亮；Mapbox marker 根元素設 `position:relative` 會蓋掉
-  `.mapboxgl-marker` 的 absolute 造成逐顆累積偏移。
-- **下一步**：writing-plans 寫 `docs/superpowers/plans/2026-07-07-alert-redesign.md`（SDD tasks，
-  比照 epidemic 前例：純邏輯 TDD → 契約+mock → 骨架+CSS → Mapbox → 互動 → 演練 → 全站驗收）。
+  `docs/preview/.preview-alert-test.html` 含真 token **已 gitignore、勿提交**）；逐 task review 摘要
+  `.superpowers/sdd/progress.md`。
+- **下一步**：最終 whole-branch review（opus）→ 使用者實機驗收 → finishing（決定合併方式，比照
+  policy/dispatch/epidemic/settings 前例可能本地合併回 main）。詳見第 4 節。
 
 **（以下為前一輪 Settings 頁，已完結）**
 
@@ -778,12 +795,12 @@
 
 ## 4. 下一步（依序）
 
-**目前的下一步（2026-07-07 起）：Alert 頁改版——brainstorming/spec/preview v2 已完成（見第 1 節），接續 writing-plans 排 SDD tasks 後實作。**
-- ~~swrap 版心缺陷~~ 已修（commit `cc44ec3`）。~~最終 whole-branch review（opus）~~＝Ready to merge，新發現的 Important（getDefaults 漏深拷貝）+ 兩 Minor 已於 `2474de9` 修完再審 clean。~~finishing~~ 本地合併 + push 完成。~~使用者實機驗收~~ 通過。
-- policy / dispatch / epidemic 頁改版皆已完成並合併回 main（見第 1 節）。
-- 六大功能頁改版進度：carbon(live)/twin(live 原生)/policy(已改版)/dispatch(已改版)/epidemic(已改版)；
-  尚餘 alert 仍為初版 mock 佔位頁（未來若要比照前例做深度改版再各自 brainstorming）。
-- 系統設定頁（Settings）為新增的第 8 個 screen（本輪完成），承載全站前後端設定 + 協作者 schema 框架。
+**目前的下一步（2026-07-08 起）：Alert 頁改版 SDD 6 tasks 全數完成、全站驗收綠燈（見第 1 節），分支 `alert-redesign`。接續：最終 whole-branch review（opus）→ 使用者實機驗收 → finishing（決定合併方式）。**
+- 六大功能頁改版進度：carbon(live)/twin(live 原生)/policy(已改版合併)/dispatch(已改版合併)/
+  epidemic(已改版合併)/**alert(已改版，待 review+合併)**——**六大功能頁深度改版至此全部完成**。
+- Settings（第 8 個 screen）已於 2026-07-07 合併 push 完結；alert 為六大功能頁最後一塊。
+- alert 分支 finishing 前建議事項：(1) 真 Chrome 人工 click-through（下鑽/演練兩發/tooltip/Ack）；
+  (2) 若合併後要 README 加畫面展示，可用 `docs/screens/alert.png`（紅色警報頂格，SwiftShader 實拍）。
 
 （以下為 shell 建置期的歷史步驟，皆已完成）
 
