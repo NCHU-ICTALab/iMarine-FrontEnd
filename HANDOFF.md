@@ -2,13 +2,13 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-08 Alert 頁改版 SDD 6 tasks 全數逐 task review 通過（Task 3/5 各含一個 Important 修復再驗）+ 全站驗收綠燈，分支 `alert-redesign`（自 main）；待最終 whole-branch review + 使用者實機驗收 + finishing（Settings 頁已於 2026-07-07 合併 push 完結，見下）
+最後更新：2026-07-08 Alert 頁改版 SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復全數完成，全綠，分支 `alert-redesign`（自 main）；待使用者實機驗收 + finishing（決定合併方式）（Settings 頁已於 2026-07-07 合併 push 完結，見下）
 
 ---
 
 ## 1. 目前狀態
 
-**Alert 頁改版：SDD 6 tasks 全數完成並通過逐 task review，全站驗收綠燈，分支 `alert-redesign`（自 main，baseline `b40aed0`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
+**Alert 頁改版：SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復全數完成，全站驗收綠燈，分支 `alert-redesign`（自 main，baseline `b40aed0`，HEAD `9397e2f`）。待使用者實機驗收 + 決定合併方式。**
 - 定位：**獨立警報中心**——港區事件（疫情/派工/氣象）經分級規則引擎，以 Cell Broadcast 推播；
   事件卡帶來源模組色點呈現跨模組關係。版面 A 三分割（左事件流 / 中 Mapbox 高雄港覆蓋地圖 /
   右手機 mock + 送達漏斗）+ KPI 4 卡；分級＝港區三級（紅色警報/橙色警戒/作業提示）+ PWS 對映
@@ -45,8 +45,14 @@
   `docs/preview/preview-alert-redesign.html`（token 佔位 `__MAPBOX_TOKEN__`；本機測試副本
   `docs/preview/.preview-alert-test.html` 含真 token **已 gitignore、勿提交**）；逐 task review 摘要
   `.superpowers/sdd/progress.md`。
-- **下一步**：最終 whole-branch review（opus）→ 使用者實機驗收 → finishing（決定合併方式，比照
-  policy/dispatch/epidemic/settings 前例可能本地合併回 main）。詳見第 4 節。
+- **最終 whole-branch review（opus）＝Ready to merge**：零 Critical/Important；承載性接縫（t=0 空狀態、
+  演練 timeline×cancelTimers/hide、Mapbox marker 坑、CSS scope 與 tokens 清理兩處補償、資料契約×mock、
+  DEV-gate、既有頁零回歸）全數獨立覆核正確。新發現兩個 Minor 已於 `9397e2f` 修完：漏斗佔位
+  `var(--ink40)`→`var(--ink-40)`（未定義變數落回近白）+ broadcastmap 加 `stop()` 切頁停圍欄呼吸
+  interval（hide 呼叫、show 補 renderMap 對稱恢復）。其餘 Minor（KPI 測試斷言可收緊、renderer innerHTML
+  未 escape 待 live provider 前補）triage=defer。
+- **下一步**：使用者實機驗收 → finishing（決定合併方式，比照 policy/dispatch/epidemic/settings 前例
+  可能本地合併回 main）。詳見第 4 節。
 
 **（以下為前一輪 Settings 頁，已完結）**
 
