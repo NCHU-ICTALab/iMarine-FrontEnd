@@ -2,13 +2,15 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-08 Hero 頁改版 SDD 三 task 全數完成、**全站迴歸驗收全綠（零缺陷）**，分支 `hero-redesign`。封面改「中置＋六模組 chips」、總覽改「模組儀表牆 3×2」、底圖換成自架波浪 loop 影片。三綠燈（tsc 0 / vitest 17 檔 63 / build ok）+ 8 頁 CDP 迴歸全 PASS。**待最終 whole-branch review → 使用者實機驗收 → finishing。**（六大功能頁深度改版於 alert 已全部完成，見下；本輪為 hero 封面/總覽的視覺升級。）
+最後更新：2026-07-10 Policy/Settings mock fallback 整合完成並**本地合併回 main**（連同協作者 PR #1 `feat/policy-rag-integration` 一併進 main——本分支 base 在 PR #1 上、合併即帶入）+ push origin。SDD 5 tasks + 最終 whole-branch review（opus, Ready to merge）+ 全站功能實機驗收皆過。合併採非 fast-forward merge（保留 main 的 hero）；HANDOFF.md 手動解三處衝突，README.md／`src/data/types.ts` auto-merge。main 現整合：六大功能頁改版 + Settings 頁 + hero 影片底圖改版 + PR #1（policy/settings 接 rag-agent live）+ 本輪 mock fallback。**協作者 PR #1 的 commits 已隨本分支進 main，需在 GitHub 端關閉/善後該 PR。**
 
 ---
 
 ## 1. 目前狀態
 
-**Hero 頁改版：SDD 三 task 全數完成並各通過獨立 review，全站迴歸驗收全綠、零缺陷，分支 `hero-redesign`（自 main，baseline `c1a2490`）。待最終 whole-branch review + 使用者實機驗收 + 決定合併方式。**
+**本次合併（2026-07-10）：Policy/Settings mock fallback 整合（本輪）已本地合併回 main，連同協作者 PR #1 `feat/policy-rag-integration`（policy/settings 接 rag-agent live）一併進 main + push origin。以下各段依 git 順序列出已完結各輪（hero → 本輪 policy mock fallback → alert → …），皆已在 main；本輪技術條目見本節下方「Policy/Settings mock fallback」段。**
+
+**（前一輪）Hero 頁改版：SDD 三 task 完成 + 最終 whole-branch review（Ready to merge），已合併回 main（fast-forward `c1a2490`→`ab0a89e`）+ push origin + README 畫面展示；分支 `hero-redesign` 已刪。（原 baseline `c1a2490`）**
 - 定位：**PPT 開場封面 + 戰情總覽**兩段式。封面改為「電影感中置標題 + 六模組 chips（同色點錨定）+ ENTER CTA」、
   底圖從舊的 `#harbor` canvas 點雲假資料換成**自架波浪 loop 影片**（`src/screens/hero/hero-bg.mp4`，1.4MB、
   H.264、1620×1080、無縫 loop）+ gradient scrim 壓對比；Enter/點擊/`hero:toggle` → **總覽「模組儀表牆 3×2」**
@@ -42,7 +44,16 @@
 - demo/競賽前建議：真 Chrome 人工 click-through 一輪（封面影片觀感 / 總覽儀表牆 stagger / chips hover / Enter 轉場手感）；
   carbon LIVE 需先起 PoC 後端（:8000）。
 
-**（以下為前一輪 Alert 頁，已完結並 push）**
+**（本輪，已合併進 main）Policy/Settings mock fallback 整合：已隨本分支本地合併回 main（連同協作者 PR #1）+ push origin。SDD 5 tasks 通過逐 task review + 最終 whole-branch review（opus, Ready to merge）+ 全站功能實機驗收；合併採非 ff merge（保留 main hero）、HANDOFF 手動解衝突、README/`types.ts` auto-merge。**
+- 動機：PR #1（`9033aba`）把政策報告頁與系統設定接上 rag-agent 真後端，但後端（rag-agent :8100）未啟動時，settings 的「知識庫管理」分區與「模型管理」測試連線皆無平滑退場（前者顯示連線失敗文案、後者顯示連線失敗而非示範狀態），demo 現場若後端未起會露出半成品畫面。本輪任務：在**不動 PR #1 任何既有邏輯**的前提下，於 `src/screens/settings/sections/policy.ts` 補上三個 mock fallback 整合點。
+- **三整合點**：① 知識庫分區——`refresh(initial)` 首次載入 `listSources()` 失敗時整組退回 `mountMockKb(el, ctx)`（還原自 main 版 kbGroup.custom 的原版 mock 卡牆，5 庫預置 + `.gbadge.wait` MOCK chip）；② 模型管理測試連線——`testBtn` catch 分支不再顯示「連線失敗」，改退回示範驗證（訊息帶「（示範）」低調標示，沿用原 mock 流程載入 catalog 模型）；③ live 知識庫 modal 新增「檢索策略」區塊（`strategyBlockHtml`/`bindStrategyBlock`），存本機 `policy.kbParams`（存而不用，後端無對應 API，之後支援時只改讀取點）。
+- **成果檔案**：新增 `src/screens/settings/sections/policy-kb-mock.ts`（`mountMockKb`/`strategyBlockHtml`/`bindStrategyBlock`/`KbParams`/`defaultKbParams`/`getKbParams`/`setKbParams`）+ `tests/settings-kb-params.test.ts`（2 tests）；`src/screens/settings/sections/policy.ts` 僅五個插入點改動（`export setKbs`、`custom(el, ctx)`、`refresh(initial)`+import、testBtn catch、modal 拼接+bind+load），逐行核對零其他 PR 邏輯被動。
+- **SDD 5 tasks**：(1) `0d4f22a` policy.kbParams 本機檢索參數資料層 TDD；(2) `d3e967a` 知識庫分區退回原版 mock 全套；(3) `35bfceb` 測試連線退回示範驗證；(4) `ec3480c` live modal 檢索策略區塊接線；(5) 本 task（全站驗收 + 本文件）。spec/plan：`docs/superpowers/specs/2026-07-09-policy-mock-fallback-design.md` / `docs/superpowers/plans/2026-07-09-policy-mock-fallback.md`。
+- **驗收（Task 5，本輪）**：三綠燈——`tsc --noEmit` 0 errors、`vitest run` 17 檔 63 tests 全綠（brief 原估「18 檔 65」，實際新增檔僅 kb-params 一檔 2 tests、基底為 16 檔 61 tests，屬估算落差非產品碼缺陷）、`build` 成功。「PR 功能不動」diff 驗證：`git diff origin/feat/policy-rag-integration...HEAD --stat` 僅 5 檔（docs spec/plan、`policy-kb-mock.ts` 新檔、`policy.ts`、`settings-kb-params.test.ts` 新檔）；`src/data/exchange/policy.ts`/`backend.ts`/`src/screens/policy`/`types.ts`/`main.ts`/`settings.css` 零 diff；`policy.ts` 逐行核對僅含五插入點，無其他邏輯被動。CDP 全站迴歸（獨立 headless Chrome + SwiftShader、勿加 `--disable-gpu`，rag-agent :8100 全程未起）：8 頁 sweep 全數 `.screen.active` 正確 + 版面非空；policy 頁綜合對話正確退回 mock 情報聯集（文案「已就緒」而非「已接入」，PR 既有 fallback 不迴歸）；settings 政策報告分區退回 mock 卡牆（5 庫）+ MOCK chip；模型管理測試連線顯示「（示範）」；settings 輸入框內打 `1`-`7` 不跳頁（既有 bail-out）；`prefers-reduced-motion:reduce` 下 settings 分區完整渲染非空白；**console 全程零 JS 例外**（23/23 斷言全過）。
+- **驗收環境註記**：carbon 後端（:8000）當時已由使用者另行啟動（非本 session 所起，權限限制下未停用）；因 carbon 相關路徑本輪為零 diff 且與 policy/settings mock fallback 無關，不影響驗收結論，僅此記錄環境狀態以求誠實。
+- **main 分支狀態提醒（hero 已完結，本分支尚未包含）**：`main` 另於 2026-07-08 完成「hero 影片底圖改版」（分支 `hero-redesign`，3 tasks：`9425455`→`696cab3`→`72d88b8`→`ab0a89e`→`4bd2be3`，封面改中置＋六模組 chips、總覽改模組儀表牆 3×2、底圖換自架波浪 loop 影片），已完結並 push 到 origin main。**該輪工作在本分支（`policy-mock-fallback`，fork 自 alert 收尾點 `c1a2490`）尚未包含**——`main` 的 HANDOFF.md 首行「最後更新」仍殘留「待最終 whole-branch review → 使用者實機驗收 → finishing」字樣，實為過時敘述（hero 已完結並 push，該行待 main 那側之後更新，非本分支所能修正）；本分支合併回 main 時需留意此分岔，依「PR #1 先進 main、本分支再跟進」順序處理，跟進時會自然帶入 main 當下狀態（含 hero 改版）。
+
+**（以下為前一輪 Alert 頁改版，已完結）**
 
 **Alert 頁改版：全案完結並 push 到 origin。SDD 6 tasks + 最終 whole-branch review（opus，Ready to merge）+ 兩項最終修復，本地合併回 main（fast-forward `94a896a`→`7f6b437`、feature 分支 `alert-redesign` 已刪）；合併後兩筆 follow-up：(a) 手機 mock 比例微調（使用者回饋——`.phone` aspect-ratio `9/18.5`→`9/16` + max-width `230`→`205px`，改成窄身 16:9、減少空白，alert.css + preview 同步；systematic-debugging 確認非溢出而是比例過高），(b) README「畫面展示」加 alert 段 + `docs/screens/alert.png`（紅色警報頂格全港廣播，SwiftShader 3200×2000）。合併後 main 三綠燈 tsc 0 / vitest 16 檔 61 / build ok。已 push origin。六大功能頁深度改版全部完成。**
 - 定位：**獨立警報中心**——港區事件（疫情/派工/氣象）經分級規則引擎，以 Cell Broadcast 推播；
@@ -838,11 +849,10 @@
 
 ## 4. 下一步（依序）
 
-**目前的下一步（2026-07-08 起）：Hero 頁改版 SDD 三 task 全數完成、全站迴歸驗收全綠（零缺陷，見第 1 節），分支 `hero-redesign`。接續：最終 whole-branch review（opus，整支 `c1a2490..HEAD`）→ 使用者實機驗收 → finishing（決定合併方式）。**
-- hero 改版三 commit：`9425455`（spec+plan）→ `696cab3`（契約改版 + mock + 降過渡殼）→ `72d88b8`（影片底圖 + 封面 chips + 模組儀表牆全面重寫 + tokens 清舊）；Task 3（本輪驗收）為純文件（HANDOFF.md），待使用者 commit。
-- whole-branch review 三個 triage 候選（第 1 節有詳述，皆非缺陷）：`#ovMap`/`.cols` 孤兒死 CSS、`sparkPoints` length-1 NaN 不觸發、全域 `.stack` 保留是否收斂。
-- finishing 前建議事項：(1) 真 Chrome 人工 click-through（封面影片觀感 / Enter 轉場 / 總覽儀表牆 stagger / chips hover 手感）；(2) 若合併後要 README 加畫面展示，可補 hero 封面/總覽截圖（比照 alert/settings 前例）。
-- 六大功能頁改版已於 alert 全部完成並 push；Settings（第 8 screen）已於 2026-07-07 完結。**本輪 hero 為封面/總覽的視覺升級，完結後六頁 + hero + settings 全數改版到位。**
+**目前狀態：全數整合到位、無後續排定 task。** 六大功能頁改版 + Settings 頁 + hero 影片底圖改版 + PR #1（policy/settings 接 rag-agent live）+ 本輪 policy/settings mock fallback 皆已在 main（2026-07-10 本地合併 + push origin）。
+- **合併細節**：本分支 `policy-mock-fallback`（base PR #1 `9033aba`，fork 自 alert 收尾點 `c1a2490`、不含 hero）以非 fast-forward merge 合回 main（保留 main 的 hero）；HANDOFF.md 手動解三處衝突、README.md／`src/data/types.ts` auto-merge。
+- **協作者 PR #1 善後**：PR #1（`feat/policy-rag-integration`）的 commit `9033aba` 已隨本分支進 main——GitHub 上該 PR 會顯示 commits 已合併，需在 GitHub 端關閉/善後（本地無法代操作）。
+- **demo/競賽前置**：carbon LIVE 需起 PoC 三件套 `make chain` + `make deploy` + `make api`（缺 Hardhat 鏈 :8545 則發行/掛單/購買/除役等寫鏈交易回 500 失敗）；policy/settings live 需起 rag-agent :8100（不起走完整 mock 示範）；真 Chrome 人工 click-through 一輪各頁互動手感。
 
 （以下為 shell 建置期的歷史步驟，皆已完成）
 

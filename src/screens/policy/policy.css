@@ -136,6 +136,8 @@
 #s-policy .sgbody{padding-left:6px;}
 #s-policy .sgbody .srcrow{padding-top:7px;padding-bottom:7px;}
 #s-policy .srcrow.off .no,#s-policy .srcrow.off .sname{color:var(--ink-40);}
+/* 本次回答/報告引用到的知識庫：左側青色標記，來源清單維持完整 */
+#s-policy .srcrow.used{background:rgba(56,189,248,.08);box-shadow:inset 2px 0 0 var(--cyan);border-radius:6px;}
 #s-policy .srcrow.off .sname{text-decoration:none;opacity:.65;}
 #s-policy .srcrow .skip{font-size:9.5px;font-family:var(--mono);color:var(--ink-40);border:1px solid var(--hair);
   border-radius:999px;padding:0 7px;margin-left:6px;letter-spacing:.06em;}
@@ -174,5 +176,12 @@
   transition:border-color .25s var(--ease);}
 #s-policy .inrow input::placeholder{color:var(--ink-40);}
 #s-policy .inrow input:focus{border-color:rgba(56,189,248,.5);}
+#s-policy .genrow{display:flex;align-items:center;gap:10px;margin-top:8px;}
+#s-policy .genrow .genlbl{font-size:12px;color:var(--ink-40);letter-spacing:.04em;}
+#s-policy .genrow .tmplsel{flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid var(--hair);
+  border-radius:10px;color:var(--ink-90);padding:7px 10px;font-size:12.5px;font-family:inherit;outline:none;}
+#s-policy .genrow .tmplsel:focus{border-color:rgba(56,189,248,.5);}
+/* 原生下拉選單彈出項需明確深底 + 淺字，否則部分瀏覽器白底白字看不到 */
+#s-policy .genrow .tmplsel option{background:#101922;color:var(--ink-90);}
 
 @media(max-width:1100px){#s-policy .pcols{grid-template-columns:180px 1.5fr 1fr;}}

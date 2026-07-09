@@ -10,6 +10,7 @@ import { createMockExchange } from './data/exchange/mock';
 import { createCarbonProvider } from './data/exchange/carbon';
 import { createTwinProvider } from './data/exchange/twin';
 import { getSetting, subscribe } from './screens/settings/storage';
+import { createPolicyProvider } from './data/exchange/policy';
 // lg.d.ts 為 ambient 宣告（tsconfig include 已涵蓋），不需 import
 
 document.documentElement.setAttribute('data-lg-theme', 'dark');
@@ -28,12 +29,14 @@ subscribe('frontend.entrance', applyMotionAttrs);
 
 export const bg = initBackground(document.getElementById('harbor') as HTMLCanvasElement);
 
-// overview/policy/dispatch/epidemic/alert 為 mock provider；carbon（Task 4）與 twin（Task 8）
-// 現皆為真正的 live provider（source 回報 'live'）。
+// overview/dispatch/epidemic/alert 為 mock provider；carbon（Task 4）、twin（Task 8）與
+// policy（綜合對話 live）皆為 live provider（source 回報 'live'）。
+// policy 的收件匣情報仍走 mock snapshot，只有綜合對話的自由提問打 rag-agent /api/chat。
 const env = (import.meta as any).env ?? {};
 const ctx: ScreenCtx = {
   data: {
     ...createMockExchange(),
+    policy: createPolicyProvider(env.VITE_POLICY_API),
     carbon: createCarbonProvider(getSetting('carbon.apiBase', '') || env.VITE_CARBON_API),
     twin: createTwinProvider(),
   },

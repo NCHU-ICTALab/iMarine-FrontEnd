@@ -3,14 +3,18 @@
    中欄 = NotebookLM 式對話串（報告為產出卡）；本檔為膠合層，
    時序排程走 ./generate 的 runTimeline（可測），資料走 ctx.data.policy.snapshot()。 */
 import type { Screen, ScreenCtx } from '../types';
-import type { PolicyBrief, PolicyQA, PolicySource } from '../../data/types';
+import type {
+  PolicyBrief, PolicyChatMsg, PolicyQA, PolicyReportResult, PolicySource,
+} from '../../data/types';
 import { screenHeader } from '../../ui/components';
 import { getSetting, prefersReduced, setSetting, subscribe } from '../settings/storage';
 import { runTimeline, type TimelineHandle } from './generate';
 import template from './policy.html?raw';
 import './policy.css';
 
-const MODEL = { local: '地端 LLM · 8B 量化版', cloud: '雲端 API · 旗艦模型' } as const;
+/* 接口切換的顯示名（地端/雲端）。實際模型 id 由後端 /api/chat 回傳，live 回答的 footer 照實顯示，
+   不在此寫死型號，避免與後端設定不符（mock 情報為預錄展示，footer 僅標接口）。 */
+const MODEL = { local: '地端部署', cloud: '雲端 API' } as const;
 
 let briefs: PolicyBrief[] = [];
 let inflowPool: PolicyBrief[] = [];
@@ -105,7 +109,7 @@ function flowIn(): void {
   });
 }
 function updateAfterInflow(): void {
-  if (curId !== 'global') return;
+  if (curId !== 'global' || globalLive) return; // live 知識庫模式不被 mock 情報流入覆蓋
   buildUnion(); // 對話串不重置，只同步右欄與 gbar
   renderGbar(avgGrounding(), globalGbarNote());
   renderUnionSources();
@@ -174,8 +178,10 @@ function renderSources(b: PolicyBrief): void {
 }
 
 /* ── 綜合對話（知識庫模式）：來源聯集 + 分組摺疊 + {{c:名稱}} 解析 ── */
-const CATS = ['海運焦點新聞', '全球航運指數', '台灣數據統計', '航港法令', '替代能源專區'];
+const CATS = ['海運焦點新聞', '全球航運指數', '台灣數據統計', '航港法令', '替代能源專區', '自建知識庫'];
 let globalUnion: PolicySource[] = [];
+let globalHistory: PolicyChatMsg[] = []; // 綜合對話 live 模式的對話歷史（進入 global 時重置）
+let globalLive = false;                   // 右欄目前是否為後端真實知識庫（否 = mock fallback）
 const globalChecked = new Map<string, boolean>(); // key=來源名稱，跨切換保留
 const expandedCats = new Set<string>();
 let srcQuery = '';
@@ -211,6 +217,44 @@ function avgGrounding(): number {
 }
 function globalGbarNote(): string {
   return `跨 ${briefs.length} 條情報平均 · ${globalUnion.length} 筆來源就緒`;
+}
+
+/* 綜合對話總覽卡文案（live = 後端真實知識庫；mock = 情報聯集 fallback） */
+function renderGlobalOverview(live: boolean): void {
+  const head = live
+    ? `已接入 ${globalUnion.length} 個知識庫（${catCounts()}）。`
+    : `已就緒 ${briefs.length} 條情報、${globalUnion.length} 筆來源文件（${catCounts()}）。`;
+  $('#thread').innerHTML =
+    `<div class="msg ai reportcard"><div class="mhead"><i></i>知識庫總覽</div>` +
+    `<p style="margin:0;color:var(--ink-60);font-size:13.5px">${head}` +
+    '可勾選右欄來源後直接提問，回答皆附引用；也可點下方建議提問開始。</p></div>';
+}
+
+/* 載入右欄來源：優先打後端 /api/sources 顯示真實知識庫，失敗則退回 mock 情報聯集 */
+async function loadGlobalSources(): Promise<void> {
+  const kb = sCtx.data.policy.knowledgeBases;
+  if (kb) {
+    try {
+      const list = await kb();
+      if (curId !== 'global') return;                 // 載入期間被切走則放棄
+      globalUnion = list.map((s, i) => ({
+        ...s, no: i + 1, checked: globalChecked.get(s.name) ?? s.checked,
+      }));
+      globalLive = true;
+      renderGlobalOverview(true);
+      renderGbar(0, `${globalUnion.length} 個知識庫就緒 · 提問後顯示 Grounding`);
+      renderUnionSources();
+      return;
+    } catch {
+      // 後端不在 → 落回 mock，維持 demo 可用
+    }
+  }
+  if (curId !== 'global') return;
+  buildUnion();
+  globalLive = false;
+  renderGlobalOverview(false);
+  renderGbar(avgGrounding(), globalGbarNote());
+  renderUnionSources();
 }
 
 /* ── 分組摺疊來源面板（global 模式；一般條目仍用上方平面 renderSources） ── */
@@ -389,10 +433,164 @@ function sendFree(): void {
   const t = input.value.trim();
   if (!t || answering || generating) return;
   input.value = '';
+  // 綜合對話（知識庫模式）且有 live provider → 打真後端 rag-agent；其餘維持預錄示範說明
+  if (curId === 'global' && typeof sCtx.data.policy.chat === 'function') {
+    void askLive(t);
+    return;
+  }
   ask({
     q: t,
     a: '此為示範環境，自由輸入的問題將由正式版 LLM + RAG 依 iMarine 五類資料庫即時回答並附引用；您可先點選下方建議追問體驗完整流程。',
   }, null);
+}
+
+/* 回答/報告的引用連到「常駐的知識庫清單」而非只留本次用到的來源：
+   把答案內以「本次證據編號」標的 cite 重映射成右欄知識庫列的編號（依 sourceId 對應），
+   並回傳有被引用到的知識庫列編號集合，供標記。來源不因未引用而消失。 */
+function kbCiteMap(answerSources: PolicySource[]): { map: Map<number, number>; used: Set<number> } {
+  const map = new Map<number, number>();
+  const used = new Set<number>();
+  for (const s of answerSources) {
+    const kb = s.sourceId ? globalUnion.find((g) => g.sourceId === s.sourceId) : undefined;
+    if (kb) { map.set(s.no, kb.no); used.add(kb.no); }
+  }
+  return { map, used };
+}
+function remapCites(html: string, map: Map<number, number>): string {
+  return html.replace(/data-src="(\d+)"/g, (m, n) => {
+    const kb = map.get(Number(n));
+    return kb ? `data-src="${kb}"` : m;
+  });
+}
+function markUsedKb(used: Set<number>): void {
+  $('#srcList').querySelectorAll<HTMLElement>('.srcrow').forEach((r) => {
+    r.classList.toggle('used', used.has(Number(r.getAttribute('data-no'))));
+  });
+}
+
+/* 綜合對話 live 提問：沿用思考氣泡動畫，await 真後端回答後渲染引用；失敗則明確告知並不影響 demo */
+async function askLive(question: string): Promise<void> {
+  if (answering || generating) return;
+  const chat = sCtx.data.policy.chat;
+  if (!chat) return;
+  const model = MODEL[llm];
+  answering = true;
+
+  const thread = $('#thread');
+  const uq = document.createElement('div');
+  uq.className = 'msg user';
+  uq.textContent = question; // 使用者輸入一律 textContent（XSS 安全）
+  thread.appendChild(uq);
+
+  const think = document.createElement('div');
+  think.className = 'msg ai thinking';
+  think.innerHTML = '<i class="sdot"></i><span>檢索 iMarine 資料庫…</span>';
+  thread.appendChild(think);
+  scrollThread();
+
+  try {
+    const res = await chat(question, globalHistory.slice(-8));
+    if (curId !== 'global') { answering = false; return; } // 回應期間被切走 → 不污染其他情報
+    globalHistory.push({ role: 'user', content: question });
+    globalHistory.push({ role: 'assistant', content: res.answerText });
+    // 引用重映射到常駐知識庫清單，並標記本次用到的來源（清單保持完整、不消失）
+    const { map, used } = kbCiteMap(res.sources);
+    const answerHtml = remapCites(res.answerHtml, map);
+    markUsedKb(used);
+    think.remove();
+    const am = document.createElement('div');
+    am.className = 'msg ai';
+    // 照實顯示後端實際使用的模型（如「gemma3n:e4b」）；缺值時退回接口名
+    const modelLabel = res.model || model;
+    am.innerHTML = `<p>${answerHtml}</p><div class="mfoot">${modelLabel} · ${nowStr()} · live`
+      + (used.size ? ` · 引用 ${used.size} 筆` : '') + '</div>';
+    thread.appendChild(am);
+    bindCites(am);
+    scrollThread();
+    renderGbar(res.grounding, `live · ${used.size} 筆來源引用`);
+  } catch {
+    think.remove();
+    const am = document.createElement('div');
+    am.className = 'msg ai';
+    am.innerHTML = '<p>後端連線失敗，暫時無法即時回答。請確認 rag-agent 已於 VITE_POLICY_API 指定位址啟動'
+      + `（預設 :8100）。</p><div class="mfoot">${model} · ${nowStr()}</div>`;
+    thread.appendChild(am);
+    scrollThread();
+  } finally {
+    answering = false;
+  }
+}
+
+/* ── 產報告（綜合對話模式）：右欄勾選的來源 + 需求 + 模版 → /api/report → 報告卡 ── */
+async function generateReport(): Promise<void> {
+  if (answering || generating || curId !== 'global') return;
+  const doReport = sCtx.data.policy.report;
+  if (!doReport) return;
+  const input = $('#qinput') as HTMLInputElement;
+  const prompt = input.value.trim();
+  if (!prompt) { input.focus(); return; }
+  const sourceIds = globalUnion.filter((s) => s.checked && s.sourceId).map((s) => s.sourceId!);
+  const tmplId = ($('#tmplSel') as HTMLSelectElement).value || 'policy_brief';
+  input.value = '';
+  generating = true;
+  const btn = $('#reportBtn') as HTMLButtonElement;
+  btn.disabled = true;
+  btn.textContent = '生成中…';
+
+  const thread = $('#thread');
+  const uq = document.createElement('div');
+  uq.className = 'msg user';
+  uq.textContent = `產報告：${prompt}`;
+  thread.appendChild(uq);
+  const think = document.createElement('div');
+  think.className = 'msg ai thinking';
+  think.innerHTML = '<i class="sdot"></i><span>檢索來源、撰寫報告中…</span>';
+  thread.appendChild(think);
+  scrollThread();
+
+  try {
+    const res = await doReport(prompt, sourceIds, tmplId);
+    if (curId !== 'global') return;                 // 生成期間被切走則放棄渲染
+    // 引用重映射到常駐知識庫清單並標記，來源清單保持完整
+    const { map, used } = kbCiteMap(res.sources);
+    markUsedKb(used);
+    think.remove();
+    renderReportCard({
+      ...res,
+      sections: res.sections.map((s) => ({ ...s, html: remapCites(s.html, map) })),
+    });
+    renderGbar(res.grounding, `report · ${used.size} 筆來源引用`);
+  } catch {
+    think.remove();
+    const am = document.createElement('div');
+    am.className = 'msg ai';
+    am.innerHTML = '<p>報告生成失敗，請確認 rag-agent 已於 VITE_POLICY_API 指定位址啟動（預設 :8100）。</p>'
+      + `<div class="mfoot">${MODEL[llm]} · ${nowStr()}</div>`;
+    thread.appendChild(am);
+  } finally {
+    generating = false;
+    btn.disabled = false;
+    btn.textContent = '產生報告';
+    scrollThread();
+  }
+}
+
+function renderReportCard(res: PolicyReportResult): void {
+  const thread = $('#thread');
+  const card = document.createElement('div');
+  card.className = 'msg ai reportcard';
+  const secHtml = res.sections.map((s) => `<h3>${s.label}</h3><p>${s.html}</p>`).join('');
+  const citeCount = new Set(
+    Array.from(secHtml.matchAll(/data-src="(\d+)"/g)).map((m) => m[1]),
+  ).size;
+  card.innerHTML =
+    `<div class="mhead"><i></i>結構化產出 · ${res.topic}</div>` +
+    `<div id="reportBody">${secHtml}</div>` +
+    `<div class="mfoot">${res.model || res.provider} · ${nowStr()} · report`
+    + (citeCount ? ` · 引用 ${citeCount} 筆` : '') + '</div>';
+  thread.appendChild(card);
+  bindCites(card);
+  scrollThread();
 }
 
 const STEPMS = { local: [800, 1300, 2400, 1000], cloud: [500, 800, 1500, 700] } as const;
@@ -471,19 +669,21 @@ function select(id: string): void {
   cancelTimers(); // 切條目取消進行中的回答/生成
   if (id === 'global') {
     curId = 'global';
+    globalHistory = []; // 重新進入知識庫模式 → 對話歷史歸零
     renderInbox();
-    $('#rTitle').textContent = '綜合對話 — 跨情報知識庫';
+    $('#rTitle').textContent = '綜合對話 — 跨知識庫';
     ($('#genBtn') as HTMLElement).style.display = 'none'; // 知識庫模式無單一報告可重生成
-    buildUnion();
+    // 綜合對話模式才顯示「產報告」列（需 live provider）
+    ($('#genrow') as HTMLElement).style.display =
+      typeof sCtx.data.policy.report === 'function' ? 'flex' : 'none';
     $('#thread').innerHTML =
       `<div class="msg ai reportcard"><div class="mhead"><i></i>知識庫總覽</div>` +
-      `<p style="margin:0;color:var(--ink-60);font-size:13.5px">已就緒 ${briefs.length} 條情報、` +
-      `${globalUnion.length} 筆來源文件（${catCounts()}）。可勾選右欄來源後直接提問，回答皆附引用；` +
-      '也可點下方建議提問開始。</p></div>';
+      `<p style="margin:0;color:var(--ink-60);font-size:13.5px">載入知識庫清單…</p></div>`;
     renderChips(globalQa, 'global');
     ($('#qinput') as HTMLInputElement).value = '';
-    renderGbar(avgGrounding(), globalGbarNote());
-    renderUnionSources();
+    $('#srcCount').textContent = '…';
+    $('#srcList').innerHTML = '';
+    void loadGlobalSources(); // 真實知識庫（後端不在則退回 mock）
     return;
   }
   const b = briefById(id);
@@ -491,6 +691,7 @@ function select(id: string): void {
   curId = id;
   st(id).unread = false;
   ($('#genBtn') as HTMLElement).style.display = '';
+  ($('#genrow') as HTMLElement).style.display = 'none'; // 單條情報不提供產報告
   renderInbox();
   $('#rTitle').textContent = b.title + (b.type === 'incident' ? ' — 決策建議報告' : '');
   renderThread(b);
@@ -569,9 +770,25 @@ const s: Screen = {
     $('#genBtn').addEventListener('click', regenerate);
     $('#simBtn').addEventListener('click', flowIn);
 
-    select(briefs[0].id);
+    // 產報告：載入模版清單 + 綁定按鈕（後端不在則清單留空，產報告會 fallback 告知）
+    $('#reportBtn').addEventListener('click', generateReport);
+    const polProvider = ctx.data.policy;
+    if (polProvider.reportTemplates) {
+      polProvider.reportTemplates().then((tmpls) => {
+        const sel = sectionEl.querySelector<HTMLSelectElement>('#tmplSel');
+        if (sel) {
+          sel.innerHTML = tmpls
+            .map((t) => `<option value="${t.id}" title="${t.description}">${t.label}</option>`)
+            .join('');
+        }
+      }).catch(() => { /* 後端不在，維持空白 */ });
+    }
+
+    select('global');   // 進頁預設鎖定「綜合對話 · 全部來源」
   },
   show() {
+    // 從設定頁（新增/上傳知識庫）返回時刷新右欄來源，帶進新建的知識庫
+    if (curId === 'global' && !answering && !generating) void loadGlobalSources();
     if (autoFlowArmed) return;
     autoFlowArmed = true;
     setTimeout(() => {
