@@ -5,7 +5,7 @@ import {
   pushLlmConfig, setSourceEnabled, testConnection, uploadDoc,
 } from '../backend';
 import type { BackendDoc, BackendSource } from '../backend';
-import { mountMockKb } from './policy-kb-mock';
+import { bindStrategyBlock, mountMockKb, strategyBlockHtml } from './policy-kb-mock';
 import type { SettingGroup, SettingsCtx, SettingsSection } from '../schema';
 
 /* policy 分區：生成接口（llmMode segmented）+ 模型管理（供應商 Setup modal + 系統預設模型）。
@@ -535,6 +535,7 @@ function kbModalHtml(): string {
     '<div class="fctl"><input class="tin num" id="kb-chunk" type="number" min="64" max="4096" step="64" value="512"></div></div>' +
     '<div class="frow"><div class="flabel">Chunk 重疊<span class="help">tokens</span></div>' +
     '<div class="fctl"><input class="tin num" id="kb-overlap" type="number" min="0" max="1024" step="16" value="64"></div></div>' +
+    strategyBlockHtml() +
     '</div></div>'
   );
 }
@@ -579,6 +580,7 @@ function kbGroup(): SettingGroup {
       const kbChunkIn = kbWrap.querySelector('#kb-chunk') as HTMLInputElement;
       const kbOverlapIn = kbWrap.querySelector('#kb-overlap') as HTMLInputElement;
       const kbUpState = kbWrap.querySelector('#kb-upstate') as HTMLElement;
+      const kbStrat = bindStrategyBlock(kbWrap, ctx);
       const nkWrap = el.querySelector('#nkmodal') as HTMLElement;
       const nkNameIn = nkWrap.querySelector('#nk-name') as HTMLInputElement;
 
@@ -668,6 +670,7 @@ function kbGroup(): SettingGroup {
         curKb = s;
         kbTitle.textContent = '知識庫 — ' + s.source_name;
         kbUpState.textContent = '';
+        kbStrat.load(s.source_id);   // 檢索策略區塊載入本機參數（存而不用，spec §3.3）
         kbDocsEl.innerHTML = '<div class="gnote">載入文件…</div>';
         kbWrap.classList.add('open');
         if (escOffKb) { escOffKb(); escOffKb = null; }

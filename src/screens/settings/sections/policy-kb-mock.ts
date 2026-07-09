@@ -99,6 +99,126 @@ function mockKbModalHtml(): string {
   );
 }
 
+/* ---------- 檢索策略區塊（live modal 用；mock modal 沿用原版內建 kb-* 段） ----------
+   live 知識庫（source_id）的策略設定存 'policy.kbParams'，存而不用（後端無 API）。
+   id 前綴 kbp- 與 mock 的 kb-* 區隔。 */
+export function strategyBlockHtml(): string {
+  return (
+    '<div class="msec">檢索策略（存於本機，後端支援後生效）</div>' +
+    '<div class="frow"><div class="flabel">Embedding 模型</div>' +
+    '<div class="fctl"><select class="sel" id="kbp-emb"></select></div></div>' +
+    '<div class="strat" id="kbp-strat"></div>' +
+    '<div class="subopt" id="kbp-hybrid" style="display:none">' +
+    '<div class="rlab"><span>語意權重</span><span id="kbp-wlab">0.6</span><span>關鍵字權重</span></div>' +
+    '<input type="range" class="rng" id="kbp-weight" min="0" max="100" value="60"></div>' +
+    '<div class="frow" style="margin-top:8px"><div class="flabel">Rerank 重排序</div><div class="fctl">' +
+    '<label class="tgl" id="kbp-rrwrap"><input type="checkbox" id="kbp-rerank"><span class="tr"></span><span class="th"></span></label>' +
+    '<select class="sel" id="kbp-rrmodel" style="display:none"></select>' +
+    '<span class="guide" id="kbp-rrguide" style="display:none">尚無可用 rerank 模型 — <a id="kbp-goprov">先至模型管理設定</a></span>' +
+    '</div></div>' +
+    '<div class="savebar" id="kbp-savebar"><span>未儲存變更</span><span class="sp"></span>' +
+    '<button type="button" class="mini" id="kbp-discard">捨棄</button>' +
+    '<button type="button" class="mini acc" id="kbp-save">儲存</button></div>' +
+    '<div class="saved" id="kbp-saved">✓ 已儲存</div>'
+  );
+}
+
+export interface StrategyBlockHandle { load(sourceId: string): void }
+
+export function bindStrategyBlock(wrap: HTMLElement, ctx: SettingsCtx): StrategyBlockHandle {
+  const q = <T extends HTMLElement>(sel: string) => wrap.querySelector(sel) as T;
+  const chunkIn = q<HTMLInputElement>('#kb-chunk');       // live modal 既有輸入框（上傳參數）
+  const ovIn = q<HTMLInputElement>('#kb-overlap');
+  const embSel = q<HTMLSelectElement>('#kbp-emb');
+  const stratEl = q<HTMLElement>('#kbp-strat');
+  const hybridEl = q<HTMLElement>('#kbp-hybrid');
+  const weightIn = q<HTMLInputElement>('#kbp-weight');
+  const wlabEl = q<HTMLElement>('#kbp-wlab');
+  const rerankCk = q<HTMLInputElement>('#kbp-rerank');
+  const rrSel = q<HTMLSelectElement>('#kbp-rrmodel');
+  const rrGuide = q<HTMLElement>('#kbp-rrguide');
+  const savebar = q<HTMLElement>('#kbp-savebar');
+  const savedEl = q<HTMLElement>('#kbp-saved');
+  let sid: string | null = null;
+  let draft: KbParams = defaultKbParams();
+
+  function render(): void {
+    const r = draft.retrieval;
+    const emb = connectedModels('embedding');
+    embSel.innerHTML = emb.length
+      ? emb.map((m) => '<option value="' + esc(m) + '"' + (m === r.embeddingModel ? ' selected' : '') + '>' + esc(m) + '</option>').join('')
+      : '<option value="">（無可用 embedding 模型）</option>';
+    embSel.disabled = !emb.length;
+    stratEl.innerHTML = stratCardsHtml(r);
+    hybridEl.style.display = r.strategy === 'hybrid' ? '' : 'none';
+    weightIn.value = String(r.hybridWeight);
+    wlabEl.textContent = (r.hybridWeight / 100).toFixed(1);
+    rerankCk.checked = r.rerank;
+    const rr = connectedModels('rerank');
+    if (r.rerank) {
+      if (rr.length) {
+        rrSel.style.display = '';
+        rrGuide.style.display = 'none';
+        rrSel.innerHTML = rr.map((m) => '<option value="' + esc(m) + '"' + (m === r.rerankModel ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
+      } else {
+        rrSel.style.display = 'none';
+        rrGuide.style.display = '';
+      }
+    } else {
+      rrSel.style.display = 'none';
+      rrGuide.style.display = 'none';
+    }
+  }
+  function dirty(): void {
+    savebar.classList.add('show');
+    savedEl.classList.remove('show');
+  }
+
+  embSel.addEventListener('change', () => { draft.retrieval.embeddingModel = embSel.value; dirty(); });
+  stratEl.addEventListener('click', (e) => {
+    const s = (e.target as HTMLElement).closest('[data-strat]') as HTMLElement | null;
+    if (!s) return;
+    draft.retrieval.strategy = s.getAttribute('data-strat') as Kb['retrieval']['strategy'];
+    render();
+    dirty();
+  });
+  weightIn.addEventListener('input', () => {
+    draft.retrieval.hybridWeight = Number(weightIn.value);
+    wlabEl.textContent = (draft.retrieval.hybridWeight / 100).toFixed(1);
+    dirty();
+  });
+  rerankCk.addEventListener('change', () => { draft.retrieval.rerank = rerankCk.checked; render(); dirty(); });
+  rrSel.addEventListener('change', () => { draft.retrieval.rerankModel = rrSel.value; dirty(); });
+  q<HTMLElement>('#kbp-goprov').addEventListener('click', () => {
+    // 藉 live modal 既有關閉鈕收合（重用 PR 的 closeKb 路徑，含 esc 監聽卸載，不碰其內部）
+    q<HTMLElement>('#kb-close').click();
+    ctx.goto('policy', '模型管理');
+  });
+  q<HTMLButtonElement>('#kbp-save').addEventListener('click', () => {
+    if (!sid) return;
+    draft.chunk = { size: Number(chunkIn.value) || 512, overlap: Number(ovIn.value) || 64 };
+    setKbParams(sid, JSON.parse(JSON.stringify(draft)));
+    savebar.classList.remove('show');
+    savedEl.classList.remove('show');
+    void savedEl.offsetWidth;
+    savedEl.classList.add('show');
+  });
+  q<HTMLButtonElement>('#kbp-discard').addEventListener('click', () => { if (sid) load(sid); });
+
+  function load(sourceId: string): void {
+    sid = sourceId;
+    const saved = getKbParams(sourceId);
+    draft = saved ? JSON.parse(JSON.stringify(saved)) : defaultKbParams();
+    if (!saved) draft.retrieval.embeddingModel = connectedModels('embedding')[0] ?? '';
+    chunkIn.value = String(draft.chunk.size);   // 預填為 additive；上傳仍照 PR 邏輯讀輸入框當下值
+    ovIn.value = String(draft.chunk.overlap);
+    render();
+    savebar.classList.remove('show');
+    savedEl.classList.remove('show');
+  }
+  return { load };
+}
+
 function mockNkModalHtml(): string {
   return (
     '<div class="mwrap" id="nkmodal"><div class="mbox" style="width:440px">' +
