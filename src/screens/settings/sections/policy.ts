@@ -5,6 +5,7 @@ import {
   pushLlmConfig, setSourceEnabled, testConnection, uploadDoc,
 } from '../backend';
 import type { BackendDoc, BackendSource } from '../backend';
+import { mountMockKb } from './policy-kb-mock';
 import type { SettingGroup, SettingsCtx, SettingsSection } from '../schema';
 
 /* policy 分區：生成接口（llmMode segmented）+ 模型管理（供應商 Setup modal + 系統預設模型）。
@@ -139,7 +140,7 @@ export function getKbs(): Kb[] {
   // 會複製到已被污染的 KB_PRESET，永久失效。故 fallback 一律先深拷貝一份，切斷共享參照。
   return getSetting<Kb[]>('policy.kbs', JSON.parse(JSON.stringify(KB_PRESET)));
 }
-function setKbs(list: Kb[]): void {
+export function setKbs(list: Kb[]): void {
   setSetting('policy.kbs', list);
 }
 
@@ -550,7 +551,7 @@ function kbGroup(): SettingGroup {
   return {
     title: '知識庫管理',
     saveMode: 'instant',
-    custom(el) {
+    custom(el, ctx: SettingsCtx) {
       let sources: BackendSource[] = [];
       let curKb: BackendSource | null = null;
       let escOffKb: (() => void) | null = null;
@@ -586,10 +587,11 @@ function kbGroup(): SettingGroup {
         b.textContent = sources.length + ' 庫 · ' + segs + ' 段';
       }
 
-      async function refresh(): Promise<void> {
+      async function refresh(initial = false): Promise<void> {
         try {
           sources = await listSources();
         } catch {
+          if (initial) { mountMockKb(el, ctx); return; } // 後端不在 → 整組退回 mock 示範（spec §3.1）
           grid.innerHTML =
             '<div class="gnote">後端未連線（VITE_POLICY_API 指定的 rag-agent），無法載入知識庫。</div>';
           return;
@@ -717,7 +719,7 @@ function kbGroup(): SettingGroup {
         try { await createKb(name); closeNk(); await refresh(); } catch { alert('建立失敗（後端未連線）'); }
       });
 
-      void refresh();
+      void refresh(true);
     },
   };
 }
