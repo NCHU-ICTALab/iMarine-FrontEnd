@@ -455,8 +455,15 @@ function modelGroup(): SettingGroup {
           saveBtn.disabled = false;
           hintEl.textContent = '';
         } catch {
-          stateEl.className = 'tstate err';
-          stateEl.textContent = '✗ 連線失敗（確認後端 :8100 與供應商設定）';
+          // 後端不在 → 退回示範驗證（原 mock 流程），訊息帶「示範」低調標示（spec §3.2）
+          pmTestedModels = prov.models.length
+            ? prov.models
+            : (prov.catalog ?? []).map((m) => ({ ...m, enabled: m.kind === 'chat' }));
+          stateEl.className = 'tstate ok';
+          stateEl.textContent = '✓ 驗證通過（示範）· 已載入 ' + pmTestedModels.length + ' 個模型';
+          modelsEl.innerHTML = modelListHtml(pmTestedModels);
+          saveBtn.disabled = false;
+          hintEl.textContent = '';
         }
       });
 
