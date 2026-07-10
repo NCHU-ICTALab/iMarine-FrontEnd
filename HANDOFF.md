@@ -2,11 +2,24 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-10 Policy/Settings mock fallback 整合完成並**本地合併回 main**（連同協作者 PR #1 `feat/policy-rag-integration` 一併進 main——本分支 base 在 PR #1 上、合併即帶入）+ push origin。SDD 5 tasks + 最終 whole-branch review（opus, Ready to merge）+ 全站功能實機驗收皆過。合併採非 fast-forward merge（保留 main 的 hero）；HANDOFF.md 手動解三處衝突，README.md／`src/data/types.ts` auto-merge。main 現整合：六大功能頁改版 + Settings 頁 + hero 影片底圖改版 + PR #1（policy/settings 接 rag-agent live）+ 本輪 mock fallback。**協作者 PR #1 的 commits 已隨本分支進 main，需在 GitHub 端關閉/善後該 PR。**
+最後更新：2026-07-10 數位員工 Agent Screen（第 9 個 screen）SDD 8 tasks 全數完成並通過逐 task review，全站驗收（三綠燈 + CDP 全站迴歸 + live 態 dummy key 模式切換/錯誤路徑驗證）綠燈，分支 `agent-screen`（自 main `b755a08`），待最終 whole-branch review + 使用者實機驗收（含使用者自己的 Gemini key 驗證 live 態完整成功案例）/ 合併（Policy/Settings mock fallback 整合已於 2026-07-10 合併回 main + push origin，見下）。**唯一未竟善後（使用者端，非本輪範圍）：協作者 PR #1（`feat/policy-rag-integration`）commits 已隨前一輪進 main，需在 GitHub 手動關閉該 PR + 告知協作者（無 gh、本地無法代做）。**
 
 ---
 
 ## 1. 目前狀態
+
+**數位員工 Agent Screen（第 9 個 screen）改版：SDD 8 tasks 全數完成，全站驗收（三綠燈 + CDP 全站迴歸）綠燈，分支 `agent-screen`（自 main `b755a08`）。待最終 whole-branch review + 使用者實機驗收（含使用者自己的 Gemini key 驗證 live 態）+ 決定合併方式。**
+- 定位：第 9 個 screen，插在 alert 之後、settings 之前（rail 鍵盤：agent 接手 `7`，settings 改 `8`）。「數位員工」AI Agent 頁——使用者以自然語言下指令，Agent 透過 tool-calling 讀取/導航/操作其他六大模組的資料層，把生態系串連起來；並能跑系統自我檢測，依 runbook 給修復建議。競賽簡報的收官頁，模組色紫 `#B48CFF`、mode `doc`。
+- 核心抽象：`AgentEvent` 事件流（`plan`/`step_start`/`tool_call`/`tool_result`/`text_delta`/`confirm_request`/`done`/`error`），live（`loop.ts`，Gemini manual loop）與 mock（`replay.ts`，劇本 replay）皆為 `AsyncGenerator<AgentEvent>`，UI（`index.ts`/`controller.ts`/`workspace.ts`）只消費事件、不知道背後是真 LLM 還是劇本。七工具（`tools.ts`）：`get_module_data`/`ask_policy_rag`/`run_diagnostics`/`search_runbook`/`navigate_to_screen`/`place_carbon_order`（寫，需確認卡）/`update_setting`（寫，需確認卡，白名單 key）。自我檢測分工：確定性 probe（`diagnostics.ts`，不進 LLM）+ 靜態 runbook JSON（`agent-runbook.json`，8 條）。
+- UX 1-7 全做（開場即巡檢／plan-then-act／常駐旁白／工作區跟隨+足跡回看／確認卡 human-in-the-loop／模組色 citation chips `{{m:module}}`／隨時中斷）；8（足跡收據行）不做（brainstorming 定案）。
+- **成果檔案**：新增 `src/screens/agent/{index.ts,agent.html,agent.css,loop.ts,replay.ts,tools.ts,diagnostics.ts,workspace.ts,controller.ts}` 九檔 + `src/data/mock/{agent-scenarios.json,agent-runbook.json}` + `tests/{agent-mock,agent-diagnostics,agent-tools,agent-replay,agent-plan}.test.ts` 五檔；`src/data/types.ts` 檔尾追加 `AgentModule`/`AgentEvent`/`DiagReport`/`DiagModuleReport`/`RunbookEntry`/`ScenarioEvent`/`AgentScenario`；`src/shell/registry.ts`（第 9 筆 ScreenDef）、`src/main.ts`（鍵盤 `7`→agent、`8`→settings）、`package.json`（+`@google/genai`）、`.env.example`（+`VITE_GEMINI_API_KEY=`）為接線改動，不動任何既有 screen/provider 邏輯。
+- **SDD 8 tasks（每個獨立 code review）**：(1) 資料契約 + runbook/劇本 mock JSON TDD；(2) 確定性健檢 probe TDD；(3) 七工具 + `renderAgentText`（`{{m:module}}`→citation chip）TDD；(4) 劇本 replay 引擎 TDD；(5) Gemini manual loop + `parsePlan` TDD；(6) screen 骨架 + shell 接入 + 開場巡檢；(7) chat 控制器 + 事件渲染全鏈路（mock 劇本可互動）+ 修復（submit 清前次導航排程、chips 執行中不誤消耗）；(8) 本輪：全站驗收 + README/HANDOFF 收尾。
+- **驗收（誠實分野，Task 8 本輪）**：三綠燈——`tsc --noEmit` 0 errors、`vitest run` 23 檔 85 tests 全綠（新增 agent 五檔）、`build` 成功；build 後佐證 `@google/genai`（382.6KB）只落在 agent screen 的獨立 async chunk（`index-KajQcvrz.js`，由 registry 的 `load: () => import(...)` 動態載入），主 entry chunk（`index-CpvW_cqy.js`，91.8KB）未增胖，grep 確認引用方式是動態 `import()` 非 eager。key 紅線稽核：`git status` 確認 `.env` 未追蹤、`grep -rn "AIza" dist/ src/` 零命中、README 已註記 key 僅限本機。CDP 全站迴歸（獨立 headless Chrome + SwiftShader，勿加 `--disable-gpu`，自起 dev server :5183 + Chrome :9463，不動使用者另開的 :5173/:8000）：9 頁 sweep（hero→carbon→policy→twin→dispatch→epidemic→alert→agent→settings）全數 `.screen.active` 正確 + 版面非空、鍵盤 `0`-`8` 全對映、twin WebGL context alive、carbon 單筆發行 modal／policy `#qinput` 打數字皆不誤觸導覽（既有 bail-out 不迴歸）、agent 頁 `prefers-reduced-motion` 首次 boot 完整非空白（7 燈全亮＋招呼泡泡＋3 chips，無 stagger）；agent mock 態互動細項（10/10）：開場巡檢、sc-summary 劇本（plan 3 步/工具卡 3/citation chip 3）、citation chip 點擊跳頁+返回 thread 保留、sc-diag 健檢（碳權離線態下 runbook 命中「make chain」，用 app 自身 `carbon.apiBase` 設定導向死埠模擬離線、不影響使用者另開的真 :8000）、掛單確認卡取消/確認兩路徑（確認後 carbon 離線故退示範回覆）、執行中按停止（輸入列復原+收尾語）、亂打→誠實 FALLBACK 說明、`#aInput` 打數字不跳頁；全程**console 零 JS 例外**。
+- **live 態驗證（誠實分野，真實 Gemini key 待使用者驗）**：本 session 不可得真實 Gemini key，改以 dummy key（`VITE_GEMINI_API_KEY=dummy-invalid-key-for-testing`，測試後已移除、`.env` 確認未進版控）驗證「模式切換 + 錯誤路徑」——(a) 標題列 chip 正確切成「GEMINI LIVE」；(b) 送出指令走 live 路徑，dummy key 使 Gemini API 真的回 400 `API_KEY_INVALID`（證實是真實 API 往返，非模擬），`loop.ts` 的 try/catch 接住並 yield `error` 事件，UI 出現 `.aerr` 錯誤列、輸入列復原、頁面不崩潰、**零 uncaught exception**；(c) 移除 dummy key 重啟後正確退回「劇本 MOCK」chip。**真實 key 的完整成功案例（真答案＋真工具呼叫＋掛單真打碳權 API）仍留待使用者以自己的 Gemini key 驗證**，本輪未也不應假裝跑過真 Gemini。
+- **四個 defer Minor（交最終 whole-branch review triage）**：(a) `stop()` 不取消 in-flight `fetch`（Gemini stream 或工具內部的 fetch 仍會在背景跑完，只是結果不再被消費）、`stop()` 亦不即時復原輸入列以外的殘留 UI（demo 多停在 `sleep` 階段風險低）；(b) `lastToolSummary`（citation chip hover 摘要）跨任務不重置，理論上可能 hover 到舊任務的摘要文字；(c) `controller.ts` 的 `runTask()` 的 `try` 區塊從 `io` 物件建好之後才開始，若 setup（同步 DOM 操作）本身 throw，`running` 旗標會卡在 `true`（同步 DOM 操作正常不會 throw，實務風險低）；(d) `loop.ts` 的 manual loop 若中間輪（非最後一輪）模型先吐文字才吐 `functionCall`，該輪文字目前未寫入 `history` 的 model turn（只有最終無 functionCall 的收尾回合才整段寫回）——多輪追問情境下前面步驟的說明文字會遺失於歷史，但最終回答文字有保留，demo 場景多為單輪對話，此邊界情況風險低。
+- 設計文件：`docs/superpowers/specs/2026-07-10-agent-screen-design.md`（決策表/版面/AgentEvent/七工具/自我檢測/UX 1-7/雙態 provider/驗收標準/風險）；實作計畫 `docs/superpowers/plans/2026-07-10-agent-screen.md`（8 tasks）；逐 task review 見 `.superpowers/sdd/review-*.diff`；完整驗收證據 `.superpowers/sdd/task-8-report.md`（scratch，未進版控）。
+
+**（以下為前一輪 Policy/Settings mock fallback 整合，已完結並合併回 main + push origin）**
 
 **本次合併（2026-07-10）：Policy/Settings mock fallback 整合（本輪）已本地合併回 main，連同協作者 PR #1 `feat/policy-rag-integration`（policy/settings 接 rag-agent live）一併進 main + push origin。以下各段依 git 順序列出已完結各輪（hero → 本輪 policy mock fallback → alert → …），皆已在 main；本輪技術條目見本節下方「Policy/Settings mock fallback」段。**
 
@@ -849,10 +862,11 @@
 
 ## 4. 下一步（依序）
 
-**目前狀態：全數整合到位、無後續排定 task。** 六大功能頁改版 + Settings 頁 + hero 影片底圖改版 + PR #1（policy/settings 接 rag-agent live）+ 本輪 policy/settings mock fallback 皆已在 main（2026-07-10 本地合併 + push origin）。
-- **合併細節**：本分支 `policy-mock-fallback`（base PR #1 `9033aba`，fork 自 alert 收尾點 `c1a2490`、不含 hero）以非 fast-forward merge 合回 main（保留 main 的 hero）；HANDOFF.md 手動解三處衝突、README.md／`src/data/types.ts` auto-merge。
-- **協作者 PR #1 善後**：PR #1（`feat/policy-rag-integration`）的 commit `9033aba` 已隨本分支進 main——GitHub 上該 PR 會顯示 commits 已合併，需在 GitHub 端關閉/善後（本地無法代操作）。
-- **demo/競賽前置**：carbon LIVE 需起 PoC 三件套 `make chain` + `make deploy` + `make api`（缺 Hardhat 鏈 :8545 則發行/掛單/購買/除役等寫鏈交易回 500 失敗）；policy/settings live 需起 rag-agent :8100（不起走完整 mock 示範）；真 Chrome 人工 click-through 一輪各頁互動手感。
+**目前狀態：`agent-screen` 分支（自 main `b755a08`）SDD 8 tasks 全數完成，三綠燈 + CDP 全站迴歸 + live 態 dummy key 驗證皆過；** main 本身仍乾淨（`b755a08`，與 origin 同步），六大功能頁改版 + Settings 頁 + hero 影片底圖改版 + PR #1（policy/settings 接 rag-agent live）+ policy/settings mock fallback 皆已在 main。**尚待最終 whole-branch review + 使用者實機驗收 + finishing（決定合併方式）——這三步本輪尚未做，新 session 接手請從這裡續。**
+- **本輪（agent-screen）待辦（依序）**：(1) 最終 whole-branch review（opus/fable，複核 8 個 task 的承載性接縫，含四個 defer Minor 的 triage，見第 1 節）；(2) 使用者實機驗收——**務必請使用者用自己的真實 Gemini API key 跑過至少一次「整合今日港區營運摘要」與「系統健檢」全流程**（本輪 session 只驗證了模式切換 + dummy key 錯誤路徑優雅降級，未驗證過真實成功案例：真答案／真工具呼叫／掛單真打 carbon API）；(3) finishing：決定合併方式（比照 policy/dispatch/epidemic 前例，可能本地合併回 main、視情況 push origin）。
+- **demo/競賽前置**：carbon LIVE 需起 PoC 三件套 `make chain` + `make deploy` + `make api`（缺 Hardhat 鏈 :8545 則發行/掛單/購買/除役等寫鏈交易回 500 失敗）；policy/settings live 需起 rag-agent :8100（不起走完整 mock 示範）；**數位員工（agent）live 態需 `.env` 填 `VITE_GEMINI_API_KEY`（選填，未設定走劇本 mock、不影響 demo；key 僅限本機、勿提交、勿部署公開網址）**；真 Chrome 人工 click-through 一輪各頁互動手感。
+- **（歷史）上一輪 policy-mock-fallback 合併細節（已完成，沿用記錄）**：本分支 `policy-mock-fallback`（base PR #1 `9033aba`，fork 自 alert 收尾點 `c1a2490`、不含 hero）以非 fast-forward merge 合回 main（保留 hero）→ merge commit `b755a08`（HANDOFF.md 手動解三處衝突、README.md／`src/data/types.ts` auto-merge）→ 合併後三綠燈（tsc 0 / vitest 18 檔 65 / build ok）→ push origin main（`4bd2be3`→`b755a08`）→ feature 分支 `policy-mock-fallback`（本地 + remote）已刪。
+- **唯一未竟善後（使用者端，非本地，沿用自上一輪）**：協作者 PR #1（`feat/policy-rag-integration`）的 commit `9033aba` 已隨合併進 main——GitHub 上該 PR 不會自動關閉（head 分支 `origin/feat/policy-rag-integration` 仍在、未動），需使用者在 GitHub 手動 close 該 PR + 告知協作者（無 gh CLI 無法代做）。
 
 （以下為 shell 建置期的歷史步驟，皆已完成）
 
