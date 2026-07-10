@@ -73,13 +73,13 @@ type AgentEvent =
 
 | 工具 | 類型 | 行為 | 後端不在時 |
 |---|---|---|---|
-| `get_module_data(module)` | 讀 | 讀該模組 provider `snapshot()`，回摘要關鍵數字；`module` 為 enum 六模組 | provider 本身有 mock 態，永遠有資料 |
+| `get_module_data(module)` | 讀 | 讀該模組 provider `snapshot()`，回摘要關鍵數字；`module` 為 enum 六模組 | 四 mock 模組永遠有資料；carbon 後端不在時 provider 回 `ok:false`+全零（已驗證 `exchange/carbon.ts` catch 分支），工具摘要須標示「後端離線」而非把零值當真數字 |
 | `ask_policy_rag(question)` | 讀 | 打 rag-agent `POST /api/chat`，回答案 + 證據來源 | 退 mock 情報聯集罐頭（沿用 policy 頁 fallback） |
 | `run_diagnostics()` | 讀 | 確定性 probe（見 §6），回 `DiagReport` | probe 本身就是在測「不在」，永遠可跑 |
 | `search_runbook(symptom)` | 讀 | 查靜態 runbook JSON，回命中條目 | 靜態檔，永遠可查 |
-| `navigate_to_screen(id)` | 導航 | rail 跳轉到指定頁（延遲 ~1.5s 讓使用者看到 agent 說要去哪） | — |
+| `navigate_to_screen(id)` | 導航 | 排程跳轉：工具執行當下只回「已排程」，實際跳轉在引擎 `done` 事件後 ~1.5s 執行（回答講完才離頁，避免跳轉觸發 `hide()` abort 砍斷回答中的 loop） | — |
 | `place_carbon_order(batch, qty, price)` | **寫** | 確認卡 → 打 carbon PoC 掛單 API | 退示範回覆（訊息帶「示範」） |
-| `update_setting(key, value)` | **寫** | 確認卡 → 寫 settings localStorage（`storage.ts` 既有機制），限白名單 key | 本機操作，永遠可做 |
+| `update_setting(key, value)` | **寫** | 確認卡 → 寫 settings localStorage（`storage.ts` 既有機制），限白名單 key（如 `policy.llmMode`、`frontend.reducedMotion`、`carbon.apiBase`、mapbox token；實作時以常數陣列列舉，白名單外一律拒絕） | 本機操作，永遠可做 |
 
 - 寫工具 gating 在引擎層：收到這兩個 function call 不執行，先發 `confirm_request`。
 - 工具 declaration 的 description 寫明「何時呼叫」（調研結論：prescriptive trigger conditions）。
@@ -124,7 +124,8 @@ interface DiagReport {
 
 1. **開場即巡檢**：`show()` 時自動跑靜默 `run_diagnostics`（不進 LLM、不產生對話記錄）——右欄
    6 模組卡 stagger 逐一點燈，chat 出 agent 招呼泡泡（模板組字：問候 + 健檢結論一句 + LIVE/MOCK 統計）
-   + 3 條建議指令 chips（用掉即消失）。每次切入頁面僅首次自動跑（session 內重入不重跑，避免洗版）。
+   + 3 條建議指令 chips（用掉即消失）。每次切入頁面僅首次自動跑（session 內重入不重跑，避免洗版；
+   重入時右欄顯示上次巡檢的終態燈號牆，不重播動畫）。
 2. **Plan-then-act**：任務開始先收 `plan` 事件，在 agent 泡泡內列 3-5 步骨架（○ 待執行）；
    `step_start` → spinner；該步的工具跑完 → 綠勾 + 耗時；完成步驟收合成一行。
 3. **常駐旁白字幕**：右欄底部字幕列，`step_start`/`tool_call`/`tool_result` 都更新一句現在式白話
@@ -158,9 +159,15 @@ interface DiagReport {
 **mock（`replay.ts`）**：
 - key 缺 → mock 態，資料源 chip 顯「劇本 MOCK」。
 - `agent-scenarios.json`：~4 條劇本（今日營運摘要 / 紅海事件碳成本 / 完整系統健檢 / 碳權掛單），
-  每條 = `{ id, patterns: string[], events: ScenarioEvent[] }`；`ScenarioEvent` 為 AgentEvent 加
-  `delayMs`；`tool_call` 事件標 `exec: true` 時 replay 引擎**真的執行**對應工具、以真實結果渲染
-  結果卡（資料活的），回答文字則預錄。
+  每條 = `{ id, patterns: string[], events: ScenarioEvent[], cancelEvents?: ScenarioEvent[] }`；
+  `ScenarioEvent` 為 AgentEvent 加 `delayMs`；`tool_call` 事件標 `exec: true` 時 replay 引擎
+  **真的執行**對應工具、以真實結果渲染結果卡（資料活的），回答文字則預錄。
+- **劇本內的 `confirm_request` 同樣暫停 replay**：確認 → 續播後續 events（含 exec 的真寫入）；
+  取消 → 改播該劇本的 `cancelEvents` 尾段（一句收尾 + `done`）。與 live 態同一套 UI 語意。
+- **預錄回答與活資料的一致性規範**：劇本回答文字中的精確數字只允許引用「穩定 mock 模組」
+  （policy/dispatch/epidemic/alert/twin 的 mock JSON 固定值）；carbon 是 live 波動資料，
+  回答文字只作質化描述（漲/跌/正常），精確數字留給 exec 工具結果卡呈現——避免預錄文字
+  與現場真資料對不上。
 - 指令關鍵字比對不中 → 誠實示範說明泡泡（說明這是劇本示範態 + 列可用指令）。
 
 ## 9. 檔案結構與資料契約
@@ -212,7 +219,8 @@ package.json           + @google/genai
 - **live 依賴網路 + 額度**：demo 保險是 mock 態，UI 無差別；上台前可主動拔 key 走劇本。
 - **Gemini function calling 偶發不呼叫工具 / plan 格式飄移**：description 寫觸發條件 +
   UI 容忍 plan 缺席；真的歪掉 demo 用 mock。
-- **`navigate_to_screen` 離開本頁**＝中斷目前任務（`hide()` abort）：設計上接受——導航型指令
-  的回答先講完再跳轉（延遲 1.5s），跳轉即任務結束。
+- **`navigate_to_screen` 離開本頁**：跳轉排程在 `done` 後 ~1.5s（見 §5），故不會 abort 進行中
+  loop；跳走後 `hide()` 照常清理，回頁不恢復任務——設計上接受。使用者若在排程等待中手動
+  切頁/中斷，取消該排程（不疊加跳轉）。
 - **@google/genai bundle 體積**：僅 agent screen lazy import（registry 的 `load()` 已是動態
   import，天然 code-split）。
