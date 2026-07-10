@@ -149,7 +149,6 @@ export async function* runGemini(opts: {
       if (pend) { yield { kind: 'text_delta', text: pend }; finalText += pend; pend = ''; }
 
       /* 執行本輪全部 functionCalls，結果回填 */
-      contents.push({ role: 'model', parts: calls.map((c) => ({ functionCall: { name: c.name, args: c.args } })) });
       const responses: Part[] = [];
       for (const c of calls) {
         const tool = tools.find((t) => t.name === c.name);
@@ -169,6 +168,7 @@ export async function* runGemini(opts: {
         yield { kind: 'tool_result', tool: c.name, summaryHtml: r.summaryHtml, module: r.module ?? tool.module, ms: Math.round(performance.now() - t0), cardHtml: r.cardHtml };
         responses.push({ functionResponse: { name: c.name, response: { result: `（實際執行參數 ${JSON.stringify(c.args)}）` + r.llmText } } });
       }
+      contents.push({ role: 'model', parts: calls.map((c) => ({ functionCall: { name: c.name, args: c.args } })) });
       contents.push({ role: 'user', parts: responses });
     }
     yield { kind: 'error', message: '已達工具呼叫上限，任務中止。' };
