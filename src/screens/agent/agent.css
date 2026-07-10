@@ -1,0 +1,147 @@
+/* Agent screen（數位員工）樣式 — 一律 #s-agent 前綴 scope；元件走 Liquid Glass Kit（lg lg-static，
+   不手寫 backdrop-filter）。視覺基準：.superpowers/brainstorm/7098-1783649515/content/layout-v2.html
+   （UX1 開場態 / UX2 執行態 / UX3 收尾態三張 wireframe）。模組色紫 #B48CFF、mode doc。
+   進場 stagger 沿用 tokens.css 既有 .anim + --d 慣例（左右兩欄依序 .08s/.14s，見 agent.html）；
+   燈號牆逐卡點燈另走 .lampcard.lit（workspace.ts 控制的獨立 stagger，非 .anim 機制）。 */
+
+#s-agent .agrid{display:grid;grid-template-columns:38fr 62fr;gap:14px;min-height:0;}
+
+/* ── 左欄：對話面板 ── */
+#s-agent .achat{display:flex;flex-direction:column;height:calc(100vh - 208px);min-height:480px;
+  padding:16px 16px 14px;border-radius:18px;}
+#s-agent .athread{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:2px 2px 8px;
+  scrollbar-width:thin;display:flex;flex-direction:column;gap:10px;}
+
+/* 對話泡泡 */
+#s-agent .bub-u{align-self:flex-end;max-width:82%;padding:9px 14px;border-radius:14px 14px 4px 14px;
+  background:rgba(180,140,255,.15);border:1px solid rgba(180,140,255,.35);color:#e3d7ff;font-size:13.5px;}
+#s-agent .bub-a{align-self:flex-start;max-width:94%;padding:11px 14px;border-radius:14px 14px 14px 4px;
+  background:rgba(255,255,255,.045);border:1px solid var(--hair);color:var(--ink-90);
+  font-size:13.5px;line-height:1.65;}
+#s-agent .bub-a .stt{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-40);
+  font-family:var(--mono);margin-bottom:5px;}
+
+/* 計畫時間軸（plan-then-act）：spinner / 勾 / 待辦三態 */
+#s-agent .tstep{display:flex;align-items:center;gap:7px;padding:3px 6px;border-left:2px solid var(--hair);
+  margin-left:4px;font-size:12.5px;color:var(--ink-40);}
+#s-agent .tstep b{color:var(--ink-90);font-weight:600;}
+#s-agent .tstep .ok{color:var(--lg-accent);}
+#s-agent .tstep .run{color:var(--cyan);display:inline-block;animation:ag-spin 1s linear infinite;}
+#s-agent .tstep .pend{color:#5a6b7d;}
+@keyframes ag-spin{to{transform:rotate(360deg);}}
+
+/* 模組色 citation chip（tools.ts renderAgentText 產出，句中內嵌） */
+#s-agent .mchip{display:inline-flex;align-items:center;gap:4px;margin:0 2px;padding:1px 9px;
+  border-radius:999px;font-size:11px;cursor:pointer;color:var(--mc,#B48CFF);
+  border:1px solid color-mix(in srgb,var(--mc,#B48CFF) 45%,transparent);
+  background:color-mix(in srgb,var(--mc,#B48CFF) 12%,transparent);}
+#s-agent .mchip i{width:6px;height:6px;border-radius:50%;background:var(--mc,#B48CFF);
+  box-shadow:0 0 6px var(--mc,#B48CFF);}
+
+/* 建議指令 chips */
+#s-agent .achips{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 0;}
+#s-agent .achip{font-size:12px;padding:5px 14px;border-radius:999px;color:#c8b8ea;background:transparent;
+  border:1px dashed rgba(180,140,255,.4);cursor:pointer;font-family:inherit;
+  transition:color .25s var(--ease),border-color .25s var(--ease);}
+#s-agent .achip:hover{color:#B48CFF;border-color:#B48CFF;}
+#s-agent .achip:focus-visible{outline:2px solid #B48CFF;outline-offset:2px;}
+
+/* 輸入列 */
+#s-agent .ainput{display:flex;gap:10px;margin-top:10px;align-items:center;}
+#s-agent .ainput input{flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid var(--hair);
+  border-radius:12px;color:var(--ink-90);padding:10px 14px;font-size:13.5px;font-family:inherit;
+  outline:none;transition:border-color .25s var(--ease);}
+#s-agent .ainput input::placeholder{color:var(--ink-40);}
+#s-agent .ainput input:focus{border-color:rgba(180,140,255,.5);}
+#s-agent .ainput button{font-size:12.5px;padding:9px 16px;border-radius:12px;white-space:nowrap;
+  border:1px solid rgba(180,140,255,.4);background:rgba(180,140,255,.14);color:#d9c8ff;
+  cursor:pointer;font-family:inherit;transition:border-color .25s var(--ease);}
+#s-agent .ainput button:hover{border-color:#B48CFF;}
+#s-agent .ainput button:focus-visible{outline:2px solid #B48CFF;outline-offset:2px;}
+#s-agent .ainput button#aStop{border-color:rgba(240,100,140,.5);background:transparent;color:#F0648C;}
+#s-agent .hidden{display:none;}
+
+/* ── 右欄：工作區 ── */
+#s-agent .awork{display:flex;flex-direction:column;height:calc(100vh - 208px);min-height:480px;
+  padding:16px 18px 14px;border-radius:18px;}
+#s-agent .awtitle{flex:none;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-40);font-family:var(--mono);margin-bottom:12px;}
+#s-agent .awbody{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:2px;
+  scrollbar-width:thin;display:flex;flex-direction:column;gap:10px;}
+#s-agent .widle{padding:22px 10px;text-align:center;color:var(--ink-40);font-size:12.5px;}
+
+/* 開場巡檢：6+1 燈號牆（3×2 六模組 + 系統設定獨立一格） */
+#s-agent .lampwall{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+#s-agent .lampcard{padding:10px 12px;border-radius:13px;border:1px solid var(--hair);
+  background:rgba(255,255,255,.04);opacity:0;transform:translateY(8px);
+  transition:opacity .4s var(--ease),transform .4s var(--ease),border-color .3s var(--ease);}
+#s-agent .lampcard.lit{opacity:1;transform:none;
+  border-color:color-mix(in srgb,var(--mc,#B48CFF) 45%,transparent);}
+#s-agent .lamphead{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-90);}
+#s-agent .lamphead .dot{width:7px;height:7px;border-radius:50%;flex:none;
+  background:var(--mc,#B48CFF);box-shadow:0 0 8px var(--mc,#B48CFF);}
+#s-agent .lampbadge{margin-left:auto;font-size:9px;font-family:var(--mono);letter-spacing:.06em;
+  padding:1px 7px;border-radius:999px;border:1px solid var(--hair);color:var(--ink-40);}
+#s-agent .lampbadge.ok{color:var(--lg-accent);border-color:rgba(53,224,166,.45);}
+#s-agent .lampbadge.degraded{color:var(--amber);border-color:rgba(245,165,74,.45);}
+#s-agent .lampbadge.down{color:var(--rose);border-color:rgba(240,100,140,.45);}
+#s-agent .lampdetail{font-size:11px;color:var(--ink-40);margin-top:4px;line-height:1.5;}
+
+/* 執行/收尾：足跡 chips + 結果卡堆疊 */
+#s-agent .wfoot{display:flex;gap:6px;flex-wrap:wrap;}
+#s-agent .wfoot .fchip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 10px;
+  border-radius:999px;color:var(--mc,#B48CFF);
+  border:1px solid color-mix(in srgb,var(--mc,#B48CFF) 40%,transparent);
+  background:color-mix(in srgb,var(--mc,#B48CFF) 10%,transparent);}
+#s-agent .wfoot .fchip i{width:6px;height:6px;border-radius:50%;background:var(--mc,#B48CFF);
+  box-shadow:0 0 6px var(--mc,#B48CFF);}
+#s-agent .wfoot .fchip .fck{color:var(--lg-accent);margin-left:2px;}
+
+#s-agent .wfold{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;
+  border:1px solid var(--hair);color:var(--ink-40);font-size:11px;font-family:var(--mono);}
+#s-agent .wfold .dot{width:5px;height:5px;border-radius:50%;background:var(--ink-40);}
+
+#s-agent .wstack{display:flex;flex-direction:column;gap:8px;}
+#s-agent .wcard{--mc:#B48CFF;padding:10px 12px;border-radius:13px;border:1px solid var(--hair);
+  background:rgba(255,255,255,.045);transition:opacity .3s var(--ease),box-shadow .3s var(--ease);}
+#s-agent .wcard h5{margin:0 0 4px;font-size:12px;font-weight:600;color:var(--ink-90);
+  display:flex;align-items:center;gap:6px;}
+#s-agent .wcard h5 .dot{width:7px;height:7px;border-radius:50%;flex:none;
+  background:var(--mc);box-shadow:0 0 7px var(--mc);}
+#s-agent .wcard h5 .spin{color:var(--cyan);display:inline-block;animation:ag-spin 1s linear infinite;}
+#s-agent .wcard .wms{margin-left:auto;font-size:10px;font-family:var(--mono);color:var(--ink-40);}
+#s-agent .wcard .wsum{font-size:12px;color:var(--ink-60);line-height:1.55;}
+#s-agent .wcard.current{border-color:color-mix(in srgb,var(--mc) 55%,transparent);
+  box-shadow:0 0 16px color-mix(in srgb,var(--mc) 22%,transparent);}
+#s-agent .wcard.settled{opacity:.55;}
+
+/* 待確認動作（human-in-the-loop）：右欄詳情，chat 側雙鈕由 Task 7 於 .achat 內另插同名 class */
+#s-agent .confirmcard{padding:12px 14px;border-radius:13px;
+  border:1px solid rgba(233,188,99,.5);background:rgba(233,188,99,.07);}
+#s-agent .confirmcard .cstt{font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gold);font-family:var(--mono);margin-bottom:6px;}
+#s-agent .confirmcard .csum{font-size:12.5px;color:var(--ink-90);line-height:1.55;}
+#s-agent .confirmcard .cbtns{display:flex;gap:8px;margin-top:9px;}
+#s-agent .confirmcard .cbtn{font-size:11.5px;padding:5px 13px;border-radius:999px;
+  border:1px solid var(--hair);color:var(--ink-60);background:transparent;cursor:pointer;font-family:inherit;}
+#s-agent .confirmcard .cbtn.ok{border-color:rgba(53,224,166,.5);color:var(--lg-accent);}
+#s-agent .confirmcard .cbtn:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+/* 旁白字幕（常駐一句話現在式解說） */
+#s-agent .acaption{flex:none;margin-top:10px;padding:6px 14px;border-radius:999px;text-align:center;
+  background:rgba(7,11,17,.55);border:1px solid rgba(56,189,248,.35);color:var(--cyan);
+  font-size:11px;font-family:var(--mono);letter-spacing:.03em;}
+
+@media(prefers-reduced-motion:reduce){
+  #s-agent .lampcard{opacity:1!important;transform:none!important;transition:none!important;}
+  #s-agent .tstep .run,#s-agent .wcard h5 .spin{animation:none;}
+}
+body[data-motion="reduce"] #s-agent .lampcard{opacity:1!important;transform:none!important;transition:none!important;}
+body[data-motion="reduce"] #s-agent .tstep .run,
+body[data-motion="reduce"] #s-agent .wcard h5 .spin{animation:none;}
+
+@media(max-width:900px){
+  #s-agent .agrid{grid-template-columns:1fr;}
+  #s-agent .achat,#s-agent .awork{height:auto;min-height:360px;}
+  #s-agent .lampwall{grid-template-columns:repeat(2,1fr);}
+}

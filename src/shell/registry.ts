@@ -10,7 +10,7 @@ export interface ScreenDef {
   load(): Promise<{ default: Screen }>;
 }
 
-// 順序：hero, carbon, policy, twin, dispatch, epidemic, alert, settings
+// 順序：hero, carbon, policy, twin, dispatch, epidemic, alert, agent, settings
 export const SCREENS: ScreenDef[] = [
   {
     id: 'hero',
@@ -74,6 +74,15 @@ export const SCREENS: ScreenDef[] = [
     mode: 'ov',
     icon: '<path d="M6 16V11a6 6 0 1112 0v5l2 3H4z"/><path d="M10 21a2 2 0 004 0"/>',
     load: () => import('../screens/alert/index'),
+  },
+  {
+    id: 'agent',
+    title: '數位員工',
+    short: '數位員工',
+    color: '#B48CFF',
+    mode: 'doc',
+    icon: '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M8 12h.01M16 12h.01M9 16h6"/>',
+    load: () => import('../screens/agent/index'),
   },
   {
     id: 'settings',
