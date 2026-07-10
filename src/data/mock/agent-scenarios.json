@@ -47,9 +47,9 @@
       { "kind": "step_start", "index": 0, "caption": "正在讀取碳權市場現況…", "delayMs": 500 },
       { "kind": "tool_call", "tool": "get_module_data", "args": { "module": "carbon" }, "module": "carbon", "delayMs": 300, "exec": true },
       { "kind": "step_start", "index": 1, "caption": "等待操作員確認掛單…", "delayMs": 600 },
-      { "kind": "confirm_request", "tool": "place_carbon_order", "args": { "batch": "KHH-2026-B12", "qty": 500, "price": 14.5 },
-        "summaryHtml": "掛單 <b>KHH-2026-B12</b> 批次 500 t @ $14.5/t（寫入鏈上交易，需人工確認）", "delayMs": 300 },
-      { "kind": "tool_call", "tool": "place_carbon_order", "args": { "batch": "KHH-2026-B12", "qty": 500, "price": 14.5 }, "module": "carbon", "delayMs": 300, "exec": true },
+      { "kind": "confirm_request", "tool": "place_carbon_order", "args": { "token_id": 1, "price": 15 },
+        "summaryHtml": "掛單 SU <b>#1</b> @ $15/噸（寫入鏈上交易，需人工確認）", "delayMs": 300 },
+      { "kind": "tool_call", "tool": "place_carbon_order", "args": { "token_id": 1, "price": 15 }, "module": "carbon", "delayMs": 300, "exec": true },
       { "kind": "text_delta", "text": "掛單已送出{{m:carbon}}，可到碳權頁的市場分頁查看掛單狀態。", "delayMs": 600 },
       { "kind": "done", "delayMs": 400 }
     ],
