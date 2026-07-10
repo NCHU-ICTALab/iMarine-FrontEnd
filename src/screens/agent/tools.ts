@@ -66,6 +66,31 @@ function jsonBrief(v: unknown, max = 1200): string {
   return s.length > max ? s.slice(0, max) + '…(截斷)' : s;
 }
 
+/* 各模組 snapshot → 右欄豐富卡 HTML（全部防禦性 optional chaining，缺欄位少顯示不炸） */
+function moduleCardHtml(m: AgentModule, snap: any): string | undefined {
+  const n = (v: unknown) => (typeof v === 'number' ? v.toLocaleString() : '—');
+  switch (m) {
+    case 'carbon':
+      return `<div class="rstats">` +
+        `<span>發行 <b>${n(snap?.issued)}</b></span><span>流通 <b>${n(snap?.tonsCirculating)} t</b></span>` +
+        `<span>掛單 <b>${n(snap?.listed)}</b></span><span>除役 <b>${n(snap?.retired)}</b></span></div>`;
+    case 'dispatch': {
+      const sc = snap?.scenarios?.[0];
+      if (!sc) return undefined;
+      const concl = String(sc.conclusion ?? '').replace(/\{\{(?:stop|add):([^}]*)\}\}/g, '$1');
+      return `<div class="rline"><b>${esc(String(sc.label ?? ''))}</b> ${esc(concl)}</div>`;
+    }
+    case 'twin':
+      return `<div class="rstats"><span>泊位 <b>${n(snap?.berths?.length)}</b></span><span>航跡 <b>${n(snap?.trackCount)}</b></span></div>`;
+    case 'epidemic':
+      return `<div class="rstats"><span>追蹤船隊 <b>${n(snap?.fleet?.length)}</b></span><span>流入情資 <b>${n(snap?.inflowPool?.length)}</b></span></div>`;
+    case 'alert':
+      return `<div class="rstats"><span>已發布 <b>${n(snap?.kpi?.published)}</b></span><span>送達率 <b>${n(snap?.kpi?.deliveryRate)}%</b></span></div>`;
+    case 'policy':
+      return `<div class="rstats"><span>情報收件匣 <b>${n(snap?.briefs?.length)}</b></span></div>`;
+  }
+}
+
 export function createTools(ctx: ScreenCtx, deps: { scheduleNav(id: string): void }): AgentTool[] {
   return [
     {
@@ -79,7 +104,12 @@ export function createTools(ctx: ScreenCtx, deps: { scheduleNav(id: string): voi
         /* carbon 特例：後端離線回 ok:false + 全零，必須標示離線而非把零值當真（spec §5） */
         if (m === 'carbon' && snap && snap.ok === false)
           return { module: m, summaryHtml: `碳權後端<b>離線</b>（:8000）`, llmText: '碳權後端目前離線（:8000 連不上），沒有可信數字，請勿引用零值。' };
-        return { module: m, summaryHtml: `已讀取${name}模組快照`, llmText: `${name}模組快照 JSON：${jsonBrief(snap)}` };
+        return {
+          module: m, summaryHtml: `已讀取${name}模組快照`,
+          cardHtml: moduleCardHtml(m, snap),
+          data: m === 'carbon' ? snap : undefined, // 互動掛單卡的市場脈絡行用（Task 4）
+          llmText: `${name}模組快照 JSON：${jsonBrief(snap)}`,
+        };
       },
     },
     {
@@ -89,7 +119,11 @@ export function createTools(ctx: ScreenCtx, deps: { scheduleNav(id: string): voi
       async run(args) {
         try {
           const r = await ctx.data.policy.chat!(String(args.question), []);
-          return { module: 'policy', summaryHtml: `知識庫命中 ${r.sources.length} 條證據`, llmText: `知識庫回答：${r.answerText}` };
+          return {
+            module: 'policy', summaryHtml: `知識庫命中 ${r.sources.length} 條證據`,
+            cardHtml: `<div class="rline">命中 <b>${r.sources.length}</b> 條證據${r.sources.slice(0, 2).map((s) => `<span class="rsrc">${esc(String(s.name ?? '')).slice(0, 24)}</span>`).join('')}</div>`,
+            llmText: `知識庫回答：${r.answerText}`,
+          };
         } catch {
           return { module: 'policy', summaryHtml: '知識庫離線，退回示範情報', llmText: '（示範）政策後端未啟動，以下為示範情報摘要：IMO 淨零框架與紅海航線中斷為近期兩大政策焦點，建議關注碳成本傳導。' };
         }
@@ -134,6 +168,34 @@ export function createTools(ctx: ScreenCtx, deps: { scheduleNav(id: string): voi
       },
     },
     {
+      name: 'list_holdable_units', module: 'carbon',
+      description: '列出目前可掛單（held 狀態）的碳權 SU 清單。使用者要掛單/上架碳權時，先呼叫本工具取得清單，再呼叫 place_carbon_order（其參數為建議值，使用者會在確認卡上最終挑選）。',
+      parameters: { type: 'object', properties: { limit: { type: 'number', description: '回傳給模型的筆數上限（預設 8）' } } },
+      async run(args) {
+        try {
+          const r = await fetch(ctx.data.carbon.base + '/state');
+          if (!r.ok) throw new Error(String(r.status));
+          const d = await r.json();
+          const held: { token_id: number; amount: number }[] = (d.sus ?? [])
+            .filter((s: any) => s.status === 'held')
+            .map((s: any) => ({ token_id: Number(s.token_id), amount: Number(s.amount ?? 0) }));
+          const limit = Math.max(1, Math.min(20, Number(args.limit) || 8));
+          const brief = held.slice(0, limit).map((s) => `#${s.token_id}(${s.amount}t)`).join('、');
+          return {
+            module: 'carbon' as const,
+            data: held.slice(0, 50), // 互動卡下拉消費（cap 50）
+            summaryHtml: `可掛單 SU 共 ${held.length} 筆`,
+            cardHtml: `<div class="rline">可掛單 <b>${held.length}</b> 筆${held.slice(0, 3).map((s) => `<span class="rsrc">#${s.token_id} · ${s.amount.toLocaleString()}t</span>`).join('')}</div>`,
+            llmText: held.length
+              ? `可掛單（held）SU 共 ${held.length} 筆，前 ${Math.min(limit, held.length)} 筆：${brief}。請挑一筆與建議總價（整顆 SU 總價，美元整數）呼叫 place_carbon_order。`
+              : '目前沒有可掛單的 held SU。',
+          };
+        } catch {
+          return { module: 'carbon' as const, data: [], summaryHtml: '碳權後端離線，無法取得清單', llmText: '碳權後端離線（:8000），無法取得可掛單清單。' };
+        }
+      },
+    },
+    {
       name: 'place_carbon_order', module: 'carbon', confirm: true,
       description: '碳權掛單（寫入鏈上交易，需人工確認）。只在使用者明確要求掛單/上架碳權時呼叫。',
       parameters: { type: 'object', properties: {
@@ -141,18 +203,21 @@ export function createTools(ctx: ScreenCtx, deps: { scheduleNav(id: string): voi
         price: { type: 'number', description: '單價（整數）' },
       }, required: ['token_id', 'price'] },
       async run(args) {
+        /* 端點以 PoC 後端實際路由為準（backend/api.py:66-73 ListBody）：
+           POST /list，body { token_id: int, price: int }，price 為整數。
+           失敗分流：fetch throw（後端未啟動）→ 示範模式；後端在但 !ok（如 SU 已上架）→ 誠實失敗，不講示範。 */
+        let resp: Response;
         try {
-          /* 端點以 PoC 後端實際路由為準（backend/api.py:66-73 ListBody）：
-             POST /list，body { token_id: int, price: int }，price 為整數。 */
-          const r = await fetch(ctx.data.carbon.base + '/list', {
+          resp = await fetch(ctx.data.carbon.base + '/list', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token_id: args.token_id, price: Math.round(Number(args.price)) }),
           });
-          if (!r.ok) throw new Error(String(r.status));
-          return { module: 'carbon', summaryHtml: `掛單成功：SU #${args.token_id} @ $${args.price}`, llmText: '掛單成功，已寫入鏈上。' };
         } catch {
           return { module: 'carbon', summaryHtml: '（示範）後端離線，掛單以示範模式記錄', llmText: '（示範）碳權後端未啟動，本次掛單為示範性質、未寫入鏈上。' };
         }
+        if (!resp.ok)
+          return { module: 'carbon', summaryHtml: `掛單失敗：SU #${args.token_id} 可能已上架或不可掛`, llmText: `掛單失敗（HTTP ${resp.status}）：SU #${args.token_id} 可能已上架或不可掛，請改挑其他 held SU。` };
+        return { module: 'carbon', summaryHtml: `掛單成功：SU #${args.token_id} 總價 $${args.price}`, llmText: `掛單成功：SU #${args.token_id}（總價 $${args.price}）已寫入鏈上。` };
       },
     },
     {
