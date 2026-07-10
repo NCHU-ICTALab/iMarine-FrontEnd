@@ -386,7 +386,7 @@ export function createController(deps: {
 
     const touched: AgentModule[] = [];
     try {
-      for await (const ev of gen) consume(ev, bubble, touched);
+      for await (const ev of gen) { if (ctrl !== myCtrl) break; consume(ev, bubble, touched); }
     } catch (err) {
       const e = document.createElement('div');
       e.className = 'aerr';
