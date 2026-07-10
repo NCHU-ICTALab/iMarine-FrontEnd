@@ -191,3 +191,44 @@ export interface DataExchange {
   carbon: Provider<CarbonSummary> & { base: string };
   twin: Provider<TwinSnapshot>;
 }
+
+// ── Agent screen（數位員工）契約 — spec 2026-07-10 ──────────────────────────
+export type AgentModule = 'carbon' | 'policy' | 'twin' | 'dispatch' | 'epidemic' | 'alert';
+
+/* live（Gemini loop）與 mock（劇本 replay）共同的事件流介面；UI 只消費事件 */
+export type AgentEvent =
+  | { kind: 'plan'; steps: string[] }
+  | { kind: 'step_start'; index: number; caption: string }
+  | { kind: 'tool_call'; tool: string; args: Record<string, unknown>; module?: AgentModule }
+  | { kind: 'tool_result'; tool: string; summaryHtml: string; module?: AgentModule; ms: number }
+  | { kind: 'text_delta'; text: string }
+  | { kind: 'confirm_request'; tool: string; args: Record<string, unknown>; summaryHtml: string }
+  | { kind: 'done' }
+  | { kind: 'error'; message: string };
+
+export interface DiagModuleReport {
+  status: 'ok' | 'degraded' | 'down' | 'mock';
+  latencyMs?: number;
+  detail: string;
+}
+export interface DiagReport {
+  modules: Record<AgentModule | 'settings', DiagModuleReport>;
+  ranAt: string;
+}
+
+export interface RunbookEntry {
+  id: string;
+  symptom: string;       // 症狀關鍵描述（比對用）
+  cause: string;
+  fix: string[];         // 修復步驟（逐條）
+  module: AgentModule | 'frontend' | 'agent';
+}
+
+/* 劇本事件 = AgentEvent + 播放時序；exec:true 的 tool_call 由 replay 引擎真的執行工具 */
+export type ScenarioEvent = AgentEvent & { delayMs: number; exec?: boolean };
+export interface AgentScenario {
+  id: string;
+  patterns: string[];            // 指令關鍵字（lowercase includes 比對）
+  events: ScenarioEvent[];
+  cancelEvents?: ScenarioEvent[]; // confirm 取消時改播的尾段
+}
