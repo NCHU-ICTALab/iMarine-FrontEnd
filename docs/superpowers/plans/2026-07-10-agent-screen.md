@@ -347,10 +347,12 @@ export async function runDiagnostics(ctx: ScreenCtx, opts: DiagOpts = {}): Promi
       ? { status: 'ok', detail: '本地 live provider' }
       : { status: 'mock', detail: '示範資料（設計如此，非故障）' };
 
-  /* settings 完整性 + mapbox token 存在性 */
+  /* settings 完整性 + mapbox token 存在性（node/jsdom 環境防禦，比照 storage.ts 慣例） */
   let settingsRep: DiagModuleReport = { status: 'ok', detail: 'localStorage 設定可讀' };
-  try { JSON.parse(localStorage.getItem('imarine.settings.v1') ?? '{}'); }
-  catch { settingsRep = { status: 'degraded', detail: '設定 JSON 損毀，建議重置為預設' }; }
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('imarine.settings.v1') : null;
+    JSON.parse(raw ?? '{}');
+  } catch { settingsRep = { status: 'degraded', detail: '設定 JSON 損毀，建議重置為預設' }; }
   const hasMapbox = !!(getSetting('frontend.mapboxToken', '') || env.VITE_MAPBOX_TOKEN);
 
   return {
@@ -479,7 +481,12 @@ export const SETTING_WHITELIST = [
   'policy.llmMode', 'frontend.reduceMotion', 'frontend.entrance', 'carbon.apiBase',
 ];
 
-export interface ToolRunResult { summaryHtml: string; llmText: string; module?: AgentModule }
+export interface ToolRunResult {
+  summaryHtml: string;
+  llmText: string;
+  module?: AgentModule;
+  data?: unknown; // 結構化附載（run_diagnostics 回 DiagReport，控制器據此更新燈號牆）
+}
 export interface AgentTool {
   name: string;
   description: string;
@@ -548,6 +555,7 @@ export function createTools(ctx: ScreenCtx, deps: { scheduleNav(id: string): voi
         return {
           summaryHtml: down.length ? `發現 ${down.length} 項異常` : '全系統正常',
           llmText: `診斷報告 JSON：${JSON.stringify(rep.modules)}`,
+          data: rep, // 控制器攔截更新 lastDiag + 燈號牆（Task 7）
         };
       },
     },
@@ -855,12 +863,15 @@ export async function* runGemini(opts: {
 }): AsyncGenerator<AgentEvent> {
   const { tools, io } = opts;
   const ai = new GoogleGenAI({ apiKey: opts.apiKey });
-  const contents = opts.history as any[];
+  /* 對「本地副本」工作：abort/error 時不污染共用 history（半截 functionCall 會讓下一輪
+     API 呼叫爆錯）；只在成功 done 時把完整回合（含最終回答文字）同步回 opts.history。 */
+  const contents: any[] = [...(opts.history as any[])];
   contents.push({ role: 'user', parts: [{ text: opts.userText }] });
   const declarations = tools.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
 
   let planSent = false;
   let stepIdx = 0;
+  let finalText = ''; // 累積最終回答（同步回 history 用）
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       if (io.signal.aborted) return;
@@ -871,28 +882,42 @@ export async function* runGemini(opts: {
 
       let text = '';
       const calls: { name: string; args: Record<string, unknown> }[] = [];
+      /* 首回合文字先緩衝到出現換行或累積 40 字才 flush：PLAN:: 前綴可能被 chunk 切半
+         （如 "PL" + "AN::…"），startsWith 判不出來，一律以緩衝條件杜絕誤判 */
+      const flushFirst = () => { planSent = true; return parsePlan(text); };
       for await (const chunk of stream) {
         if (io.signal.aborted) return;
         const t = (chunk as any).text;
         if (t) {
           text += t;
           if (!planSent) {
-            /* 首段文字可能含 PLAN:: 前綴：等到首個換行才拆（避免半行誤判） */
-            if (!text.includes('\n') && text.startsWith('PLAN')) continue;
-            const { steps, rest } = parsePlan(text);
-            planSent = true;
+            if (!text.includes('\n') && text.length < 40) continue; // 續緩衝
+            const { steps, rest } = flushFirst();
             if (steps.length) yield { kind: 'plan', steps };
-            if (rest) yield { kind: 'text_delta', text: rest };
-            text = ''; // 已 flush（後續 delta 直接吐）
+            if (rest) { yield { kind: 'text_delta', text: rest }; finalText += rest; }
+            text = '';
             continue;
           }
           yield { kind: 'text_delta', text: t };
+          finalText += t;
         }
         for (const fc of (chunk as any).functionCalls ?? []) calls.push({ name: fc.name, args: fc.args ?? {} });
       }
-      if (!planSent && text) { yield { kind: 'text_delta', text }; planSent = true; }
+      if (!planSent && text) { // 短回答整段在緩衝內結束：flush 一樣走 parsePlan
+        const { steps, rest } = flushFirst();
+        if (steps.length) yield { kind: 'plan', steps };
+        if (rest) { yield { kind: 'text_delta', text: rest }; finalText += rest; }
+        text = '';
+      }
 
-      if (!calls.length) { yield { kind: 'done' }; return; }
+      if (!calls.length) {
+        /* 成功收尾：把完整回合寫回共用 history（含最終回答，供多輪追問） */
+        contents.push({ role: 'model', parts: [{ text: finalText }] });
+        (opts.history as any[]).length = 0;
+        (opts.history as any[]).push(...contents);
+        yield { kind: 'done' };
+        return;
+      }
 
       /* 執行本輪全部 functionCalls，結果回填 */
       contents.push({ role: 'model', parts: calls.map((c) => ({ functionCall: { name: c.name, args: c.args } })) });
@@ -1061,6 +1086,7 @@ let running = false;
 let ctrl: AbortController | null = null;
 let confirmResolve: ((ok: boolean) => void) | null = null;
 let pendingNav: string | null = null;
+let navTimer: ReturnType<typeof setTimeout> | null = null; // done 後 1.5s 的跳轉排程
 const history: unknown[] = []; // Gemini Content[]（live 多輪）
 
 async function submit(text: string): Promise<void> {
@@ -1073,7 +1099,14 @@ async function submit(text: string): Promise<void> {
   const io: EngineIO = {
     reduced: prefersReduced(),
     signal: ctrl.signal,
-    runTool: (n, a) => toolByName(n).run(a),
+    runTool: async (n, a) => {
+      const r = await toolByName(n).run(a);
+      if (n === 'run_diagnostics' && r.data) { // 攔截診斷附載：更新開場燈號牆的資料源
+        lastDiag = r.data as DiagReport;
+        ws.showDiag(lastDiag, !prefersReduced());
+      }
+      return r;
+    },
     waitConfirm: (ev) => new Promise<boolean>((res) => {
       confirmResolve = res;
       renderConfirmCard(bubble, ev, (ok) => { confirmResolve = null; res(ok); });
@@ -1093,13 +1126,13 @@ async function submit(text: string): Promise<void> {
     ws.footprint(touched);
     if (pendingNav && !ctrl.signal.aborted) {
       const target = pendingNav; pendingNav = null;
-      setTimeout(() => router到(target), 1500); // 經 CustomEvent 或 ctx 導航，見 Step 2
+      navTimer = setTimeout(() => { location.hash = '#/' + target; }, 1500); // hash 路由（router.ts:110 hashchange 監聽，已核實）
     }
   }
 }
 ```
 
-- [ ] **Step 2: 導航接線**：main.ts 的 `router` 不外露——控制器用 `location.hash = '#' + id` 觸發既有 hash 路由（`initRouter` 已監聽 hashchange；**實作時先讀 `src/shell/router.ts` 確認 hash 監聽存在**，若無則 fallback：`window.dispatchEvent(new CustomEvent('agent:navigate', { detail: id }))` + main.ts 加 3 行監聽——後者要動 main.ts，屬既定接線範圍）。`createTools(ctx, { scheduleNav: (id) => { pendingNav = id; } })`。
+- [ ] **Step 2: 導航接線**（已核實）：`router.ts:110` 有 `hashchange` 監聽、hash 格式為 **`#/<id>`**（`parseHash` 只認 `#/` 前綴）——控制器與 citation chip 一律用 `location.hash = '#/' + id` 跳頁，不需動 main.ts。`createTools(ctx, { scheduleNav: (id) => { pendingNav = id; } })`。
 - [ ] **Step 3: `consume(ev)` 事件渲染對照表**
 
 | 事件 | chat 左欄 | 工作區右欄 |
@@ -1113,8 +1146,8 @@ async function submit(text: string): Promise<void> {
 | `done` | 最後步驟轉 `.ok`；游標移除 | `caption('任務完成')` |
 | `error` | 泡泡內玫紅錯誤列 | `caption('發生錯誤')` |
 
-- [ ] **Step 4: 中斷**：停止鈕 → `ctrl.abort()`；若 `confirmResolve` 掛著先 `confirmResolve(false)` 再 abort；generator 提早 return 走 finally 收尾；泡泡補一句「已停止，前面步驟的結果保留。」。`hide()` → 同 abort + `pendingNav = null`。
-- [ ] **Step 5: citation chip 委派**：`athread` 上事件委派 `click` `[data-nav]` → `location.hash` 跳頁；`mouseenter` 浮 tooltip（該模組最近一張工具卡的 `summaryHtml`，無則模組名）。
+- [ ] **Step 4: 中斷**：停止鈕 → `ctrl.abort()`；若 `confirmResolve` 掛著先 `confirmResolve(false)` 再 abort；generator 提早 return 走 finally 收尾；泡泡補一句「已停止，前面步驟的結果保留。」。`hide()` → 同 abort + `pendingNav = null` + `if (navTimer) clearTimeout(navTimer)`（spec §11：排程等待中手動切頁/中斷要取消跳轉，不疊加）。
+- [ ] **Step 5: citation chip 委派**：`athread` 上事件委派 `click` `[data-nav]` → `location.hash = '#/' + id` 跳頁；`mouseenter` 浮 tooltip（該模組最近一張工具卡的 `summaryHtml`，無則模組名）。
 - [ ] **Step 6: 建議指令 chips 接線**：點擊 → 填輸入框 + `submit()`，chip 用掉移除。
 - [ ] **Step 7: 三件套自查** + **CDP 驗證（mock 態，不設 key）**：四劇本逐條——(1) sc-summary：plan 3 步骨架→逐步勾、右欄 3 張工具卡、旁白至少換 3 次、答案含 3 顆 mchip；(2) mchip 點擊 → 跳對應頁再返回；(3) sc-diag：燈號牆重渲染（斷 :8000 情境下 carbon 卡玫紅 + 回答含 make chain）；(4) sc-order：確認卡出現、「取消」→ 播 cancelEvents、「確認」→ 示範掛單回覆；(5) 執行中按停止 → 泡泡收尾語、輸入列復原；(6) 亂打指令 → FALLBACK 說明；(7) 輸入框打 `0`-`8` 不跳頁；(8) reduced-motion：事件直達終態、無 spinner；(9) console 零 JS 例外。
 - [ ] **Step 8: Commit**：`git commit -m "feat(agent): chat 控制器 + 事件渲染全鏈路（mock 劇本可互動）"`
@@ -1145,3 +1178,4 @@ async function submit(text: string): Promise<void> {
 1. **Spec coverage**：§4 AgentEvent（Task 1）、§5 七工具含 navigate 排程/carbon 零值/白名單（Task 3+7）、§6 診斷+runbook（Task 1+2）、§7 UX1-7（Task 6 開場=UX1；Task 7 plan 時間軸=UX2、旁白=UX3、工作區跟隨+足跡=UX4、確認卡=UX5、mchip=UX6、中斷=UX7）、§8 雙態（Task 4+5）+ cancelEvents + 數字一致性規範（Task 1 Step 3）、§9 檔案結構、§10 驗收（Task 6/7 CDP + Task 8 全站）、§11 key 紅線（Task 8 Step 2）。
 2. **Placeholder scan**：無 TBD；三處「實作時查證」（mapbox key 名、PoC 掛單路由、genai chunk 介面）皆附具體查證指令與判準，屬明確動作非留白。
 3. **Type consistency**：`EngineIO`（Task 4 定義、Task 5/7 消費）、`ToolRunResult`/`AgentTool`（Task 3 定義、4/5/7 消費）、`Workspace` 方法名（Task 6 定義、Task 7 消費）已逐一比對一致。
+4. **Self-review 修正紀錄（對照程式碼實查後）**：(a) hash 路由格式核實為 `#/<id>`（`router.ts:110` hashchange 監聽存在），Task 7 導航/citation 全數改用並移除備援方案；(b) loop.ts 改對 history 本地副本工作、成功 done 才把完整回合（含最終回答文字）同步回共用 history——原版錯誤時會留半截 functionCall 污染下一輪、且最終回答從未寫回（多輪追問斷 context）；(c) PLAN:: 前綴 chunk 切半誤判——改緩衝至換行或 40 字，流結束的短回答同樣走 parsePlan；(d) `ToolRunResult` 加 `data?` 附載，控制器攔截 `run_diagnostics` 更新燈號牆（原設計拿不到 DiagReport）；(e) 補 `navTimer` 宣告 + `hide()` 清排程；(f) diagnostics 的 localStorage 加 `typeof` 防禦（vitest 為 jsdom 環境已核實，防禦為求與 storage.ts 慣例一致）。
