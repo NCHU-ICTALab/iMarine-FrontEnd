@@ -9,7 +9,7 @@ import type { AgentEvent, AgentModule, AgentScenario, DiagReport } from '../../d
 import type { Workspace } from './workspace';
 import { runScenario, matchScenario, FALLBACK_EVENTS, type EngineIO } from './replay';
 import { runGemini } from './loop';
-import { createTools, renderAgentText, AGENT_MODULES } from './tools';
+import { createTools, renderAgentText, effectiveModule, AGENT_MODULES } from './tools';
 import { prefersReduced } from '../settings/storage';
 import scenariosJson from '../../data/mock/agent-scenarios.json';
 
@@ -178,10 +178,13 @@ export function createController(deps: {
         const row = tline.querySelector<HTMLElement>(`.tstep[data-step="${curStep}"]`);
         lastChip = row ? appendToolChip(row, ev.tool) : null;
         inflightDiag = ev.tool === 'run_diagnostics';
-        inflightCard = !!ev.module; // 只有帶模組的工具（模組操作）才進右欄卡堆；run_diagnostics 走燈號牆
-        if (inflightCard) ws.pushToolCard({ tool: ev.tool, summaryHtml: '呼叫中…', module: ev.module }, true);
+        // live 態 get_module_data 的 tool_call 事件不帶靜態 module（讀任一模組），
+        // effectiveModule 從 args.module 補齊；mock 態 ev.module 已由劇本帶入、原值短路不變。
+        const evMod = effectiveModule(ev.tool, ev.args, ev.module);
+        inflightCard = !!evMod; // 只有帶模組的工具（模組操作）才進右欄卡堆；run_diagnostics 走燈號牆
+        if (inflightCard) ws.pushToolCard({ tool: ev.tool, summaryHtml: '呼叫中…', module: evMod }, true);
         ws.caption('正在呼叫 ' + (TOOL_LABEL[ev.tool] ?? ev.tool));
-        if (ev.module && !touched.includes(ev.module)) touched.push(ev.module);
+        if (evMod && !touched.includes(evMod)) touched.push(evMod);
         break;
       }
 
@@ -274,6 +277,7 @@ export function createController(deps: {
     const bubble = appendAgentBubble();
     curBubble = bubble;
     curStep = -1; textBuf = ''; inflightCard = false; inflightDiag = false; lastChip = null;
+    lastToolSummary.clear(); // 新任務不留上一任務的 citation chip hover 摘要
     ws.reset();
     ws.caption('分析指令中…');
 

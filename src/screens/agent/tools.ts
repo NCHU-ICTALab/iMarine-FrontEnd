@@ -19,6 +19,17 @@ export const SETTING_WHITELIST = [
   'policy.llmMode', 'frontend.reduceMotion', 'frontend.entrance', 'carbon.apiBase',
 ];
 
+/* tool_call 事件的「有效模組」：有靜態 module（工具本身綁模組，如 ask_policy_rag）用靜態；
+   get_module_data 沒有靜態 module（讀任一模組），改從 args.module 補（需落在六模組內）；
+   否則 undefined（如 navigate_to_screen）。live 態 loop.ts 的 tool_call 事件只帶 tool.module，
+   get_module_data 因此漏帶模組，導致右欄工具卡/足跡/tooltip 全部略過（controller.ts 用此函式補）。 */
+export function effectiveModule(tool: string, args: Record<string, unknown>, staticModule?: AgentModule): AgentModule | undefined {
+  if (staticModule) return staticModule;
+  if (tool === 'get_module_data' && typeof args.module === 'string' && AGENT_MODULES.some((m) => m.id === args.module))
+    return args.module as AgentModule;
+  return undefined;
+}
+
 export interface ToolRunResult {
   summaryHtml: string;
   llmText: string;
