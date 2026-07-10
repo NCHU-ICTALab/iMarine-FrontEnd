@@ -55,7 +55,7 @@ export function createController(deps: {
   // ── 控制器狀態機 ──
   let running = false;
   let ctrl: AbortController | null = null;
-  let confirmResolve: ((ok: boolean) => void) | null = null;
+  let confirmResolve: ((res: ConfirmResult) => void) | null = null;
   let pendingNav: string | null = null;
   let navTimer: ReturnType<typeof setTimeout> | null = null;
   const history: unknown[] = []; // Gemini Content[]（live 多輪追問）
@@ -70,6 +70,9 @@ export function createController(deps: {
   let lastChip: HTMLElement | null = null; // 當前步驟最後一顆工具 chip（tool_result 標耗時）
   let curBubble: HTMLElement | null = null;
   let thinking: HTMLElement | null = null; // 思考氣泡（reduced 時不加）
+  // 互動掛單卡快取（單任務、runTask 開頭重置）：held SU 清單 + 碳權市場脈絡
+  let lastHoldable: { token_id: number; amount: number }[] = [];
+  let lastCarbon: { tonsCirculating?: number; listed?: number } | null = null;
 
   const scrollThread = () => { thread.scrollTop = thread.scrollHeight; };
 
@@ -196,7 +199,7 @@ export function createController(deps: {
         } else if (inflightCard) {
           inflightCard = false;
           if (ev.module) lastToolSummary.set(ev.module, ev.summaryHtml);
-          ws.settleToolCard(ev.summaryHtml, ev.ms);
+          ws.settleToolCard(ev.summaryHtml, ev.ms, ev.cardHtml);
         }
         break;
 
@@ -204,6 +207,14 @@ export function createController(deps: {
         textBuf += ev.text;
         atext.innerHTML = renderAgentText(textBuf); // 整段重算：{{m:..}} 標記不被 chunk 切半
         break;
+
+      case 'suggest': {
+        const row = document.createElement('div');
+        row.className = 'schips';
+        row.innerHTML = ev.items.map((s) => `<button type="button" class="schip">${esc(s)}</button>`).join('');
+        bubble.appendChild(row);
+        break;
+      }
 
       case 'confirm_request':
         // 互動確認卡由 io.waitConfirm 渲染（需 resolve 回呼），此處刻意 no-op 避免雙渲染
@@ -218,6 +229,12 @@ export function createController(deps: {
         const e = document.createElement('div');
         e.className = 'aerr';
         e.textContent = ev.message;
+        if (ev.detail) {
+          const d = document.createElement('div');
+          d.className = 'aerrdetail';
+          d.textContent = ev.detail;
+          e.appendChild(d);
+        }
         bubble.appendChild(e);
         finishSteps(tline);
         ws.caption('發生錯誤');
@@ -231,7 +248,7 @@ export function createController(deps: {
   function renderConfirmCard(
     bubble: HTMLElement,
     ev: Extract<AgentEvent, { kind: 'confirm_request' }>,
-    resolve: (ok: boolean) => void,
+    resolve: (res: ConfirmResult) => void,
   ): void {
     const host = bubble.querySelector('.confirmhost') as HTMLElement;
     const card = document.createElement('div');
@@ -252,11 +269,70 @@ export function createController(deps: {
       card.querySelectorAll('button').forEach((b) => { (b as HTMLButtonElement).disabled = true; });
       card.classList.add(ok ? 'picked-ok' : 'picked-no');
       ws.showConfirm(''); // 清右欄「需要你確認」明細（'' → renderCards 不渲染該區塊）
-      resolve(ok);
+      resolve(ok ? { ok: true, args: ev.args } : { ok: false });
     };
     (card.querySelector('.cbtn.ok') as HTMLButtonElement).addEventListener('click', () => pick(true));
     (card.querySelector('.cbtn.no') as HTMLButtonElement).addEventListener('click', () => pick(false));
-    confirmResolve = pick; // 停止鈕 / teardown 走這裡（等同按「取消」）
+    confirmResolve = (r) => pick(r.ok); // 停止鈕 / teardown 走這裡（等同按「取消」）
+    scrollThread();
+  }
+
+  // ── 互動掛單卡（place_carbon_order 專用）：下拉挑 held SU + 改總價 + 折合每噸即時算 + 市場脈絡 ──
+  function renderOrderCard(
+    bubble: HTMLElement,
+    ev: Extract<AgentEvent, { kind: 'confirm_request' }>,
+    resolve: (res: ConfirmResult) => void,
+  ): void {
+    const host = bubble.querySelector('.confirmhost') as HTMLElement;
+    const sug = ev.args as { token_id?: unknown; price?: unknown };
+    const sugPrice = Math.max(1, Math.round(Number(sug.price) || 15));
+    const list = lastHoldable;
+    const options = list.map((s) =>
+      `<option value="${s.token_id}" data-amount="${s.amount}"${Number(sug.token_id) === s.token_id ? ' selected' : ''}>SU #${s.token_id} · ${s.amount.toLocaleString()} 噸</option>`).join('');
+    const suField = list.length
+      ? `<label>選擇 SU<select class="csel">${options}</select></label>`
+      : `<label>SU 編號（未取得清單，手動輸入）<input type="number" class="ctok" min="0" step="1" value="${Math.max(0, Math.round(Number(sug.token_id) || 0))}"></label>`;
+    const market = lastCarbon
+      ? `<div class="cmkt">市場脈絡：流通 ${Number(lastCarbon.tonsCirculating ?? 0).toLocaleString()} t · 掛單中 ${lastCarbon.listed ?? 0} 筆</div>` : '';
+    const card = document.createElement('div');
+    card.className = 'confirmcard chatconfirm orderform';
+    card.innerHTML =
+      '<div class="cstt">需要你確認 — 碳權掛單</div>' +
+      `<div class="ccform">${suField}` +
+      `<label>總價 (USD)<input type="number" class="cprice" min="1" step="1" value="${sugPrice}"></label>` +
+      '<div class="cest">折合每噸 <b class="cper">$—</b></div>' + market + '</div>' +
+      '<div class="cbtns"><button type="button" class="cbtn ok">確認掛單</button><button type="button" class="cbtn no">取消</button></div>';
+    host.appendChild(card);
+    const sel = card.querySelector('.csel') as HTMLSelectElement | null;
+    const tok = card.querySelector('.ctok') as HTMLInputElement | null;
+    const priceIn = card.querySelector('.cprice') as HTMLInputElement;
+    const per = card.querySelector('.cper') as HTMLElement;
+    const updatePer = (): void => {
+      const amount = sel ? Number(sel.selectedOptions[0]?.dataset.amount ?? 0)
+        : Number(list.find((s) => s.token_id === Number(tok?.value))?.amount ?? 0);
+      const p = Number(priceIn.value) || 0;
+      per.textContent = amount > 0 && p > 0 ? '$' + (p / amount).toFixed(3) + '/t' : '$—';
+    };
+    sel?.addEventListener('change', updatePer);
+    tok?.addEventListener('input', updatePer);
+    priceIn.addEventListener('input', updatePer);
+    updatePer();
+    let settled = false;
+    const pick = (ok: boolean): void => {
+      if (settled) return;
+      settled = true;
+      confirmResolve = null;
+      card.querySelectorAll('button,select,input').forEach((n) => n.setAttribute('disabled', ''));
+      card.classList.add(ok ? 'picked-ok' : 'picked-no');
+      ws.showConfirm('');
+      if (!ok) { resolve({ ok: false }); return; }
+      const token_id = sel ? Number(sel.value) : Math.max(0, Math.round(Number(tok?.value) || 0));
+      const price = Math.max(1, Math.round(Number(priceIn.value) || sugPrice));
+      resolve({ ok: true, args: { token_id, price } });
+    };
+    (card.querySelector('.cbtn.ok') as HTMLButtonElement).addEventListener('click', () => pick(true));
+    (card.querySelector('.cbtn.no') as HTMLButtonElement).addEventListener('click', () => pick(false));
+    confirmResolve = (r) => pick(r.ok);
     scrollThread();
   }
 
@@ -272,6 +348,9 @@ export function createController(deps: {
 
   async function runTask(text: string): Promise<void> {
     ctrl = new AbortController();
+    const myCtrl = ctrl; // supersede guard：stop 後立刻開新任務時，舊 finally 不得動新任務的 UI
+    thread.querySelectorAll('.schips').forEach((n) => n.remove()); // 新任務移除上一組追問 chips
+    lastHoldable = []; lastCarbon = null;
     setInputMode('running');
     appendUserBubble(text);
     const bubble = appendAgentBubble();
@@ -289,10 +368,13 @@ export function createController(deps: {
         if (!tool) return { summaryHtml: `未知工具 ${esc(n)}`, llmText: `unknown tool ${n}` };
         const r = await tool.run(a);
         if (n === 'run_diagnostics' && r.data) deps.onDiag(r.data as DiagReport);
+        if (n === 'list_holdable_units' && Array.isArray(r.data)) lastHoldable = r.data as typeof lastHoldable;
+        if (n === 'get_module_data' && (a as any).module === 'carbon' && r.data) lastCarbon = r.data as typeof lastCarbon;
         return r;
       },
       waitConfirm: (ev) => new Promise<ConfirmResult>((res) => {
-        renderConfirmCard(bubble, ev, (ok) => res({ ok }));
+        if (ev.tool === 'place_carbon_order') renderOrderCard(bubble, ev, res);
+        else renderConfirmCard(bubble, ev, res);
         ws.showConfirm(ev.summaryHtml);
         ws.caption('等待操作員確認…');
       }),
@@ -311,24 +393,31 @@ export function createController(deps: {
       e.textContent = '任務發生未預期錯誤：' + String((err as Error)?.message ?? err);
       bubble.appendChild(e);
     } finally {
-      running = false;
-      setInputMode('idle');
-      if (touched.length) ws.footprint(touched); // 診斷型任務 touched=[]，不覆蓋燈號牆
-      curBubble = null;
-      if (pendingNav && ctrl && !ctrl.signal.aborted) {
-        const target = pendingNav;
-        pendingNav = null;
-        navTimer = setTimeout(() => { navTimer = null; location.hash = '#/' + target; }, 1500);
-      } else {
-        pendingNav = null;
+      // supersede guard：只有仍是「當前任務」（未被 stop 後新任務接手）才收尾，避免舊 in-flight
+      // fetch 回來時把新任務的輸入列/足跡/跳轉排程蓋掉。
+      if (ctrl === myCtrl) {
+        running = false;
+        setInputMode('idle');
+        if (touched.length) ws.footprint(touched); // 診斷型任務 touched=[]，不覆蓋燈號牆
+        if (pendingNav && !myCtrl.signal.aborted) {
+          const target = pendingNav;
+          pendingNav = null;
+          navTimer = setTimeout(() => { navTimer = null; location.hash = '#/' + target; }, 1500);
+        } else {
+          pendingNav = null;
+        }
       }
+      if (curBubble === bubble) curBubble = null;
     }
   }
 
   function stop(): void {
     if (!running) return;
-    if (confirmResolve) confirmResolve(false); // 掛著的確認先當「取消」resolve，再 abort
+    if (confirmResolve) confirmResolve({ ok: false }); // 掛著的確認先當「取消」resolve，再 abort
     ctrl?.abort();
+    running = false;          // 停止即時回復：立刻可下下一個指令（舊任務收尾由 supersede guard 隔離）
+    setInputMode('idle');
+    ws.markStopped();         // running 中的當前工具卡標「已中止」（不等 in-flight fetch）
     if (curBubble) {
       curBubble.querySelectorAll('.tstep .ico.run').forEach((ic) => setIco(ic, 'pend')); // 停轉
       const note = document.createElement('div');
@@ -342,7 +431,7 @@ export function createController(deps: {
 
   function teardown(): void {
     if (running) {
-      if (confirmResolve) confirmResolve(false);
+      if (confirmResolve) confirmResolve({ ok: false });
       ctrl?.abort();
     }
     pendingNav = null;
@@ -372,8 +461,10 @@ export function createController(deps: {
   });
   stopBtn.addEventListener('click', () => stop());
 
-  // citation chip：click 跳頁（#/<id>）、hover 浮該模組最近工具卡摘要
+  // 追問 chip（.schip）：點擊即送出該追問文字為新任務；citation chip（[data-nav]）：click 跳頁
   thread.addEventListener('click', (e) => {
+    const s = (e.target as HTMLElement).closest('.schip');
+    if (s) { void submit(s.textContent ?? ''); return; }
     const chip = (e.target as HTMLElement).closest('[data-nav]');
     if (!chip) return;
     const id = chip.getAttribute('data-nav');

@@ -170,6 +170,30 @@
   background:rgba(7,11,17,.55);border:1px solid rgba(56,189,248,.35);color:var(--cyan);
   font-size:11px;font-family:var(--mono);letter-spacing:.03em;}
 
+/* 豐富工具卡（settleToolCard 帶 cardHtml → .rich）：模組結構化摘要，數字走 mono */
+#s-agent .wcard.rich .wsum{padding-top:2px;}
+#s-agent .rstats{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink-60);}
+#s-agent .rstats b{font-family:var(--mono,monospace);color:var(--ink-90);font-weight:600;}
+#s-agent .rline{font-size:12px;color:var(--ink-60);line-height:1.5;}
+#s-agent .rline b{font-family:var(--mono,monospace);color:var(--ink-90);}
+#s-agent .rsrc{display:inline-block;margin-left:8px;padding:1px 7px;border:1px solid var(--hair);border-radius:99px;font-size:11px;color:var(--ink-60);}
+
+/* 互動掛單卡（place_carbon_order）：下拉挑 SU + 總價輸入 + 折合每噸 + 市場脈絡 */
+#s-agent .orderform .ccform{display:flex;flex-direction:column;gap:8px;margin:8px 0 2px;}
+#s-agent .orderform label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-60);}
+#s-agent .orderform select,#s-agent .orderform input{background:rgba(255,255,255,.06);border:1px solid var(--hair);border-radius:9px;padding:7px 10px;color:var(--ink-90);font:inherit;}
+#s-agent .orderform .cest{font-size:12px;color:var(--ink-60);}
+#s-agent .orderform .cest b{font-family:var(--mono,monospace);color:var(--lg-accent);}
+#s-agent .orderform .cmkt{font-size:11px;color:var(--ink-40);}
+
+/* 追問 chips（suggest 事件 → .schips）：dashed 紫，點擊即送出 */
+#s-agent .schips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+#s-agent .schip{border:1px dashed rgba(180,140,255,.45);background:none;border-radius:99px;padding:4px 11px;font-size:12px;color:#c8b8ea;cursor:pointer;font:inherit;}
+#s-agent .schip:hover{background:rgba(180,140,255,.12);}
+
+/* 錯誤 detail 次要小字 */
+#s-agent .aerrdetail{margin-top:4px;font-size:11px;color:var(--ink-40);font-family:var(--mono,monospace);word-break:break-all;}
+
 @media(prefers-reduced-motion:reduce){
   #s-agent .lampcard{opacity:1!important;transform:none!important;transition:none!important;}
   #s-agent .tstep .run,#s-agent .wcard h5 .spin,#s-agent .athink .dots i{animation:none;}

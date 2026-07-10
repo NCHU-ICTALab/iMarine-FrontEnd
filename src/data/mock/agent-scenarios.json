@@ -12,6 +12,7 @@
       { "kind": "text_delta", "text": "今日高雄港整體狀態良好。碳權市場交易活絡{{m:carbon}}；", "delayMs": 500 },
       { "kind": "text_delta", "text": "未來 90 分鐘無停工等級風險，各作業綠燈{{m:dispatch}}；", "delayMs": 700 },
       { "kind": "text_delta", "text": "政策面請留意 IMO 淨零框架的成本影響評估{{m:policy}}。", "delayMs": 700 },
+      { "kind": "suggest", "items": ["跑一次系統健檢", "紅海事件對碳成本的影響", "幫我掛單碳權"], "delayMs": 300 },
       { "kind": "done", "delayMs": 400 }
     ] },
   { "id": "sc-redsea",
@@ -25,6 +26,7 @@
       { "kind": "step_start", "index": 2, "caption": "正在綜合評估…", "delayMs": 800 },
       { "kind": "text_delta", "text": "紅海航線中斷使船舶繞行好望角、航程顯著拉長，燃油碳排隨之上升{{m:policy}}；", "delayMs": 600 },
       { "kind": "text_delta", "text": "對應的碳權需求端走強，建議關注近期均價走勢並評估提前佈局{{m:carbon}}。", "delayMs": 800 },
+      { "kind": "suggest", "items": ["幫我掛單碳權", "今日營運摘要"], "delayMs": 300 },
       { "kind": "done", "delayMs": 400 }
     ] },
   { "id": "sc-diag",
@@ -38,6 +40,7 @@
       { "kind": "step_start", "index": 2, "caption": "正在彙整診斷報告…", "delayMs": 700 },
       { "kind": "text_delta", "text": "診斷完成，結果如右側燈號牆。若碳權後端離線{{m:carbon}}，請至 PoC repo 依序執行 make chain、make deploy、make api；", "delayMs": 600 },
       { "kind": "text_delta", "text": "政策後端未啟動時{{m:policy}}系統會自動退回示範模式，不影響簡報。", "delayMs": 800 },
+      { "kind": "suggest", "items": ["今日營運摘要", "幫我掛單碳權"], "delayMs": 300 },
       { "kind": "done", "delayMs": 400 }
     ] },
   { "id": "sc-order",
@@ -46,15 +49,18 @@
       { "kind": "plan", "steps": ["讀取碳權市場現況", "確認掛單參數", "執行掛單"], "delayMs": 600 },
       { "kind": "step_start", "index": 0, "caption": "正在讀取碳權市場現況…", "delayMs": 500 },
       { "kind": "tool_call", "tool": "get_module_data", "args": { "module": "carbon" }, "module": "carbon", "delayMs": 300, "exec": true },
+      { "kind": "tool_call", "tool": "list_holdable_units", "args": {}, "module": "carbon", "delayMs": 400, "exec": true },
       { "kind": "step_start", "index": 1, "caption": "等待操作員確認掛單…", "delayMs": 600 },
       { "kind": "confirm_request", "tool": "place_carbon_order", "args": { "token_id": 1, "price": 15 },
-        "summaryHtml": "掛單 SU <b>#1</b> @ $15/噸（寫入鏈上交易，需人工確認）", "delayMs": 300 },
+        "summaryHtml": "掛單碳權 SU — 請在卡片上挑選 SU 與總價後確認（寫入鏈上交易）", "delayMs": 300 },
       { "kind": "tool_call", "tool": "place_carbon_order", "args": { "token_id": 1, "price": 15 }, "module": "carbon", "delayMs": 300, "exec": true },
       { "kind": "text_delta", "text": "掛單已送出{{m:carbon}}，可到碳權頁的市場分頁查看掛單狀態。", "delayMs": 600 },
+      { "kind": "suggest", "items": ["今日營運摘要", "跑一次系統健檢"], "delayMs": 300 },
       { "kind": "done", "delayMs": 400 }
     ],
     "cancelEvents": [
       { "kind": "text_delta", "text": "已取消掛單，未寫入任何交易。需要我改用其他參數再試一次嗎？", "delayMs": 300 },
+      { "kind": "suggest", "items": ["幫我掛單碳權"], "delayMs": 300 },
       { "kind": "done", "delayMs": 300 }
     ] }
 ]

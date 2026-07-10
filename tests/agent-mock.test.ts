@@ -6,7 +6,7 @@ import type { AgentScenario, RunbookEntry } from '../src/data/types';
 const SCS = scenarios as AgentScenario[];
 const RBS = runbook as RunbookEntry[];
 const KINDS = ['plan','step_start','tool_call','tool_result','text_delta','suggest','confirm_request','done','error'];
-const TOOLS = ['get_module_data','ask_policy_rag','run_diagnostics','search_runbook','navigate_to_screen','place_carbon_order','update_setting'];
+const TOOLS = ['get_module_data','ask_policy_rag','run_diagnostics','search_runbook','navigate_to_screen','list_holdable_units','place_carbon_order','update_setting'];
 
 describe('agent-scenarios 契約', () => {
   it('4 條劇本、patterns 非空、事件 kind 合法、每條以 done 結尾', () => {
@@ -35,6 +35,13 @@ describe('agent-scenarios 契約', () => {
       if (ev.kind !== 'text_delta') continue;
       for (const m of ev.text.matchAll(/\{\{m:(\w+)\}\}/g))
         expect(['carbon','policy','twin','dispatch','epidemic','alert']).toContain(m[1]);
+    }
+  });
+  it('每條劇本在 done 前有 suggest 事件（追問 chips）', () => {
+    for (const sc of SCS) {
+      const kinds = sc.events.map((e) => e.kind);
+      expect(kinds).toContain('suggest');
+      expect(kinds.indexOf('suggest')).toBeLessThan(kinds.lastIndexOf('done'));
     }
   });
 });

@@ -10,15 +10,17 @@ export interface ToolCardEvent {
   summaryHtml: string;
   module?: AgentModule;
   ms?: number;
+  cardHtml?: string;
 }
 
 export interface Workspace {
   showDiag(rep: DiagReport, animate: boolean): void; // 6+1 燈號牆（逐卡點燈）
   pushToolCard(ev: ToolCardEvent, running: boolean): void; // 結果卡堆疊
-  settleToolCard(summaryHtml: string, ms: number): void; // 當前卡由 running 轉完成
+  settleToolCard(summaryHtml: string, ms: number, cardHtml?: string): void; // 當前卡由 running 轉完成（可帶豐富卡 HTML）
   showConfirm(summaryHtml: string): void; // 右欄同步顯示確認明細
   caption(text: string): void; // 底部旁白字幕
   footprint(modules: AgentModule[]): void; // done 後足跡 chips
+  markStopped(): void; // 停止即時回復：running 卡標「已中止」
   reset(): void;
 }
 
@@ -38,6 +40,7 @@ interface CardState {
   module?: AgentModule;
   ms?: number;
   running: boolean;
+  cardHtml?: string;
 }
 
 function esc(s: string): string {
@@ -95,11 +98,11 @@ export function createWorkspace(el: HTMLElement): Workspace {
     const label = meta ? `${meta.name} · ${esc(c.tool)}` : esc(c.tool);
     const spin = c.running ? '<span class="spin">◌</span>' : '';
     const ms = c.ms !== undefined ? `<span class="wms">${c.ms}ms</span>` : '';
-    const cls = 'wcard lg lg-static' + (c.running ? ' current' : ' settled');
+    const cls = 'wcard lg lg-static' + (c.running ? ' current' : ' settled') + (c.cardHtml ? ' rich' : '');
     return (
       `<div class="${cls}" style="--mc:${mc}">` +
       `<h5>${dot}${label}${spin}${ms}</h5>` +
-      `<div class="wsum">${c.summaryHtml}</div>` +
+      `<div class="wsum">${c.cardHtml ?? c.summaryHtml}</div>` +
       '</div>'
     );
   }
@@ -134,13 +137,19 @@ export function createWorkspace(el: HTMLElement): Workspace {
     renderCards();
   }
 
-  function settleToolCard(summaryHtml: string, ms: number): void {
+  function settleToolCard(summaryHtml: string, ms: number, cardHtml?: string): void {
     const last = cards[cards.length - 1];
-    if (!last) return;
+    if (!last || !last.running) return; // 序列假設 guard：只 settle running 中的當前卡
     last.summaryHtml = summaryHtml;
     last.ms = ms;
     last.running = false;
+    last.cardHtml = cardHtml;
     renderCards();
+  }
+
+  function markStopped(): void {
+    const last = cards[cards.length - 1];
+    if (last && last.running) { last.running = false; last.summaryHtml = '已中止'; renderCards(); }
   }
 
   function showConfirm(summaryHtml: string): void {
@@ -165,5 +174,5 @@ export function createWorkspace(el: HTMLElement): Workspace {
     capEl.textContent = '系統就緒';
   }
 
-  return { showDiag, pushToolCard, settleToolCard, showConfirm, caption, footprint, reset };
+  return { showDiag, pushToolCard, settleToolCard, showConfirm, caption, footprint, markStopped, reset };
 }
