@@ -35,6 +35,7 @@ export interface ToolRunResult {
   llmText: string;
   module?: AgentModule;
   data?: unknown; // 結構化附載（run_diagnostics 回 DiagReport，控制器據此更新燈號牆）
+  cardHtml?: string;
 }
 export interface AgentTool {
   name: string;

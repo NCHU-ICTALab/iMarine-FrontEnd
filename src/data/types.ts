@@ -200,11 +200,12 @@ export type AgentEvent =
   | { kind: 'plan'; steps: string[] }
   | { kind: 'step_start'; index: number; caption: string }
   | { kind: 'tool_call'; tool: string; args: Record<string, unknown>; module?: AgentModule }
-  | { kind: 'tool_result'; tool: string; summaryHtml: string; module?: AgentModule; ms: number }
+  | { kind: 'tool_result'; tool: string; summaryHtml: string; module?: AgentModule; ms: number; cardHtml?: string }
   | { kind: 'text_delta'; text: string }
+  | { kind: 'suggest'; items: string[] }
   | { kind: 'confirm_request'; tool: string; args: Record<string, unknown>; summaryHtml: string }
   | { kind: 'done' }
-  | { kind: 'error'; message: string };
+  | { kind: 'error'; message: string; detail?: string };
 
 export interface DiagModuleReport {
   status: 'ok' | 'degraded' | 'down' | 'mock';
@@ -232,3 +233,7 @@ export interface AgentScenario {
   events: ScenarioEvent[];
   cancelEvents?: ScenarioEvent[]; // confirm 取消時改播的尾段
 }
+
+/* 確認卡回傳：ok=false 取消；ok=true 時 args 為使用者在互動卡上最終挑選的參數
+   （靜態確認卡回原參數）。引擎以 args ?? 原 call args 執行工具。 */
+export interface ConfirmResult { ok: boolean; args?: Record<string, unknown> }

@@ -14,10 +14,13 @@ const sc: AgentScenario = {
   ],
   cancelEvents: [{ kind: 'text_delta', text: '已取消', delayMs: 0 }, { kind: 'done', delayMs: 0 }],
 };
-const io = (confirm: boolean, ran: string[]): any => ({
+const io = (confirm: boolean, ran: string[], ranArgs?: Record<string, unknown>[]): any => ({
   reduced: true, signal: new AbortController().signal,
-  runTool: async (n: string) => { ran.push(n); return { summaryHtml: 's', llmText: 'l' }; },
-  waitConfirm: async () => confirm,
+  runTool: async (n: string, a: Record<string, unknown>) => {
+    ran.push(n); ranArgs?.push(a);
+    return { summaryHtml: 's', llmText: 'l' };
+  },
+  waitConfirm: async () => ({ ok: confirm }),
 });
 async function collect(gen: AsyncGenerator<any>) { const out = []; for await (const e of gen) out.push(e); return out; }
 
@@ -46,6 +49,15 @@ describe('runScenario', () => {
     const rest = await collect(gen);
     expect(ran).toEqual([]);
     expect(rest.length).toBe(0);
+  });
+  it('confirm 帶 args → 覆寫下一個同名 exec tool_call 的參數', async () => {
+    const ran: string[] = []; const ranArgs: Record<string, unknown>[] = [];
+    const myIo = io(true, ran, ranArgs);
+    myIo.waitConfirm = async () => ({ ok: true, args: { token_id: 7, price: 99 } });
+    const evs = await collect(runScenario(sc, myIo));
+    expect(ranArgs[1]).toEqual({ token_id: 7, price: 99 }); // place_carbon_order 用覆寫值
+    const tc = evs.filter((e) => e.kind === 'tool_call' && e.tool === 'place_carbon_order')[0] as any;
+    expect(tc.args).toEqual({ token_id: 7, price: 99 });     // yield 的事件也帶覆寫值
   });
 });
 

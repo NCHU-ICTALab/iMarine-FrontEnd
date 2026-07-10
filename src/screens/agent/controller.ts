@@ -5,7 +5,7 @@
    導航走 hash（#/<id>，router.ts:110 hashchange 監聽）：navigate_to_screen 工具排程 pendingNav，
    任務 done 且未 abort → 1.5s 後跳轉；手動切頁/中斷會取消排程（teardown）。 */
 import type { ScreenCtx } from '../types';
-import type { AgentEvent, AgentModule, AgentScenario, DiagReport } from '../../data/types';
+import type { AgentEvent, AgentModule, AgentScenario, ConfirmResult, DiagReport } from '../../data/types';
 import type { Workspace } from './workspace';
 import { runScenario, matchScenario, FALLBACK_EVENTS, type EngineIO } from './replay';
 import { runGemini } from './loop';
@@ -291,8 +291,8 @@ export function createController(deps: {
         if (n === 'run_diagnostics' && r.data) deps.onDiag(r.data as DiagReport);
         return r;
       },
-      waitConfirm: (ev) => new Promise<boolean>((res) => {
-        renderConfirmCard(bubble, ev, res);
+      waitConfirm: (ev) => new Promise<ConfirmResult>((res) => {
+        renderConfirmCard(bubble, ev, (ok) => res({ ok }));
         ws.showConfirm(ev.summaryHtml);
         ws.caption('等待操作員確認…');
       }),

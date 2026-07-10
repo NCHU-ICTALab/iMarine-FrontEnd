@@ -106,7 +106,8 @@ export async function* runGemini(opts: {
         if (tool.confirm) {
           const ev = { kind: 'confirm_request', tool: c.name, args: c.args, summaryHtml: `執行 ${tool.name}（${JSON.stringify(c.args)}）？` } as const;
           yield ev;
-          const ok = await io.waitConfirm(ev);
+          const res = await io.waitConfirm(ev);
+          const ok = res.ok;
           if (io.signal.aborted) return;
           if (!ok) { responses.push({ functionResponse: { name: c.name, response: { result: '使用者取消了這個動作' } } }); continue; }
         }

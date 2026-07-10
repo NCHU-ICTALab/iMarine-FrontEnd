@@ -1,12 +1,12 @@
 /* 劇本 replay 引擎 — mock 態的 AgentEvent 產生器（spec §8）。
    與 loop.ts（live）共用 EngineIO 介面；exec:true 的 tool_call 真的執行工具（資料活的），
    回答文字預錄。reduced（prefers-reduced-motion / 設定）時跳過 delay。 */
-import type { AgentEvent, AgentScenario, ScenarioEvent } from '../../data/types';
+import type { AgentEvent, AgentScenario, ConfirmResult, ScenarioEvent } from '../../data/types';
 import type { ToolRunResult } from './tools';
 
 export interface EngineIO {
   runTool(name: string, args: Record<string, unknown>): Promise<ToolRunResult>;
-  waitConfirm(ev: Extract<AgentEvent, { kind: 'confirm_request' }>): Promise<boolean>;
+  waitConfirm(ev: Extract<AgentEvent, { kind: 'confirm_request' }>): Promise<ConfirmResult>;
   signal: AbortSignal;
   reduced: boolean;
 }
@@ -25,24 +25,28 @@ function strip(ev: ScenarioEvent): AgentEvent {
 }
 
 async function* play(events: ScenarioEvent[], cancelEvents: ScenarioEvent[] | undefined, io: EngineIO): AsyncGenerator<AgentEvent> {
+  let override: { tool: string; args: Record<string, unknown> } | null = null;
   for (const ev of events) {
     if (io.signal.aborted) return;
     if (!io.reduced && ev.delayMs) await sleep(ev.delayMs, io.signal);
     if (io.signal.aborted) return;
 
     if (ev.kind === 'tool_call' && ev.exec) {
-      yield strip(ev);
+      const execArgs = override && override.tool === ev.tool ? override.args : ev.args;
+      if (override && override.tool === ev.tool) override = null;
+      yield { ...(strip(ev) as Extract<AgentEvent, { kind: 'tool_call' }>), args: execArgs };
       const t0 = performance.now();
-      const r = await io.runTool(ev.tool, ev.args);
+      const r = await io.runTool(ev.tool, execArgs);
       if (io.signal.aborted) return;
-      yield { kind: 'tool_result', tool: ev.tool, summaryHtml: r.summaryHtml, module: r.module ?? (ev as any).module, ms: Math.round(performance.now() - t0) };
+      yield { kind: 'tool_result', tool: ev.tool, summaryHtml: r.summaryHtml, module: r.module ?? (ev as any).module, ms: Math.round(performance.now() - t0), cardHtml: r.cardHtml };
       continue;
     }
     if (ev.kind === 'confirm_request') {
       yield strip(ev);
-      const ok = await io.waitConfirm(strip(ev) as Extract<AgentEvent, { kind: 'confirm_request' }>);
+      const res = await io.waitConfirm(strip(ev) as Extract<AgentEvent, { kind: 'confirm_request' }>);
       if (io.signal.aborted) return;
-      if (!ok) { yield* play(cancelEvents ?? [{ kind: 'done', delayMs: 0 }], undefined, io); return; }
+      if (!res.ok) { yield* play(cancelEvents ?? [{ kind: 'done', delayMs: 0 }], undefined, io); return; }
+      if (res.args) override = { tool: ev.tool, args: res.args };
       continue;
     }
     yield strip(ev);

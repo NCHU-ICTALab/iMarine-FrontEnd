@@ -5,7 +5,7 @@ import type { AgentScenario, RunbookEntry } from '../src/data/types';
 
 const SCS = scenarios as AgentScenario[];
 const RBS = runbook as RunbookEntry[];
-const KINDS = ['plan','step_start','tool_call','tool_result','text_delta','confirm_request','done','error'];
+const KINDS = ['plan','step_start','tool_call','tool_result','text_delta','suggest','confirm_request','done','error'];
 const TOOLS = ['get_module_data','ask_policy_rag','run_diagnostics','search_runbook','navigate_to_screen','place_carbon_order','update_setting'];
 
 describe('agent-scenarios 契約', () => {
