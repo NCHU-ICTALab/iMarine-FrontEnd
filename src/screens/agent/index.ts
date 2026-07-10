@@ -9,12 +9,14 @@ import { prefersReduced } from '../settings/storage';
 import { runDiagnostics } from './diagnostics';
 import { AGENT_MODULES } from './tools';
 import { createWorkspace, type Workspace } from './workspace';
+import { createController, type AgentController } from './controller';
 import html from './agent.html?raw';
 import './agent.css';
 
 let ws: Workspace;
 let ctxRef: ScreenCtx;
 let sectionEl: HTMLElement;
+let controller: AgentController;
 let booted = false;           // 開場巡檢只跑一次（spec §7.1）
 let lastDiag: DiagReport | null = null;
 
@@ -51,9 +53,11 @@ function greet(rep: DiagReport): void {
   chips.innerHTML = SUGGESTIONS.map((s) => `<button type="button" class="achip">${s}</button>`).join('');
   chips.querySelectorAll<HTMLButtonElement>('.achip').forEach((btn) => {
     btn.addEventListener('click', () => {
-      input.value = btn.textContent ?? '';
-      input.focus();
-      // Task 7 在此接：直接送出指令
+      const text = btn.textContent ?? '';
+      input.value = text;           // 填輸入框（視覺），交給控制器送出
+      controller.submit(text);
+      input.value = '';
+      btn.remove();                 // chip 用掉即移除（spec §7.6）
     });
   });
 }
@@ -69,7 +73,14 @@ const screen: Screen = {
       sourceLabel: hasKey() ? 'GEMINI LIVE' : '劇本 MOCK',
     }));
     ws = createWorkspace(el.querySelector('.awork') as HTMLElement);
-    // Task 7 在此接 chat 控制器（#aForm submit / #aStop / mchip 導覽點擊）
+    // chat 控制器：接 #aForm submit / #aStop / citation chip 導覽 + 事件渲染全鏈路。
+    // onDiag：run_diagnostics 附載回來時，同步更新開場燈號牆的 lastDiag 並重繪。
+    controller = createController({
+      section: el,
+      ctx: ctxRef,
+      ws,
+      onDiag: (rep) => { lastDiag = rep; ws.showDiag(rep, !prefersReduced()); },
+    });
   },
   async show() {
     if (booted) { if (lastDiag) ws.showDiag(lastDiag, false); return; } // 重入顯示上次終態
@@ -78,6 +89,6 @@ const screen: Screen = {
     ws.showDiag(lastDiag, !prefersReduced());
     greet(lastDiag); // 招呼泡泡 + 3 條建議指令 chips（模板組字：問候+健檢結論+LIVE/MOCK 統計）
   },
-  hide() { /* Task 7 接 abort */ },
+  hide() { controller?.teardown(); }, // 切頁：abort 進行中的任務 + 取消 pendingNav 排程
 };
 export default screen;

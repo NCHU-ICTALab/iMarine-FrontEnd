@@ -38,6 +38,44 @@
 #s-agent .mchip i{width:6px;height:6px;border-radius:50%;background:var(--mc,#B48CFF);
   box-shadow:0 0 6px var(--mc,#B48CFF);}
 
+/* ── Task 7：時間軸圖示/工具 chip、思考氣泡、確認卡雙鈕、錯誤/停止列、citation tooltip ── */
+#s-agent .tstep{flex-wrap:wrap;}
+#s-agent .tstep .ico{flex:none;width:14px;text-align:center;}
+#s-agent .tstep .tchips{display:inline-flex;flex-wrap:wrap;gap:5px;margin-left:2px;}
+#s-agent .tstep .tchip{font-size:10px;font-family:var(--mono);color:var(--ink-40);
+  padding:1px 8px;border-radius:999px;border:1px solid var(--hair);white-space:nowrap;}
+
+#s-agent .bub-a .atline{display:flex;flex-direction:column;gap:2px;}
+#s-agent .bub-a .atline:not(:empty)+.atext:not(:empty){margin-top:7px;}
+#s-agent .bub-a .stt.hidden,#s-agent .bub-a .atline:empty,#s-agent .bub-a .atext:empty{display:none;}
+
+/* 思考氣泡（reduced 時 JS 不插入；下方 reduced 區另備 CSS 停動效） */
+#s-agent .athink{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-40);
+  font-family:var(--mono);}
+#s-agent .athink .dots{display:inline-flex;gap:4px;}
+#s-agent .athink .dots i{width:5px;height:5px;border-radius:50%;background:var(--ink-40);
+  animation:ag-think 1.2s var(--ease) infinite;}
+#s-agent .athink .dots i:nth-child(2){animation-delay:.18s;}
+#s-agent .athink .dots i:nth-child(3){animation-delay:.36s;}
+@keyframes ag-think{0%,60%,100%{opacity:.28;}30%{opacity:1;}}
+
+/* chat 內確認卡：沿用 .confirmcard 樣式，補雙鈕已選/停用態 */
+#s-agent .bub-a .chatconfirm{margin-top:8px;}
+#s-agent .confirmcard .cbtn.no{border-color:rgba(240,100,140,.4);color:var(--rose);}
+#s-agent .confirmcard .cbtn:disabled{opacity:.5;cursor:default;}
+#s-agent .confirmcard.picked-ok{border-color:rgba(53,224,166,.5);background:rgba(53,224,166,.07);}
+#s-agent .confirmcard.picked-no{border-color:rgba(240,100,140,.4);background:rgba(240,100,140,.06);}
+
+/* 錯誤列（玫紅）/ 停止收尾列 */
+#s-agent .aerr{margin-top:8px;padding:8px 12px;border-radius:10px;font-size:12.5px;
+  color:var(--rose);border:1px solid rgba(240,100,140,.4);background:rgba(240,100,140,.07);}
+#s-agent .astop{margin-top:8px;font-size:12px;color:var(--ink-40);}
+
+/* citation chip hover tooltip */
+#s-agent .mtip{position:fixed;z-index:60;max-width:240px;padding:7px 11px;border-radius:10px;
+  font-size:11.5px;line-height:1.5;color:var(--ink-90);pointer-events:none;
+  background:rgba(10,15,22,.96);border:1px solid var(--hair);box-shadow:0 8px 24px rgba(0,0,0,.4);}
+
 /* 建議指令 chips */
 #s-agent .achips{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 0;}
 #s-agent .achip{font-size:12px;padding:5px 14px;border-radius:999px;color:#c8b8ea;background:transparent;
@@ -134,11 +172,12 @@
 
 @media(prefers-reduced-motion:reduce){
   #s-agent .lampcard{opacity:1!important;transform:none!important;transition:none!important;}
-  #s-agent .tstep .run,#s-agent .wcard h5 .spin{animation:none;}
+  #s-agent .tstep .run,#s-agent .wcard h5 .spin,#s-agent .athink .dots i{animation:none;}
 }
 body[data-motion="reduce"] #s-agent .lampcard{opacity:1!important;transform:none!important;transition:none!important;}
 body[data-motion="reduce"] #s-agent .tstep .run,
-body[data-motion="reduce"] #s-agent .wcard h5 .spin{animation:none;}
+body[data-motion="reduce"] #s-agent .wcard h5 .spin,
+body[data-motion="reduce"] #s-agent .athink .dots i{animation:none;}
 
 @media(max-width:900px){
   #s-agent .agrid{grid-template-columns:1fr;}
