@@ -21,7 +21,7 @@ const hasKey = () => !!env.VITE_GEMINI_API_KEY;
 const TOOL_LABEL: Record<string, string> = {
   get_module_data: '模組資料查詢', ask_policy_rag: '政策知識庫',
   run_diagnostics: '系統健檢', search_runbook: '維運知識庫',
-  navigate_to_screen: '頁面導覽', place_carbon_order: '碳權掛單', update_setting: '設定更新',
+  navigate_to_screen: '頁面導覽', list_holdable_units: '可掛單清單', place_carbon_order: '碳權掛單', update_setting: '設定更新',
 };
 const moduleName = (id: AgentModule): string => AGENT_MODULES.find((m) => m.id === id)?.name ?? id;
 

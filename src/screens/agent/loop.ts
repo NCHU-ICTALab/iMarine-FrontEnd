@@ -165,6 +165,7 @@ export async function* runGemini(opts: {
         yield { kind: 'tool_call', tool: c.name, args: c.args, module: tool.module };
         const t0 = performance.now();
         const r = await io.runTool(c.name, c.args);
+        if (io.signal.aborted) return;
         yield { kind: 'tool_result', tool: c.name, summaryHtml: r.summaryHtml, module: r.module ?? tool.module, ms: Math.round(performance.now() - t0), cardHtml: r.cardHtml };
         responses.push({ functionResponse: { name: c.name, response: { result: `（實際執行參數 ${JSON.stringify(c.args)}）` + r.llmText } } });
       }
