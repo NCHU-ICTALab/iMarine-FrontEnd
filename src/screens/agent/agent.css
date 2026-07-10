@@ -4,7 +4,7 @@
    進場 stagger 沿用 tokens.css 既有 .anim + --d 慣例（左右兩欄依序 .08s/.14s，見 agent.html）；
    燈號牆逐卡點燈另走 .lampcard.lit（workspace.ts 控制的獨立 stagger，非 .anim 機制）。 */
 
-#s-agent .agrid{display:grid;grid-template-columns:38fr 62fr;gap:14px;min-height:0;}
+#s-agent .agrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;min-height:0;}
 
 /* ── 左欄：對話面板 ── */
 #s-agent .achat{display:flex;flex-direction:column;height:calc(100vh - 208px);min-height:480px;
