@@ -30,7 +30,7 @@ function esc(s: string): string {
 }
 
 export interface AgentController {
-  submit(text: string): void;
+  submit(text: string): boolean; // true = 任務已啟動；false = running 中被擋下（呼叫端可用來判斷是否消耗一次性 UI，如建議 chip）
   stop(): void;
   teardown(): void; // hide()：abort 進行中的任務 + 取消跳轉排程
 }
@@ -258,9 +258,16 @@ export function createController(deps: {
   }
 
   // ── 任務生命週期 ──
-  async function submit(text: string): Promise<void> {
-    if (running || !text.trim()) return;
+  function submit(text: string): boolean {
+    if (running || !text.trim()) return false;
+    if (navTimer) { clearTimeout(navTimer); navTimer = null; } // 開新任務即取消上一個自動跳轉排程
+    pendingNav = null;
     running = true;
+    void runTask(text);
+    return true;
+  }
+
+  async function runTask(text: string): Promise<void> {
     ctrl = new AbortController();
     setInputMode('running');
     appendUserBubble(text);

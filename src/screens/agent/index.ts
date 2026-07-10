@@ -55,9 +55,9 @@ function greet(rep: DiagReport): void {
     btn.addEventListener('click', () => {
       const text = btn.textContent ?? '';
       input.value = text;           // 填輸入框（視覺），交給控制器送出
-      controller.submit(text);
+      const started = controller.submit(text);
       input.value = '';
-      btn.remove();                 // chip 用掉即移除（spec §7.6）
+      if (started) btn.remove();    // 只有成功送出才用掉 chip（running 中點擊不誤消耗，spec §7.6）
     });
   });
 }
