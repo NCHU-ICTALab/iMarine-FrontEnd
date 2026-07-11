@@ -1,7 +1,7 @@
 /* Hero 畫面 — 兩段式：影片底圖封面 COVER ⇄ 模組儀表牆 OVERVIEW（2026-07-08 spec）。
    影片：<video> 滿版底層 + gradient scrim（兩態走 body[data-hero]，CSS 過場）；
    JS 只管 play/pause 生命週期（show/hide + visibilitychange）與 reduced-motion 靜態降級。
-   封面六 chips 與總覽六卡皆由 SCREENS.slice(1, 7) 動態生成（settings 第 8 筆不進 hero），
+   封面 chips 取 SCREENS.slice(1, 8)（六功能 + agent），總覽六卡取 slice(1, 7)（agent 進 chips 不進儀表牆；settings 兩者皆不進），
    同色點同順序＝轉場跨段錨點。 */
 import type { Screen, ScreenCtx } from '../types';
 import template from './hero.html?raw';
@@ -63,9 +63,10 @@ const s: Screen = {
     ctxRef = ctx;
     sectionEl = el;
     const snap = await ctx.data.overview.snapshot();
-    const mods = SCREENS.slice(1, 7); // 六功能頁；settings 不進 hero
-    const chipsHtml = mods.map(chip).join('');
-    const cardsHtml = mods
+    const chipMods = SCREENS.slice(1, 8); // 六功能 + agent 進封面 chips
+    const cardMods = SCREENS.slice(1, 7); // 總覽儀表牆維持六卡 3×2
+    const chipsHtml = chipMods.map(chip).join('');
+    const cardsHtml = cardMods
       .map((def, i) => {
         const m = snap.modules.find((x) => x.id === def.id);
         return m ? modCard(def, m, i) : '';
