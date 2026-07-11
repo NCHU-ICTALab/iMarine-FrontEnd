@@ -4,3 +4,4 @@ dist/
 .DS_Store
 .superpowers/
 docs/preview/.preview-*-test.html
+demo-videos/
