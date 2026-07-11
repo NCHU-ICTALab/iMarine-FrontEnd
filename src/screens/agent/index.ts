@@ -1,15 +1,17 @@
 /* Agent screen — 數位員工（spec 2026-07-10）。
    Task 6：screen 骨架 + shell 接入 + 開場巡檢（UX1：進頁自動健檢 → 6+1 燈號牆逐卡點燈 →
    招呼泡泡 + 3 條建議指令 chips）。開場巡檢只跑一次（booted flag），重入只重繪上次終態。
-   chat 控制器（送出指令、plan-then-act、tool-calling、確認流程）是 Task 7，本檔留好接點。 */
+   chat 控制器（送出指令、plan-then-act、tool-calling、確認流程）是 Task 7，本檔留好接點。
+   autoPatrol=off 時 boot 略過巡檢（greet(null)），切換後重新整理生效。 */
 import type { Screen, ScreenCtx } from '../types';
 import type { AgentModule, DiagReport, DiagModuleReport } from '../../data/types';
 import { screenHeader } from '../../ui/components';
-import { prefersReduced } from '../settings/storage';
+import { getSetting, prefersReduced, subscribe } from '../settings/storage';
 import { runDiagnostics } from './diagnostics';
 import { AGENT_MODULES } from './tools';
 import { createWorkspace, type Workspace } from './workspace';
 import { createController, type AgentController } from './controller';
+import { isLive } from './config';
 import html from './agent.html?raw';
 import './agent.css';
 
@@ -20,8 +22,6 @@ let controller: AgentController;
 let booted = false;           // 開場巡檢只跑一次（spec §7.1）
 let lastDiag: DiagReport | null = null;
 
-const hasKey = () => !!((import.meta as any).env?.VITE_GEMINI_API_KEY);
-
 const SUGGESTIONS = ['整合今日港區營運摘要', '紅海事件對碳成本的影響？', '跑一次完整系統健檢'];
 
 function moduleName(id: AgentModule | 'settings'): string {
@@ -29,16 +29,21 @@ function moduleName(id: AgentModule | 'settings'): string {
 }
 
 /* 招呼泡泡 + 3 條建議指令 chips：模板組字＝問候 + 健檢結論（有 down/degraded 則列名並建議健檢，
-   否則報 live/示範統計）。chips 點擊先只填入輸入框（Task 7 接送出）。 */
-function greet(rep: DiagReport): void {
-  const entries = Object.entries(rep.modules) as [AgentModule | 'settings', DiagModuleReport][];
-  const okCount = entries.filter(([, v]) => v.status === 'ok').length;
-  const mockCount = entries.filter(([, v]) => v.status === 'mock').length;
-  const bad = entries.filter(([, v]) => v.status === 'down' || v.status === 'degraded');
-
-  const statusLine = bad.length
-    ? `已完成系統巡檢：發現 <b style="color:#F0648C">${bad.length} 項異常</b>（${bad.map(([id]) => moduleName(id)).join('、')}），建議跟我說「跑一次完整系統健檢」看修復步驟。`
-    : `已完成系統巡檢：<b style="color:#35E0A6">${entries.length} 個模組全部在線</b>（${okCount} live / ${mockCount} 示範）。`;
+   否則報 live/示範統計）。chips 點擊先只填入輸入框（Task 7 接送出）。
+   rep 為 null（autoPatrol 關閉）時走無健檢文案，略過 entries/okCount/mockCount/bad 統計。 */
+function greet(rep: DiagReport | null): void {
+  let statusLine: string;
+  if (rep) {
+    const entries = Object.entries(rep.modules) as [AgentModule | 'settings', DiagModuleReport][];
+    const okCount = entries.filter(([, v]) => v.status === 'ok').length;
+    const mockCount = entries.filter(([, v]) => v.status === 'mock').length;
+    const bad = entries.filter(([, v]) => v.status === 'down' || v.status === 'degraded');
+    statusLine = bad.length
+      ? `已完成系統巡檢：發現 <b style="color:#F0648C">${bad.length} 項異常</b>（${bad.map(([id]) => moduleName(id)).join('、')}），建議跟我說「跑一次完整系統健檢」看修復步驟。`
+      : `已完成系統巡檢：<b style="color:#35E0A6">${entries.length} 個模組全部在線</b>（${okCount} live / ${mockCount} 示範）。`;
+  } else {
+    statusLine = '自動巡檢已停用（可於系統設定「數位員工」分區開啟），需要時可跟我說「跑一次完整系統健檢」。';
+  }
 
   const thread = sectionEl.querySelector('#aThread') as HTMLElement;
   const chips = sectionEl.querySelector('#aChips') as HTMLElement;
@@ -69,8 +74,8 @@ const screen: Screen = {
     el.innerHTML = html.replace('<!--HEADER-->', screenHeader({
       eyebrow: 'AI AGENT · 數位員工', color: '#B48CFF', title: '數位員工',
       badges: ['Tool-calling Agent', 'Self-diagnostics'],
-      source: hasKey() ? 'live' : 'mock',
-      sourceLabel: hasKey() ? 'GEMINI LIVE' : '劇本 MOCK',
+      source: isLive() ? 'live' : 'mock',
+      sourceLabel: isLive() ? 'GEMINI LIVE' : '劇本 MOCK',
     }));
     ws = createWorkspace(el.querySelector('.awork') as HTMLElement);
     // chat 控制器：接 #aForm submit / #aStop / citation chip 導覽 + 事件渲染全鏈路。
@@ -81,13 +86,27 @@ const screen: Screen = {
       ws,
       onDiag: (rep) => { lastDiag = rep; ws.showDiag(rep, !prefersReduced()); },
     });
+    // 設定頁改 key/sourceMode → 標題列 LIVE/MOCK chip 即時跟隨（spec 2026-07-11 §4）
+    const updateChip = () => {
+      const chip = el.querySelector('header .src') as HTMLElement | null;
+      if (!chip) return;
+      const live = isLive();
+      chip.className = live ? 'src live' : 'src';
+      chip.innerHTML = '<i></i>' + (live ? 'GEMINI LIVE' : '劇本 MOCK');
+    };
+    subscribe('agent.geminiKey', updateChip);
+    subscribe('agent.sourceMode', updateChip);
   },
   async show() {
     if (booted) { if (lastDiag) ws.showDiag(lastDiag, false); return; } // 重入顯示上次終態
     booted = true;
-    lastDiag = await runDiagnostics(ctxRef);
-    ws.showDiag(lastDiag, !prefersReduced());
-    greet(lastDiag); // 招呼泡泡 + 3 條建議指令 chips（模板組字：問候+健檢結論+LIVE/MOCK 統計）
+    if (getSetting('agent.autoPatrol', true)) {
+      lastDiag = await runDiagnostics(ctxRef);
+      ws.showDiag(lastDiag, !prefersReduced());
+      greet(lastDiag); // 招呼泡泡 + 3 條建議指令 chips（模板組字：問候+健檢結論+LIVE/MOCK 統計）
+    } else {
+      greet(null); // 巡檢停用：略過 probe 與燈牆動畫，招呼 + chips 照顯（spec §3 Group 2）
+    }
   },
   hide() { controller?.teardown(); }, // 切頁：abort 進行中的任務 + 取消 pendingNav 排程
 };

@@ -8,7 +8,6 @@ import type { AgentEvent } from '../../data/types';
 import type { AgentTool } from './tools';
 import type { EngineIO } from './replay';
 
-const MODEL = 'gemini-2.5-flash';
 const MAX_TURNS = 8; // 防失控 loop 上限
 
 export const SYSTEM_PROMPT = [
@@ -52,7 +51,7 @@ export function splitEmittable(buf: string): { emit: string; hold: string } {
 
 export function friendlyError(raw: string): { message: string; detail?: string } {
   if (/API_KEY_INVALID|API key not valid/i.test(raw))
-    return { message: 'Gemini 金鑰無效或未授權——檢查 .env 的 VITE_GEMINI_API_KEY 後重啟 dev server' };
+    return { message: 'Gemini 金鑰無效或未授權——檢查系統設定「數位員工」分區或 .env 的 key' };
   if (/Failed to fetch|NetworkError|fetch failed/i.test(raw))
     return { message: '連線 Gemini 失敗——請確認網路（離線時可拔除 key 走劇本示範）' };
   if (/RESOURCE_EXHAUSTED|429/.test(raw))
@@ -61,9 +60,10 @@ export function friendlyError(raw: string): { message: string; detail?: string }
 }
 
 export async function* runGemini(opts: {
-  apiKey: string; tools: AgentTool[]; history: unknown[]; userText: string; io: EngineIO;
+  apiKey: string; model?: string; tools: AgentTool[]; history: unknown[]; userText: string; io: EngineIO;
 }): AsyncGenerator<AgentEvent> {
   const { tools, io } = opts;
+  const model = opts.model ?? 'gemini-2.5-flash';
   const ai = new GoogleGenAI({ apiKey: opts.apiKey });
   /* 對「本地副本」工作：abort/error 時不污染共用 history（半截 functionCall 會讓下一輪
      API 呼叫爆錯）；只在成功 done 時把完整回合（含最終回答文字）同步回 opts.history。
@@ -83,7 +83,7 @@ export async function* runGemini(opts: {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       if (io.signal.aborted) return;
       const stream = await ai.models.generateContentStream({
-        model: MODEL, contents,
+        model, contents,
         config: { systemInstruction: SYSTEM_PROMPT, tools: [{ functionDeclarations: declarations }] },
       });
 

@@ -1,7 +1,7 @@
 /* 數位員工 chat 控制器（spec Task 7）— 把 replay/loop 的 AgentEvent 事件流接成可互動對話。
    狀態機：idle → running →（waiting_confirm）→ running → idle；running 中不可重入
    （送出鈕→停止鈕）；中斷統一走 AbortController。事件渲染見 consume() 對照表。
-   雙態分派：hasKey() → runGemini（live）；否則 runScenario（劇本 mock）。
+   雙態分派：isLive()（config.ts，settings 覆寫 env）→ runGemini（live）；否則 runScenario（劇本 mock）。
    導航走 hash（#/<id>，router.ts:110 hashchange 監聽）：navigate_to_screen 工具排程 pendingNav，
    任務 done 且未 abort → 1.5s 後跳轉；手動切頁/中斷會取消排程（teardown）。 */
 import type { ScreenCtx } from '../types';
@@ -11,11 +11,10 @@ import { runScenario, matchScenario, FALLBACK_EVENTS, type EngineIO } from './re
 import { runGemini } from './loop';
 import { createTools, renderAgentText, effectiveModule, AGENT_MODULES } from './tools';
 import { prefersReduced } from '../settings/storage';
+import { effectiveKey, effectiveModel, isLive } from './config';
 import scenariosJson from '../../data/mock/agent-scenarios.json';
 
 const scenarios = scenariosJson as unknown as AgentScenario[];
-const env = (import.meta as any).env ?? {};
-const hasKey = () => !!env.VITE_GEMINI_API_KEY;
 
 /* tool name → 旁白友善字（caption「正在呼叫 …」與時間軸 chip 用） */
 const TOOL_LABEL: Record<string, string> = {
@@ -380,8 +379,8 @@ export function createController(deps: {
       }),
     };
 
-    const gen = hasKey()
-      ? runGemini({ apiKey: env.VITE_GEMINI_API_KEY, tools, history, userText: text, io })
+    const gen = isLive()
+      ? runGemini({ apiKey: effectiveKey(), model: effectiveModel(), tools, history, userText: text, io })
       : runScenario(matchScenario(text, scenarios) ?? { id: 'fb', patterns: [], events: FALLBACK_EVENTS }, io);
 
     const touched: AgentModule[] = [];
