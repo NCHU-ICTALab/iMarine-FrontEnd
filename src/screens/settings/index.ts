@@ -11,6 +11,7 @@ import { twinSection } from './sections/twin';
 import { dispatchSection } from './sections/dispatch';
 import { epidemicSection } from './sections/epidemic';
 import { alertSection } from './sections/alert';
+import { agentSection } from './sections/agent';
 
 let SECTIONS: SettingsSection[] = [];
 let cur = 'frontend';
@@ -73,6 +74,7 @@ const screen: Screen = {
       dispatchSection,
       epidemicSection,
       alertSection,
+      agentSection,
     ];
     validateSections(SECTIONS);
     el.innerHTML = html.replace(
