@@ -15,8 +15,10 @@ export default {
     await ctx.cursor.click('#twinView', { hover: 400 }); // 點船：中心附近射線挑船
     await ctx.sleep(2500); // #shipchip 船隻資訊
     await ctx.cursor.click('.mtab[data-tab="future"]', { hover: 500 });
+    await ctx.page.waitForSelector('#tslider', { state: 'visible', timeout: 8000 });
     await ctx.sleep(2500); // 未來推演面板切入
     const box = await ctx.page.locator('#tslider').boundingBox();
+    if (!box) throw new Error('twin: #tslider 無 boundingBox（未來推演分頁未露出時間軸）');
     await ctx.cursor.drag(
       { x: box.x + box.width * 0.15, y: box.y + box.height / 2 },
       { x: box.x + box.width * 0.85, y: box.y + box.height / 2 },
