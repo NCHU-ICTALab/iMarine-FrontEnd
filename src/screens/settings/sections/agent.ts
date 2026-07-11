@@ -22,8 +22,13 @@ async function testGemini(): Promise<ActionResult> {
     return { ok: true, message: '連線成功 · ' + model };
   } catch (e) {
     clearTimeout(t);
-    const { friendlyError } = await import('../../agent/loop');
-    return { ok: false, message: friendlyError(String((e as Error)?.message ?? e)).message };
+    const raw = String((e as Error)?.message ?? e);
+    try {
+      const { friendlyError } = await import('../../agent/loop');
+      return { ok: false, message: friendlyError(raw).message };
+    } catch {
+      return { ok: false, message: '連線失敗——' + raw.slice(0, 120) };
+    }
   }
 }
 
