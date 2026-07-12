@@ -29,7 +29,8 @@ body[data-mode="cover"] #veil{opacity:.16;}
 body[data-mode="full"] #veil{opacity:.05;}
 
 /* ── 集中式背景影片層（2026-07-12）：在 #veil 之上、#screens 之下；scrim 強度純 CSS 依 data-mode ── */
-#backdrop{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:3;pointer-events:none;display:none;}
+/* 背景影片壓低存在感：亮度 ×0.75、透明度 +20%（opacity .8，透出後方暗罩），讓影片退為氛圍不搶眼。 */
+#backdrop{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:3;pointer-events:none;display:none;opacity:.8;filter:brightness(.75);}
 body[data-bg="on"] #backdrop{display:block;}
 #backdrop-scrim{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0;transition:opacity .3s var(--ease);
   background:linear-gradient(180deg,rgba(7,11,17,.5),rgba(7,11,17,.15) 45%,rgba(7,11,17,.62));}

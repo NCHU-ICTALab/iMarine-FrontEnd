@@ -316,7 +316,8 @@ scripts/demo/
 ## 頁面背景影片（集中式背景層）
 
 全站背景影片由 `src/shell/backdrop.ts` 集中管理：依目前頁面的 `ScreenDef.bg` 切換單一共用 `<video>`，
-缺 `bg` 的頁自動退回 `#harbor` 點雲。scrim 強度純 CSS 依 `body[data-mode]`（cover 輕 / ov 略暗 / doc 較重）。
+缺 `bg` 的頁自動退回 `#harbor` 點雲。scrim 強度純 CSS 依 `body[data-mode]`（cover 輕 / ov 略暗 / doc 較重）；
+影片本身另降亮度 `.75` + 透明度 `.8`（`tokens.css` 的 `#backdrop`）壓低存在感，退為氛圍不搶眼、doc 頁文字更清楚。
 
 **替某頁加背景影片（一頁一次）：**
 
