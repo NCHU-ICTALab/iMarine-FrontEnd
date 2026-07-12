@@ -8,7 +8,8 @@
     "demo:record": "node scripts/demo/recorder.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:contract": "node scripts/verify/contract.mjs"
   },
   "devDependencies": {
     "@types/mapbox-gl": "^3.4.1",
