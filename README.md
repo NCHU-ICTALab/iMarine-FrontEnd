@@ -190,7 +190,7 @@ npm run dev
 cp .env.example .env
 ```
 
-`.env` 內有四個變數：
+`.env` 內有七個變數：
 
 | 變數 | 說明 | 預設值 |
 |---|---|---|
@@ -198,6 +198,12 @@ cp .env.example .env
 | `VITE_MAPBOX_TOKEN` | 疫情自動追溯頁 Mapbox 地圖的 access token（`pk.` 開頭公開 token） | （無，需自行填入） |
 | `VITE_POLICY_API` | 政策報告（policy 綜合對話 + settings 政策報告分區）rag-agent 後端位址；未起則走 mock 示範 | `http://127.0.0.1:8100` |
 | `VITE_GEMINI_API_KEY` | 數位員工（agent）頁 Gemini API key；未設定則退回劇本 mock，**選填**（亦可改在系統設定「數位員工」分區填入，免改檔免重啟） | （無，需自行填入） |
+| `VITE_DISPATCH_API` | 短時微氣候派工後端位址（協作中，port 分配見 `docs/collab/README.md`） | `http://127.0.0.1:8200` |
+| `VITE_EPIDEMIC_API` | 疫情自動追溯後端位址（協作中，同上） | `http://127.0.0.1:8300` |
+| `VITE_ALERT_API` | 自動警報推播後端位址（協作中，同上） | `http://127.0.0.1:8400` |
+
+`VITE_DISPATCH_API`/`VITE_EPIDEMIC_API`/`VITE_ALERT_API` 為協作後端的 port 預留，
+目前三頁 provider 仍為 mock、變數暫不被讀取；接 live 時 provider 依既有慣例讀取（比照 `policy.ts`）。
 
 `VITE_CARBON_API` 服務若未啟動，碳權頁連線 chip 會轉紅並提示，不會讓整個 shell 崩潰；twin
 頁不依賴任何環境變數（詳見下方「Live Demo 前置作業」）。`VITE_MAPBOX_TOKEN` 未設定時，疫情
@@ -333,6 +339,10 @@ scripts/demo/
 4. 支援頁：carbon / policy / dispatch / epidemic / alert / agent。**twin 不加**（原生 WebGL 自填畫面）。
 
 ## 協作者指南
+
+> **協作流程與 PR 規範**（環境建置、改動範圍白名單、驗收指令、提交流程）見根目錄
+> [CONTRIBUTING.md](CONTRIBUTING.md)；各模組後端的整合資訊（起服務、API 契約、port 分配）見
+> [docs/collab/](docs/collab/README.md)。本章為技術規範細節，由上述文件引用。
 
 左側 rail 底部的「系統設定」（`settings`）頁是 schema 驅動的設定框架：協作者要幫自己負責的
 模組（twin／dispatch／epidemic／alert）新增或調整設定欄位，**不需要碰任何 UI 或渲染程式碼**，
