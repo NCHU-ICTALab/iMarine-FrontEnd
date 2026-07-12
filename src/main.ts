@@ -2,6 +2,7 @@ import './ui/liquid-glass.css';
 import './ui/tokens.css';
 import './ui/liquid-glass.js';
 import { initBackground } from './shell/background';
+import { initBackdrop } from './shell/backdrop';
 import type { ScreenCtx } from './screens/types';
 import { SCREENS } from './shell/registry';
 import { applyMode, initRouter, parseHash } from './shell/router';
@@ -58,10 +59,15 @@ const rail = initRail(document.getElementById('rail') as HTMLElement, (id) => ro
 
 window.LiquidGlass.init();
 
+const backdrop = initBackdrop(document.getElementById('backdrop') as HTMLVideoElement);
+
 const router = initRouter({
   container: document.getElementById('screens') as HTMLElement,
   ctx,
-  onChange: (def) => rail.setActive(def.id),
+  onChange: (def) => {
+    rail.setActive(def.id);
+    backdrop.setScreen(def);
+  },
 });
 
 const ids = SCREENS.map((d) => d.id);
