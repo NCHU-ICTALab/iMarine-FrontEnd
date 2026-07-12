@@ -1,14 +1,6 @@
 /* Hero — 影片底圖兩段式（2026-07-08 spec）。全部 #s-hero 前綴；
    罩幕兩態走 body[data-hero]；禁止對 video 套 filter（hardware overlay）。 */
 
-/* ── 底層：影片 + 罩幕 ── */
-#s-hero .herobg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;pointer-events:none;}
-#s-hero .heroscrim{position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:linear-gradient(180deg,rgba(7,11,17,.5),rgba(7,11,17,.15) 45%,rgba(7,11,17,.62));}
-#s-hero .heroscrim::after{content:'';position:absolute;inset:0;background:rgba(7,11,17,.66);
-  opacity:0;transition:opacity .25s var(--ease);}
-body[data-hero="ov"] #s-hero .heroscrim::after{opacity:1;}
-
 /* ── 封面 ── */
 #s-hero .cover{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:24px;text-align:center;transition:opacity .28s var(--ease),transform .28s var(--ease);}
@@ -57,11 +49,11 @@ body[data-hero="ov"] #s-hero .mcard:hover{transform:translateY(-4px);outline-col
 
 /* reduced-motion：轉場直達終態（.anim 三通道 tokens.css 已內建，這裡補 hero 專屬過場） */
 @media(prefers-reduced-motion:reduce){
-  #s-hero .cover,#s-hero .overview,#s-hero .mcard,#s-hero .heroscrim::after{transition:none!important;}
+  #s-hero .cover,#s-hero .overview,#s-hero .mcard{transition:none!important;}
   #s-hero .hkbd{animation:none;}
 }
 body[data-motion="reduce"] #s-hero .cover,body[data-motion="reduce"] #s-hero .overview,
-body[data-motion="reduce"] #s-hero .mcard,body[data-motion="reduce"] #s-hero .heroscrim::after{transition:none!important;}
+body[data-motion="reduce"] #s-hero .mcard{transition:none!important;}
 body[data-motion="reduce"] #s-hero .hkbd{animation:none;}
 
 /* 窄螢幕降級（demo 以 16:9 為準，僅保底不破版） */

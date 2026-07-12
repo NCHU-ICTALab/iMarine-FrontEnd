@@ -1,4 +1,6 @@
 import type { Mode, Screen } from '../screens/types';
+import heroBg from '../screens/hero/hero-bg.mp4';
+import heroPoster from '../screens/hero/hero-poster.jpg';
 
 export interface ScreenDef {
   id: string;
@@ -20,6 +22,8 @@ export const SCREENS: ScreenDef[] = [
     short: '總覽',
     color: '#35E0A6',
     mode: 'cover',
+    bg: heroBg,
+    poster: heroPoster,
     icon: '<path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/>',
     load: () => import('../screens/hero/index'),
   },

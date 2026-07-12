@@ -7,15 +7,11 @@ import type { Screen, ScreenCtx } from '../types';
 import template from './hero.html?raw';
 import { SCREENS, type ScreenDef } from '../../shell/registry';
 import type { OverviewSnapshot } from '../../data/types';
-import { prefersReduced } from '../settings/storage';
-import bgUrl from './hero-bg.mp4';
-import posterUrl from './hero-poster.jpg';
 import './hero.css';
 
 type HeroState = 'cover' | 'ov';
 let heroState: HeroState = 'cover';
 let ctxRef: ScreenCtx | null = null;
-let video: HTMLVideoElement | null = null;
 let sectionEl: HTMLElement | null = null;
 
 function chip(def: ScreenDef): string {
@@ -51,13 +47,6 @@ function setHeroState(next: HeroState): void {
   ctxRef?.setMode(next === 'ov' ? 'ov' : 'cover');
 }
 
-// autoplay 政策：play() 回傳 Promise 可能被拒（省電模式等），必須 catch——失敗時
-// video 停在 poster 幀，版面對比不受影響（罩幕保證），不需額外 fallback UI。
-function safePlay(): void {
-  if (!video || prefersReduced()) return;
-  video.play().catch(() => {});
-}
-
 const s: Screen = {
   async mount(el, ctx) {
     ctxRef = ctx;
@@ -74,24 +63,9 @@ const s: Screen = {
       .join('');
 
     el.innerHTML = template
-      .replace('__BG__', bgUrl)
-      .replace('__POSTER__', posterUrl)
       .replace('<!--CHIPS-->', chipsHtml)
       .replace('__KPILINE__', kpiLine(snap.kpi))
       .replace('<!--MODULES-->', cardsHtml);
-
-    video = el.querySelector('.herobg') as HTMLVideoElement;
-    // reduced-motion：不 autoplay、顯示 poster 靜態圖（prefersReduced 已含 settings 開關）。
-    if (prefersReduced()) {
-      video.removeAttribute('autoplay');
-      video.pause();
-    }
-    // 分頁隱藏暫停解碼；回前景且本頁 active 才恢復（切到別頁時交給 hide() 管）。
-    document.addEventListener('visibilitychange', () => {
-      if (!video) return;
-      if (document.hidden) video.pause();
-      else if (sectionEl?.classList.contains('active')) safePlay();
-    });
 
     el.querySelector('#toOverview')?.addEventListener('click', () => setHeroState('ov'));
     // main.ts 只在 router.current()==='hero' 時 dispatch 'hero:toggle'，綁一次即可。
@@ -109,12 +83,9 @@ const s: Screen = {
     // 是 'cover'——setMode 延到 microtask 才不會被蓋掉（沿用既有時序修正）。
     const state = heroState;
     queueMicrotask(() => ctxRef?.setMode(state === 'ov' ? 'ov' : 'cover'));
-    safePlay();
   },
 
-  hide() {
-    video?.pause();
-  },
+  hide() {},
 };
 
 export default s;
