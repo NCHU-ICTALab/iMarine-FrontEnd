@@ -28,6 +28,12 @@
 | GET | `/api/report/templates` | 報告模版清單 |
 | POST | `/api/chat` | 綜合對話（附引用回答） |
 | POST | `/api/report` | 產生結構化報告 |
+| GET | `/api/policy/briefs` | 每日晨報（收件匣頂 live 情報卡，`snapshot()` 取用） |
+| POST | `/api/policy/refresh` | 重抓新聞並重生成晨報（收件匣「更新新聞」按鈕、settings「立即更新一次」） |
+| GET / POST | `/api/schedule` | 每日新聞自動更新排程（settings 排程區） |
+| POST | `/api/settings/embed/test` | 測試 embedding 端點連線（回 dim） |
+| POST | `/api/settings/embed` | 儲存 embedding 設定 |
+| POST | `/api/settings/reembed` | 以目前 embedding 設定重編碼全部 chunk |
 
 ### GET /api/sources → 200
 
@@ -73,13 +79,34 @@ request：`{ "prompt": string, "source_ids": string[], "template": string }`
 
 response 200：`{ "report_id", "topic", "template_id", "sections": [{ "key", "label", "text", "citations" }], "source_list": [{ "evidence_id", "source_id", "source_name", "locator", "date" }], "citation_coverage", "provider", "model" }`（`sections[].text` 可含 `[ev_xxx]`，以 `source_list` 順序編號對齊）
 
+### GET /api/policy/briefs → 200
+
+response：`{ "briefs": PolicyBrief[] }`（`PolicyBrief` 形狀見 `src/data/types.ts`；每則含 `id`/`title`/`time`/`grounding`/`retrieved`/`sources`/`qa`）
+
+- `snapshot()` 取 `briefs`，以 `mergeLiveBriefs()` 讓 **live 晨報置頂、取代 mock 的 daily 類、保留突發/政策 mock 範例**
+- 後端不在或 `briefs` 空 → 前端維持全 mock 收件匣（demo 不掛）
+
+### POST /api/policy/refresh → 200
+
+無 request body。response：`{ "briefs": PolicyBrief[] }`（重抓新聞→重生成後的最新晨報）。前端 `refreshNews()` 取 `briefs`；settings「立即更新一次」只取狀態不消費 briefs。
+
+### GET / POST /api/schedule → 200
+
+`ScheduleStatus`：`{ "enabled": boolean, "time": "HH:MM", "last_run_at": string|null, "last_result": unknown, "next_run": string|null }`。POST body：`{ "enabled": boolean, "time": "HH:MM" }`，回更新後的 `ScheduleStatus`。時間為**伺服器本地時間**。
+
+### POST /api/settings/embed*（embedding 設定）
+
+- `POST /api/settings/embed/test`，body `{ base_url, api_key, model }` → `{ "ok": boolean, "message": string, "dim": number }`
+- `POST /api/settings/embed`，body `{ backend, model, base_url, api_key }` → 200（無 body）
+- `POST /api/settings/reembed` → `{ "reembedded": number, "dim": number }`（換模型/維度改變後需執行，慢）
+
 ### 錯誤形狀
 
-非 2xx 時前端 throw 並由呼叫端 fallback 回 mock 示範；錯誤 body 形狀待後端負責人補記。
+非 2xx 時前端 throw 並由呼叫端 fallback 回 mock 示範；錯誤 body 形狀待後端負責人補記。測試連線的 catch 依錯誤類型分流：連線類（後端沒開／`Failed to fetch`）退回示範驗證不跳紅字，後端有回但錯（429/404/embedding 非 chat）顯示分類訊息。
 
 ## 5. 前端接線
 
-- provider：`src/data/exchange/policy.ts`（live；`snapshot()` 仍回 mock 收件匣——那是 demo 展示，後端無「情報收件匣」概念）
+- provider：`src/data/exchange/policy.ts`（live；`snapshot()` 取 `GET /api/policy/briefs` 的 live 每日晨報置頂，其餘（突發/政策）仍用 mock 範例；後端不在退回全 mock）
 - fallback：呼叫端 try/catch，後端不在退回 mock 情報聯集／罐頭訊息（`src/screens/policy/index.ts`、`src/screens/settings/sections/policy-kb-mock.ts`）
 - live 特徵：policy 頁不顯資料源 chip（既有特例）；綜合對話總覽卡文案「已接入 N 個知識庫」＝live、「已就緒 N 條情報」＝fallback
 
@@ -98,3 +125,4 @@ response 200：`{ "report_id", "topic", "template_id", "sections": [{ "key", "la
 | 日期 | 變更 |
 |---|---|
 | 2026-07-12 | 初版：自 `src/data/exchange/policy.ts` 現行呼叫整理 §4；§2 待後端負責人填 |
+| 2026-07-12 | 加 `/api/policy/briefs`（snapshot live 晨報）、`/api/policy/refresh`（更新新聞）、`/api/schedule`（每日排程）、`/api/settings/embed*`（embedding 設定）；§5 snapshot 改記 live 晨報；`refreshNews()` 契約 |
