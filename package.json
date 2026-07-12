@@ -8,6 +8,7 @@
     "demo:record": "node scripts/demo/recorder.mjs",
     "build": "vite build",
     "preview": "vite preview",
+    "check": "tsc --noEmit && vitest run && vite build",
     "test": "vitest run",
     "verify:contract": "node scripts/verify/contract.mjs",
     "verify:live": "node scripts/verify/live.mjs"
