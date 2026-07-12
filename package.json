@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "verify:contract": "node scripts/verify/contract.mjs"
+    "verify:contract": "node scripts/verify/contract.mjs",
+    "verify:live": "node scripts/verify/live.mjs"
   },
   "devDependencies": {
     "@types/mapbox-gl": "^3.4.1",
