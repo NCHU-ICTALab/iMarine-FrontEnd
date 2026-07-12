@@ -1,8 +1,10 @@
 import { getSetting, setSetting } from '../storage';
 import { tail4 } from '../renderer';
 import {
-  createKb, deleteDoc, deleteKb, listDocs, listOllamaModels, listSources,
-  pushLlmConfig, setSourceEnabled, testConnection, uploadDoc,
+  createKb, deleteDoc, deleteKb, getBackendSettings, getSchedule, listDocs,
+  listOllamaModels, listSources, pushEmbedConfig, pushLlmConfig, reembedAll,
+  runNewsRefresh, setSchedule, setSourceEnabled, testConnection, testEmbedding,
+  uploadDoc,
 } from '../backend';
 import type { BackendDoc, BackendSource } from '../backend';
 import { bindStrategyBlock, mountMockKb, strategyBlockHtml } from './policy-kb-mock';
@@ -178,6 +180,37 @@ export function openaiBase(p: ProviderCfg): string {
   return u;
 }
 
+/* 依「地端/雲端」把對應供應商的 chat 模型真的 push 到後端（切換生成模型）。
+   地端＝已連線且免金鑰（Ollama 類，push 前先探測可達性，避免指到沒開的服務）；
+   雲端＝已連線且需金鑰。回傳 {ok,message}；ok=false 時後端維持原設定，呼叫端據此還原 toggle。 */
+export async function applyLlmMode(
+  mode: 'local' | 'cloud',
+): Promise<{ ok: boolean; message: string }> {
+  const prov = getProviders().find(
+    (p) => p.connected && (mode === 'local' ? p.keyOptional : !p.keyOptional),
+  );
+  const model = prov?.models.find((m) => m.enabled && m.kind === 'chat')?.id;
+  if (!prov || !model) {
+    return { ok: false, message: mode === 'local' ? '尚未設定地端供應商' : '尚未設定雲端供應商' };
+  }
+  const base = openaiBase(prov);
+  if (mode === 'local') {
+    try {
+      const ms = await listOllamaModels(base);
+      if (!ms.length) throw new Error('no models');
+    } catch {
+      return { ok: false, message: `地端服務未連線（${base}），後端維持原設定` };
+    }
+  }
+  try {
+    await pushLlmConfig(prov.name, base, prov.key, model);
+    const d = getDefaults(); d.reasoning = model; setSetting('policy.defaults', d);
+    return { ok: true, message: `已切換至${mode === 'local' ? '地端' : '雲端'}：${model}` };
+  } catch {
+    return { ok: false, message: '後端未連線，無法切換' };
+  }
+}
+
 /* 把「系統預設推理模型」+ 其所屬供應商寫入後端 llm_config（後端不在則靜默略過）。 */
 export async function syncLlmToBackend(): Promise<void> {
   const model = getDefaults().reasoning;
@@ -198,25 +231,33 @@ function llmGroup(): SettingGroup {
     badge: '即時生效 · 與政策頁同步',
     badgeTone: 'live',
     saveMode: 'instant',
-    custom(el) {
+    custom(el, ctx: SettingsCtx) {
       const cur = getSetting<'local' | 'cloud'>('policy.llmMode', 'local');
       el.innerHTML =
-        '<div class="frow"><div class="flabel">LLM 接口<span class="help">政策頁標題列的切換器與此雙向同步</span></div>' +
+        '<div class="frow"><div class="flabel">LLM 接口<span class="help">政策頁標題列的切換器與此雙向同步；切換即改後端生成模型</span></div>' +
         '<div class="fctl"><div class="seg" id="pol-llmseg">' +
         '<button type="button" data-llm="local" class="' + (cur === 'local' ? 'on' : '') + '">地端部署</button>' +
         '<button type="button" data-llm="cloud" class="' + (cur === 'cloud' ? 'on' : '') + '">雲端 API</button>' +
         '</div><span class="flash" data-flash="llm">✓ 已生效</span></div></div>';
       const seg = el.querySelector('#pol-llmseg') as HTMLElement;
-      seg.addEventListener('click', (e) => {
+      seg.addEventListener('click', async (e) => {
         const b = (e.target as HTMLElement).closest('[data-llm]') as HTMLButtonElement | null;
         if (!b) return;
         const v = b.getAttribute('data-llm') as 'local' | 'cloud';
-        setSetting('policy.llmMode', v);
-        seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
-        const fl = el.querySelector('[data-flash="llm"]');
-        if (fl) {
-          fl.classList.add('show');
-          setTimeout(() => fl.classList.remove('show'), 1400);
+        const prev = getSetting<'local' | 'cloud'>('policy.llmMode', 'local');
+        if (v === prev) return;
+        seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); // 樂觀切換
+        const res = await applyLlmMode(v);                    // 真的 push 後端生成模型
+        if (res.ok) {
+          setSetting('policy.llmMode', v);
+          const fl = el.querySelector('[data-flash="llm"]');
+          if (fl) { fl.classList.add('show'); setTimeout(() => fl.classList.remove('show'), 1400); }
+          ctx.toast({ title: '已切換生成接口', message: res.message, duration: 2600 });
+        } else {
+          // 切換失敗（供應商未設定/未連線）→ 還原視覺，後端維持原設定
+          seg.querySelectorAll('button').forEach((x) =>
+            x.classList.toggle('on', x.getAttribute('data-llm') === prev));
+          ctx.toast({ title: '無法切換接口', message: res.message, duration: 3400 });
         }
       });
     },
@@ -245,6 +286,8 @@ function pmodalHtml(): string {
     '<div class="frow"><div class="flabel">API KEY<span class="help" id="pm-keyhelp"></span></div>' +
     '<div class="fctl"><input class="tin" id="pm-key" type="password" placeholder="sk-...">' +
     '<button type="button" class="eyebtn" id="pm-eye">顯示</button></div></div>' +
+    '<div class="frow"><div class="flabel">模型 id<span class="help" id="pm-modelhelp"></span></div>' +
+    '<div class="fctl"><input class="tin" id="pm-model" placeholder="例：gemma-4-31B-it"></div></div>' +
     '<div class="frow"><div class="flabel">連線驗證</div>' +
     '<div class="fctl"><button type="button" class="mini acc" id="pm-test">測試連線</button>' +
     '<div class="tstate" id="pm-state"></div></div></div>' +
@@ -368,6 +411,12 @@ function modelGroup(): SettingGroup {
           ? '已儲存（' + tail4(pmProv.key) + '）— 輸入以更換'
           : (pmProv.keyOptional ? '地端可留空' : 'sk-...');
         (wrap.querySelector('#pm-keyhelp') as HTMLElement).textContent = pmProv.keyOptional ? '地端服務可留空' : '';
+        const modelIn = wrap.querySelector('#pm-model') as HTMLInputElement;
+        modelIn.value = pmProv.models.find((m) => m.kind === 'chat' && m.enabled)?.id
+          ?? pmProv.models.find((m) => m.kind === 'chat')?.id ?? '';
+        modelIn.placeholder = pmProv.keyOptional ? '留空＝連線後自動載入 Ollama 模型' : '例：gemma-4-31B-it';
+        (wrap.querySelector('#pm-modelhelp') as HTMLElement).textContent =
+          pmProv.keyOptional ? '地端可留空' : '雲端請填實際模型名';
         const stateEl = wrap.querySelector('#pm-state') as HTMLElement;
         stateEl.className = 'tstate';
         stateEl.textContent = '';
@@ -442,28 +491,43 @@ function modelGroup(): SettingGroup {
             stateEl.className = 'tstate ok';
             stateEl.textContent = '✓ 已連線 · 載入 ' + ms.length + ' 個模型';
           } else {
-            const testModel = (prov.catalog ?? []).find((m) => m.kind === 'chat')?.id ?? 'gpt-4.1-mini';
+            const modelId = (wrap.querySelector('#pm-model') as HTMLInputElement).value.trim();
+            const testModel = modelId || (prov.catalog ?? []).find((m) => m.kind === 'chat')?.id;
+            if (!testModel) {
+              stateEl.className = 'tstate err';
+              stateEl.textContent = '✗ 請輸入模型 id';
+              return;
+            }
             const res = await testConnection(base, effKey, testModel);
             if (!res.ok) throw new Error(res.message);
-            pmTestedModels = prov.models.length
-              ? prov.models
-              : (prov.catalog ?? []).map((m) => ({ ...m, enabled: m.kind === 'chat' }));
+            // 有填模型 id → 以該模型為唯一 chat 模型；否則沿用預錄 catalog
+            pmTestedModels = modelId
+              ? [{ id: modelId, kind: 'chat', enabled: true }]
+              : (prov.models.length ? prov.models : (prov.catalog ?? []).map((m) => ({ ...m, enabled: m.kind === 'chat' })));
             stateEl.className = 'tstate ok';
             stateEl.textContent = '✓ ' + res.message.slice(0, 40);
           }
           modelsEl.innerHTML = modelListHtml(pmTestedModels);
           saveBtn.disabled = false;
           hintEl.textContent = '';
-        } catch {
-          // 後端不在 → 退回示範驗證（原 mock 流程），訊息帶「示範」低調標示（spec §3.2）
-          pmTestedModels = prov.models.length
-            ? prov.models
-            : (prov.catalog ?? []).map((m) => ({ ...m, enabled: m.kind === 'chat' }));
-          stateEl.className = 'tstate ok';
-          stateEl.textContent = '✓ 驗證通過（示範）· 已載入 ' + pmTestedModels.length + ' 個模型';
-          modelsEl.innerHTML = modelListHtml(pmTestedModels);
-          saveBtn.disabled = false;
-          hintEl.textContent = '';
+        } catch (err) {
+          // 後端沒開（Failed to fetch / no models）→ 退回示範驗證，demo 不跳紅字（spec §3.2）；
+          // 後端有回但錯（429 限流 / 404 模型 / embedding 非 chat…）→ 顯示分類訊息。
+          const msg = err instanceof Error ? err.message : '';
+          const offline = /failed to fetch|networkerror|no models/i.test(msg);
+          if (offline) {
+            pmTestedModels = prov.models.length
+              ? prov.models
+              : (prov.catalog ?? []).map((m) => ({ ...m, enabled: m.kind === 'chat' }));
+            stateEl.className = 'tstate ok';
+            stateEl.textContent = '✓ 驗證通過（示範）· 已載入 ' + pmTestedModels.length + ' 個模型';
+            modelsEl.innerHTML = modelListHtml(pmTestedModels);
+            saveBtn.disabled = false;
+            hintEl.textContent = '';
+          } else {
+            stateEl.className = 'tstate err';
+            stateEl.textContent = '✗ ' + (msg || '連線失敗（確認後端 :8100 是否啟動）');
+          }
         }
       });
 
@@ -488,6 +552,11 @@ function modelGroup(): SettingGroup {
         const idx = list.findIndex((p) => p.id === prov.id);
         if (idx >= 0) list[idx] = prov; else list.push(prov);
         setProviders(list);
+        // 自動把剛連上的 chat 模型設為系統預設推理模型，確保 syncLlmToBackend push 的是它
+        const chatModel = prov.models.find((m) => m.enabled && m.kind === 'chat')?.id;
+        if (chatModel) {
+          const d = getDefaults(); d.reasoning = chatModel; setSetting('policy.defaults', d);
+        }
         void syncLlmToBackend();   // 供應商 url/key/模型變更 → 同步後端 llm_config
         closeModal();
         ctx.rerender();
@@ -734,10 +803,207 @@ function kbGroup(): SettingGroup {
   };
 }
 
+/* ---------- Embedding 模型 group（接後端 /api/settings/embed(+test) 與 /reembed） ---------- */
+function embeddingGroup(): SettingGroup {
+  return {
+    title: 'Embedding 模型',
+    badge: '向量化',
+    badgeTone: 'live',
+    saveMode: 'instant',
+    custom(el, ctx: SettingsCtx) {
+      el.innerHTML =
+        '<div class="frow"><div class="flabel">後端<span class="help">雲端 API 或地端本地模型</span></div>' +
+        '<div class="fctl"><div class="seg" id="emb-seg">' +
+        '<button type="button" data-eb="api">雲端 API</button>' +
+        '<button type="button" data-eb="local">地端（本地）</button></div></div></div>' +
+        '<div class="frow"><div class="flabel">模型 id</div>' +
+        '<div class="fctl"><input class="tin" id="emb-model" placeholder="例：bge-m3"></div></div>' +
+        '<div class="frow emb-api"><div class="flabel">API URL</div>' +
+        '<div class="fctl"><input class="tin" id="emb-url" placeholder="https://.../v1"></div></div>' +
+        '<div class="frow emb-api"><div class="flabel">API KEY</div>' +
+        '<div class="fctl"><input class="tin" id="emb-key" type="password" placeholder="sk-...（留空＝沿用現有）"></div></div>' +
+        '<div class="frow"><div class="flabel">連線驗證</div>' +
+        '<div class="fctl"><button type="button" class="mini acc" id="emb-test">測試連線</button>' +
+        '<span class="tstate" id="emb-state"></span></div></div>' +
+        '<div class="frow"><div class="flabel">操作</div>' +
+        '<div class="fctl"><button type="button" class="mini acc" id="emb-save">儲存</button>' +
+        '<button type="button" class="mini" id="emb-reembed">重新索引全部</button>' +
+        '<span class="tstate" id="emb-op"></span></div></div>' +
+        '<div class="gnote" id="emb-status">載入 Embedding 設定…</div>' +
+        '<div class="gnote">換 embedding 模型後向量維度可能改變，需按「重新索引全部」重編碼（較慢）。</div>';
+
+      const seg = el.querySelector('#emb-seg') as HTMLElement;
+      const modelIn = el.querySelector('#emb-model') as HTMLInputElement;
+      const urlIn = el.querySelector('#emb-url') as HTMLInputElement;
+      const keyIn = el.querySelector('#emb-key') as HTMLInputElement;
+      const stateEl = el.querySelector('#emb-state') as HTMLElement;
+      const opEl = el.querySelector('#emb-op') as HTMLElement;
+      const statusEl = el.querySelector('#emb-status') as HTMLElement;
+      let backend: 'api' | 'local' = 'api';
+
+      const renderSeg = () => {
+        seg.querySelectorAll('button').forEach((b) =>
+          b.classList.toggle('on', b.getAttribute('data-eb') === backend));
+        el.querySelectorAll<HTMLElement>('.emb-api').forEach((r) => {
+          r.style.display = backend === 'api' ? '' : 'none';
+        });
+      };
+
+      getBackendSettings().then((s) => {
+        backend = s.embed.backend === 'local' ? 'local' : 'api';
+        modelIn.value = s.embed.model || '';
+        urlIn.value = s.embed.base_url || '';
+        keyIn.placeholder = s.embed.api_key_tail ? `已儲存（${s.embed.api_key_tail}）— 輸入以更換` : 'sk-...';
+        renderSeg();
+        statusEl.textContent = `目前：${backend === 'api' ? '雲端' : '地端'} · ${s.embed.model || '(未設定)'}`;
+      }).catch(() => { statusEl.textContent = '後端未連線'; renderSeg(); });
+
+      seg.addEventListener('click', (e) => {
+        const b = (e.target as HTMLElement).closest('[data-eb]');
+        if (!b) return;
+        backend = b.getAttribute('data-eb') === 'local' ? 'local' : 'api';
+        renderSeg();
+      });
+
+      el.querySelector('#emb-test')!.addEventListener('click', async () => {
+        if (backend === 'local') {
+          stateEl.className = 'tstate';
+          stateEl.textContent = '地端模型於後端載入，儲存後生效（此處不測試）';
+          return;
+        }
+        stateEl.className = 'tstate run';
+        stateEl.textContent = '驗證中…';
+        try {
+          const r = await testEmbedding(urlIn.value.trim(), keyIn.value.trim(), modelIn.value.trim());
+          stateEl.className = r.ok ? 'tstate ok' : 'tstate err';
+          stateEl.textContent = (r.ok ? '✓ ' : '✗ ') + r.message;
+        } catch {
+          stateEl.className = 'tstate err';
+          stateEl.textContent = '✗ 連線失敗（確認後端 :8100）';
+        }
+      });
+
+      el.querySelector('#emb-save')!.addEventListener('click', async () => {
+        try {
+          await pushEmbedConfig(backend, modelIn.value.trim(), urlIn.value.trim(), keyIn.value.trim());
+          statusEl.textContent = `目前：${backend === 'api' ? '雲端' : '地端'} · ${modelIn.value.trim()}`;
+          ctx.toast({ title: 'Embedding 已儲存', message: '若換了模型，記得按「重新索引全部」', duration: 3800 });
+        } catch {
+          ctx.toast({ title: '儲存失敗', message: '確認後端 :8100', duration: 3000 });
+        }
+      });
+
+      const reBtn = el.querySelector('#emb-reembed') as HTMLButtonElement;
+      reBtn.addEventListener('click', async () => {
+        if (reBtn.disabled) return;
+        if (!confirm('重新索引會用目前 embedding 設定重編碼「全部」chunk，較慢。確定執行？')) return;
+        reBtn.disabled = true;
+        opEl.className = 'tstate run';
+        opEl.textContent = '重新索引中…（可能數十秒）';
+        try {
+          const r = await reembedAll();
+          opEl.className = 'tstate ok';
+          opEl.textContent = `✓ 已重編 ${r.reembedded} 段 · 維度 ${r.dim}`;
+          ctx.toast({ title: '重新索引完成', message: `${r.reembedded} 段 · 維度 ${r.dim}`, duration: 3800 });
+        } catch {
+          opEl.className = 'tstate err';
+          opEl.textContent = '✗ 失敗（確認後端）';
+        } finally {
+          reBtn.disabled = false;
+        }
+      });
+    },
+  };
+}
+
+/* ---------- 新聞自動更新 group（每日排程，接後端 /api/schedule） ---------- */
+function scheduleGroup(): SettingGroup {
+  return {
+    title: '新聞自動更新',
+    badge: '每日排程',
+    badgeTone: 'live',
+    saveMode: 'instant',
+    custom(el, ctx: SettingsCtx) {
+      el.innerHTML =
+        '<div class="frow"><div class="flabel">自動更新<span class="help">每天定時抓新聞並重生成晨報</span></div>' +
+        '<div class="fctl"><div class="seg" id="sch-seg">' +
+        '<button type="button" data-en="on">啟用</button><button type="button" data-en="off">停用</button>' +
+        '</div><span class="flash" data-flash="sch">✓ 已生效</span></div></div>' +
+        '<div class="frow"><div class="flabel">每日時間<span class="help">伺服器本地時間</span></div>' +
+        '<div class="fctl"><input class="tin" id="sch-time" type="time" value="06:30" style="width:130px"></div></div>' +
+        '<div class="frow"><div class="flabel">立即更新</div>' +
+        '<div class="fctl"><button type="button" class="mini acc" id="sch-now">立即更新一次</button>' +
+        '<span class="tstate" id="sch-now-state"></span></div></div>' +
+        '<div class="gnote" id="sch-status">載入排程狀態…</div>';
+
+      const seg = el.querySelector('#sch-seg') as HTMLElement;
+      const timeIn = el.querySelector('#sch-time') as HTMLInputElement;
+      const statusEl = el.querySelector('#sch-status') as HTMLElement;
+      let enabled = false;
+
+      const renderSeg = () => seg.querySelectorAll('button').forEach((b) =>
+        b.classList.toggle('on', b.getAttribute('data-en') === (enabled ? 'on' : 'off')));
+      const flash = () => {
+        const fl = el.querySelector('[data-flash="sch"]');
+        if (fl) { fl.classList.add('show'); setTimeout(() => fl.classList.remove('show'), 1400); }
+      };
+      const fmt = (s: string | null) => (s ? s.replace('T', ' ').slice(0, 16) : '');
+      const paint = (s: { enabled: boolean; last_run_at: string | null; next_run: string | null }) => {
+        const last = s.last_run_at ? `上次執行 ${fmt(s.last_run_at)}` : '尚未執行過';
+        const next = s.enabled && s.next_run ? `　·　下次 ${fmt(s.next_run)}` : '';
+        statusEl.textContent = last + next;
+      };
+      const push = async () => {
+        try {
+          paint(await setSchedule(enabled, timeIn.value || '06:30'));
+          flash();
+        } catch {
+          statusEl.textContent = '後端未連線，設定未儲存';
+        }
+      };
+
+      getSchedule().then((s) => {
+        enabled = s.enabled; timeIn.value = s.time || '06:30'; renderSeg(); paint(s);
+      }).catch(() => { statusEl.textContent = '後端未連線'; renderSeg(); });
+
+      seg.addEventListener('click', (e) => {
+        const b = (e.target as HTMLElement).closest('[data-en]') as HTMLButtonElement | null;
+        if (!b) return;
+        enabled = b.getAttribute('data-en') === 'on';
+        renderSeg();
+        void push();
+      });
+      timeIn.addEventListener('change', () => void push());
+
+      const nowBtn = el.querySelector('#sch-now') as HTMLButtonElement;
+      const nowState = el.querySelector('#sch-now-state') as HTMLElement;
+      nowBtn.addEventListener('click', async () => {
+        if (nowBtn.disabled) return;
+        nowBtn.disabled = true;
+        nowState.className = 'tstate run';
+        nowState.textContent = '更新中…';
+        try {
+          await runNewsRefresh();
+          nowState.className = 'tstate ok';
+          nowState.textContent = '✓ 已更新';
+          paint(await getSchedule());
+          ctx.toast({ title: '新聞已更新', message: '晨報已重新生成', duration: 3000 });
+        } catch {
+          nowState.className = 'tstate err';
+          nowState.textContent = '✗ 失敗（確認後端 :8100）';
+        } finally {
+          nowBtn.disabled = false;
+          setTimeout(() => { nowState.textContent = ''; }, 4000);
+        }
+      });
+    },
+  };
+}
+
 export const policySection: SettingsSection = {
   id: 'policy',
   label: '政策報告',
   color: '#38BDF8',
   status: () => getProviders().filter((p) => p.connected).length + ' 供應商已連線',
-  groups: [llmGroup(), modelGroup(), kbGroup()],
+  groups: [llmGroup(), modelGroup(), embeddingGroup(), scheduleGroup(), kbGroup()],
 };

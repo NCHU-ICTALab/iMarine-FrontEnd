@@ -49,6 +49,75 @@ export async function pushLlmConfig(
   if (!r.ok) throw new Error(`set llm HTTP ${r.status}`);
 }
 
+// ── 每日排程（設定頁 scheduleGroup 接真後端）──────────────────────────
+
+export interface ScheduleStatus {
+  enabled: boolean;
+  time: string;                // "HH:MM"
+  last_run_at: string | null;
+  last_result: unknown;
+  next_run: string | null;
+}
+
+export async function getSchedule(): Promise<ScheduleStatus> {
+  const r = await fetch(BASE + '/api/schedule');
+  if (!r.ok) throw new Error(`schedule HTTP ${r.status}`);
+  return await r.json();
+}
+
+export async function setSchedule(enabled: boolean, time: string): Promise<ScheduleStatus> {
+  const r = await fetch(BASE + '/api/schedule', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled, time }),
+  });
+  if (!r.ok) throw new Error(`set schedule HTTP ${r.status}`);
+  return await r.json();
+}
+
+/* 立即手動抓一次新聞並重生成晨報（設定頁「立即更新一次」）。 */
+export async function runNewsRefresh(): Promise<unknown> {
+  const r = await fetch(BASE + '/api/policy/refresh', { method: 'POST' });
+  if (!r.ok) throw new Error(`refresh HTTP ${r.status}`);
+  return await r.json();
+}
+
+// ── Embedding 設定（設定頁 embeddingGroup 接真後端）────────────────────
+
+export interface EmbedTestResult { ok: boolean; message: string; dim: number }
+
+/* 測試指定 embedding 設定（打 /embeddings）。 */
+export async function testEmbedding(
+  baseUrl: string, apiKey: string, model: string,
+): Promise<EmbedTestResult> {
+  const r = await fetch(BASE + '/api/settings/embed/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model }),
+  });
+  if (!r.ok) throw new Error(`embed test HTTP ${r.status}`);
+  return await r.json();
+}
+
+/* 儲存 embedding 設定到後端（embed_config，即時生效）。 */
+export async function pushEmbedConfig(
+  backend: string, model: string, baseUrl: string, apiKey: string,
+): Promise<void> {
+  const r = await fetch(BASE + '/api/settings/embed', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ backend, model, base_url: baseUrl, api_key: apiKey }),
+  });
+  if (!r.ok) throw new Error(`set embed HTTP ${r.status}`);
+}
+
+/* 以目前 embedding 設定重新編碼全部 chunk（換模型/維度改變後需執行）。 */
+export async function reembedAll(): Promise<{ reembedded: number; dim: number }> {
+  const r = await fetch(BASE + '/api/settings/reembed', { method: 'POST' });
+  if (!r.ok) throw new Error(`reembed HTTP ${r.status}`);
+  return await r.json();
+}
+
 // ── 知識庫管理（設定頁 kbGroup 接真後端）────────────────────────────────
 
 export interface BackendSource {

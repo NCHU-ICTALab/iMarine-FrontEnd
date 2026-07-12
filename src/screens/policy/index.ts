@@ -8,6 +8,7 @@ import type {
 } from '../../data/types';
 import { screenHeader } from '../../ui/components';
 import { getSetting, prefersReduced, setSetting, subscribe } from '../settings/storage';
+import { applyLlmMode } from '../settings/sections/policy';
 import { runTimeline, type TimelineHandle } from './generate';
 import template from './policy.html?raw';
 import './policy.css';
@@ -53,6 +54,9 @@ const $ = <T extends HTMLElement>(sel: string) => sectionEl.querySelector(sel) a
 function briefById(id: string): PolicyBrief | undefined {
   return briefs.find((b) => b.id === id);
 }
+// 後端 live 生成的晨報：可自由提問、chip 走真後端 /api/chat（非預錄劇本）。
+const LIVE_BRIEF_ID = 'day-live';
+function isLiveBrief(id: string): boolean { return id === LIVE_BRIEF_ID; }
 function nowStr(): string {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -113,6 +117,38 @@ function updateAfterInflow(): void {
   buildUnion(); // 對話串不重置，只同步右欄與 gbar
   renderGbar(avgGrounding(), globalGbarNote());
   renderUnionSources();
+}
+
+/* 更新新聞：重抓 ae_news → 後端重生成晨報 → 用新晨報取代收件匣 daily 類並置頂。 */
+async function refreshNews(): Promise<void> {
+  const fn = sCtx.data.policy.refreshNews;
+  if (!fn) return;
+  const btn = $('#newsBtn') as HTMLButtonElement;
+  if (btn.disabled) return;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '更新中…';
+  const wasOnDaily = curId === 'day-live' || briefById(curId)?.type === 'daily';
+  try {
+    const live = await fn();
+    briefs = [...live, ...briefs.filter((b) => b.type !== 'daily')];
+    if (wasOnDaily) select(live[0]?.id ?? briefs[0]?.id ?? 'global');
+    else renderInbox();
+    sCtx.ui.toast({
+      title: '新聞已更新',
+      message: live.length ? '每日晨報已依最新新聞重新生成' : '目前無新聞可生成晨報',
+      duration: 3600,
+    });
+  } catch {
+    sCtx.ui.toast({
+      title: '更新失敗',
+      message: '後端連線失敗，請確認 rag-agent 已於 :8100 啟動',
+      duration: 3600,
+    });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
 }
 
 /* ── 三類版型（產出卡內文） ── */
@@ -433,8 +469,8 @@ function sendFree(): void {
   const t = input.value.trim();
   if (!t || answering || generating) return;
   input.value = '';
-  // 綜合對話（知識庫模式）且有 live provider → 打真後端 rag-agent；其餘維持預錄示範說明
-  if (curId === 'global' && typeof sCtx.data.policy.chat === 'function') {
+  // 綜合對話 或 live 晨報，且有 live provider → 打真後端 rag-agent；其餘維持預錄示範說明
+  if ((curId === 'global' || isLiveBrief(curId)) && typeof sCtx.data.policy.chat === 'function') {
     void askLive(t);
     return;
   }
@@ -468,12 +504,20 @@ function markUsedKb(used: Set<number>): void {
   });
 }
 
+/* live 晨報提問：把答案的證據來源渲染到右欄（cite 已由 provider 以 1..k 編號，直接對齊 data-no）。 */
+function renderLiveAnswerSources(sources: PolicySource[]): void {
+  $('#srcCount').textContent = String(sources.length);
+  $('#srcList').innerHTML = sources.map((s) => srcRowHtml(s, `data-no-live="${s.no}"`)).join('');
+}
+
 /* 綜合對話 live 提問：沿用思考氣泡動畫，await 真後端回答後渲染引用；失敗則明確告知並不影響 demo */
 async function askLive(question: string): Promise<void> {
   if (answering || generating) return;
   const chat = sCtx.data.policy.chat;
   if (!chat) return;
   const model = MODEL[llm];
+  const askCurId = curId;               // 記住提問當下的情報卡（回應期間被切走則放棄）
+  const global = askCurId === 'global';
   answering = true;
 
   const thread = $('#thread');
@@ -489,25 +533,33 @@ async function askLive(question: string): Promise<void> {
   scrollThread();
 
   try {
-    const res = await chat(question, globalHistory.slice(-8));
-    if (curId !== 'global') { answering = false; return; } // 回應期間被切走 → 不污染其他情報
-    globalHistory.push({ role: 'user', content: question });
-    globalHistory.push({ role: 'assistant', content: res.answerText });
-    // 引用重映射到常駐知識庫清單，並標記本次用到的來源（清單保持完整、不消失）
-    const { map, used } = kbCiteMap(res.sources);
-    const answerHtml = remapCites(res.answerHtml, map);
-    markUsedKb(used);
+    const res = await chat(question, global ? globalHistory.slice(-8) : []);
+    if (curId !== askCurId) { answering = false; return; } // 回應期間被切走 → 不污染其他情報
+    let answerHtml = res.answerHtml;
+    let usedCount = res.sources.length;
+    if (global) {
+      globalHistory.push({ role: 'user', content: question });
+      globalHistory.push({ role: 'assistant', content: res.answerText });
+      // 引用重映射到常駐知識庫清單，並標記本次用到的來源（清單保持完整、不消失）
+      const { map, used } = kbCiteMap(res.sources);
+      answerHtml = remapCites(res.answerHtml, map);
+      markUsedKb(used);
+      usedCount = used.size;
+    } else {
+      // live 晨報：把答案證據當右欄來源（cite 已對齊 1..k），取代該卡原本的新聞來源清單
+      renderLiveAnswerSources(res.sources);
+    }
     think.remove();
     const am = document.createElement('div');
     am.className = 'msg ai';
     // 照實顯示後端實際使用的模型（如「gemma3n:e4b」）；缺值時退回接口名
     const modelLabel = res.model || model;
     am.innerHTML = `<p>${answerHtml}</p><div class="mfoot">${modelLabel} · ${nowStr()} · live`
-      + (used.size ? ` · 引用 ${used.size} 筆` : '') + '</div>';
+      + (usedCount ? ` · 引用 ${usedCount} 筆` : '') + '</div>';
     thread.appendChild(am);
     bindCites(am);
     scrollThread();
-    renderGbar(res.grounding, `live · ${used.size} 筆來源引用`);
+    renderGbar(res.grounding, `live · ${usedCount} 筆來源引用`);
   } catch {
     think.remove();
     const am = document.createElement('div');
@@ -575,6 +627,76 @@ async function generateReport(): Promise<void> {
   }
 }
 
+/* ── 報告匯出：Markdown 下載 + 列印/存 PDF ── */
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+/* 章節 html → 純文字：cite span 還原成 [n]、<br> 換行、去標籤、解 entity。 */
+function htmlToText(html: string): string {
+  const s = html
+    .replace(/<span class="cite"[^>]*>(\d+)<\/span>/g, '[$1]')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '');
+  const ta = document.createElement('textarea');
+  ta.innerHTML = s;
+  return ta.value;
+}
+function reportToMarkdown(res: PolicyReportResult): string {
+  const lines = [
+    `# 政策報告：${res.topic}`, '',
+    `> 產出：${res.model || res.provider || ''} · Grounding ${res.grounding}% · ${new Date().toLocaleString('zh-TW')}`,
+    '',
+  ];
+  for (const s of res.sections) {
+    lines.push(`## ${s.label}`, '', htmlToText(s.html).trim(), '');
+  }
+  lines.push('## 參考來源', '');
+  for (const src of res.sources) {
+    lines.push(`- [${src.no}] ${src.name}${src.date ? '（' + src.date + '）' : ''}`);
+  }
+  return lines.join('\n');
+}
+function safeName(s: string): string {
+  return (s.replace(/[\\/:*?"<>|]/g, '').slice(0, 40).trim()) || '政策報告';
+}
+function downloadReport(res: PolicyReportResult): void {
+  const blob = new Blob([reportToMarkdown(res)], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `政策報告-${safeName(res.topic)}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+/* 用隱藏 iframe 載入報告 → 瀏覽器列印 → 使用者可另存 PDF（不被彈窗封鎖、零依賴）。 */
+function printReport(res: PolicyReportResult): void {
+  const body = res.sections.map((s) => `<h2>${escHtml(s.label)}</h2><div>${s.html}</div>`).join('');
+  const srcs = res.sources.map((s) => `<li>[${s.no}] ${escHtml(s.name)}</li>`).join('');
+  const html =
+    `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">` +
+    `<title>政策報告：${escHtml(res.topic)}</title><style>` +
+    `body{font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 20px;line-height:1.75;color:#111}` +
+    `h1{font-size:22px} h2{font-size:16px;margin-top:22px;border-bottom:1px solid #ddd;padding-bottom:4px}` +
+    `.cite{font-size:11px;vertical-align:super;color:#2563eb;margin:0 2px}` +
+    `.foot{color:#666;font-size:12px;margin-bottom:18px} ol,ul{padding-left:20px}` +
+    `</style></head><body>` +
+    `<h1>政策報告：${escHtml(res.topic)}</h1>` +
+    `<div class="foot">產出：${escHtml(res.model || res.provider || '')} · Grounding ${res.grounding}% · ${new Date().toLocaleString('zh-TW')}</div>` +
+    `${body}<h2>參考來源</h2><ol>${srcs}</ol></body></html>`;
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  // srcdoc 的 onload 一定會觸發（不像 document.write），確保內容載入完成才列印
+  iframe.srcdoc = html;
+  iframe.onload = () => {
+    const win = iframe.contentWindow;
+    if (!win) { iframe.remove(); return; }
+    try { win.focus(); win.print(); } catch { /* noop */ }
+    setTimeout(() => iframe.remove(), 1500);
+  };
+  document.body.appendChild(iframe);
+}
+
 function renderReportCard(res: PolicyReportResult): void {
   const thread = $('#thread');
   const card = document.createElement('div');
@@ -586,9 +708,14 @@ function renderReportCard(res: PolicyReportResult): void {
   card.innerHTML =
     `<div class="mhead"><i></i>結構化產出 · ${res.topic}</div>` +
     `<div id="reportBody">${secHtml}</div>` +
+    '<div class="rptexports" style="display:flex;gap:8px;margin-top:12px">' +
+    '<button class="qchip" data-exp="md">下載 Markdown</button>' +
+    '<button class="qchip" data-exp="pdf">列印 / 存 PDF</button></div>' +
     `<div class="mfoot">${res.model || res.provider} · ${nowStr()} · report`
     + (citeCount ? ` · 引用 ${citeCount} 筆` : '') + '</div>';
   thread.appendChild(card);
+  card.querySelector('[data-exp="md"]')?.addEventListener('click', () => downloadReport(res));
+  card.querySelector('[data-exp="pdf"]')?.addEventListener('click', () => printReport(res));
   bindCites(card);
   scrollThread();
 }
@@ -723,19 +850,23 @@ const s: Screen = {
       template +
       '</div>';
 
-    // LLM 切換：只影響下一次生成/回答
+    // LLM 切換：真的切換後端生成模型（與設定頁同一 applyLlmMode 邏輯）
     el.querySelectorAll<HTMLButtonElement>('.lbtn').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         if (btn.classList.contains('on')) return;
-        el.querySelectorAll('.lbtn').forEach((x) => x.classList.remove('on'));
-        btn.classList.add('on');
-        llm = btn.getAttribute('data-llm') as keyof typeof MODEL;
-        setSetting('policy.llmMode', llm);
-        ctx.ui.toast({
-          title: '已切換 LLM 接口',
-          message: `${llm === 'local' ? '地端部署' : '雲端 API'}（${MODEL[llm]}），下次生成生效`,
-          duration: 3200,
-        });
+        const prev = llm;
+        const v = btn.getAttribute('data-llm') as keyof typeof MODEL;
+        el.querySelectorAll('.lbtn').forEach((x) => x.classList.toggle('on', x === btn)); // 樂觀切換
+        const res = await applyLlmMode(v);
+        if (res.ok) {
+          llm = v;
+          setSetting('policy.llmMode', v);
+          ctx.ui.toast({ title: '已切換 LLM 接口', message: res.message, duration: 3000 });
+        } else {
+          el.querySelectorAll('.lbtn').forEach((x) =>
+            x.classList.toggle('on', x.getAttribute('data-llm') === prev)); // 還原，後端維持原設定
+          ctx.ui.toast({ title: '無法切換接口', message: res.message, duration: 3400 });
+        }
       });
     });
 
@@ -758,9 +889,16 @@ const s: Screen = {
       const c = (e.target as HTMLElement).closest('.qchip');
       if (!c) return;
       const qi = Number(c.getAttribute('data-qi'));
-      let pair = currentQa()[qi];
-      if (curId === 'global') pair = { q: pair.q, a: resolveTokens(pair.a) }; // 送出當下解析，編號永遠正確
-      ask(pair, qi);
+      const pair = currentQa()[qi];
+      if (isLiveBrief(curId)) {                 // live 晨報：chip 走真後端，非預錄劇本
+        if (answering || generating) return;
+        st(curId).used.add(qi);
+        renderChips(currentQa(), curId);
+        void askLive(pair.q);
+        return;
+      }
+      // 綜合對話送出當下解析 {{c:名稱}}，編號永遠正確
+      ask(curId === 'global' ? { q: pair.q, a: resolveTokens(pair.a) } : pair, qi);
     });
     $('#qsend').addEventListener('click', sendFree);
     ($('#qinput') as HTMLInputElement).addEventListener('keydown', (e) => {
@@ -769,6 +907,7 @@ const s: Screen = {
 
     $('#genBtn').addEventListener('click', regenerate);
     $('#simBtn').addEventListener('click', flowIn);
+    $('#newsBtn').addEventListener('click', refreshNews);
 
     // 產報告：載入模版清單 + 綁定按鈕（後端不在則清單留空，產報告會 fallback 告知）
     $('#reportBtn').addEventListener('click', generateReport);

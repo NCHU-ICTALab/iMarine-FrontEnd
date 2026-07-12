@@ -3,10 +3,15 @@
    chat() 呼叫 POST /api/chat，把回答的 [ev_xxx] 標記轉成 cite span、evidence_items 映射成來源。
    後端不在時由呼叫端（policy screen）fallback 回罐頭訊息，不影響 demo。 */
 import type {
-  PolicyChatMsg, PolicyChatResult, PolicyReportResult, PolicyReportTemplate,
-  PolicySnapshot, PolicySource, Provider,
+  PolicyBrief, PolicyChatMsg, PolicyChatResult, PolicyReportResult,
+  PolicyReportTemplate, PolicySnapshot, PolicySource, Provider,
 } from '../types';
 import policyMock from '../mock/policy.json';
+
+/* live 晨報置頂，取代 mock 的 daily 類範例；保留突發/政策範例（那兩類尚未 live）。 */
+function mergeLiveBriefs(mockBriefs: PolicyBrief[], live: PolicyBrief[]): PolicyBrief[] {
+  return [...live, ...mockBriefs.filter((b) => b.type !== 'daily')];
+}
 
 /* source_type → iMarine 右欄五類分類標籤 */
 const CAT_BY_TYPE: Record<string, string> = {
@@ -39,12 +44,29 @@ export function createPolicyProvider(
   knowledgeBases(): Promise<PolicySource[]>;
   reportTemplates(): Promise<PolicyReportTemplate[]>;
   report(prompt: string, sourceIds: string[], templateId: string): Promise<PolicyReportResult>;
+  refreshNews(): Promise<PolicyBrief[]>;
 } {
   return {
     source: 'live',
     base,
     async snapshot() {
-      return structuredClone(policyMock as PolicySnapshot);
+      // 收件匣情報卡優先取後端 live 生成（目前為每日晨報）；後端不在則整份回 mock。
+      const snap = structuredClone(policyMock as PolicySnapshot);
+      try {
+        const r = await fetch(base + '/api/policy/briefs');
+        if (r.ok) {
+          const d = await r.json();
+          const live: PolicyBrief[] = d.briefs ?? [];
+          if (live.length) snap.briefs = mergeLiveBriefs(snap.briefs, live);
+        }
+      } catch { /* 後端不在 → 維持全 mock，demo 不掛 */ }
+      return snap;
+    },
+    async refreshNews() {
+      const r = await fetch(base + '/api/policy/refresh', { method: 'POST' });
+      if (!r.ok) throw new Error(`refresh HTTP ${r.status}`);
+      const d = await r.json();
+      return (d.briefs ?? []) as PolicyBrief[];
     },
     async knowledgeBases() {
       const r = await fetch(base + '/api/sources');

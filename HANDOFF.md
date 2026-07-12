@@ -2,6 +2,74 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
+最後更新：2026-07-12 **報告匯出（Markdown 下載 + 列印/存 PDF）+ 每日排程（可設定每天抓取時間），詳見「## 0-4」。同日稍早：②③ 雲端 API 設定 + 報告頁嫁接（設定頁加「模型 id」欄可接任意雲端端點、地端/雲端切換真切後端；報告頁實測用設定頁配置的模型），詳見「## 0-2」。先前同日：政策收件匣「每日晨報」改由新聞知識庫 live 生成 + 晨報可自由提問/建議 chips + 更新新聞按鈕（跨前後端，尚未 commit）**——後端新增 `ae_news` 知識庫 + 從中 LLM 生成 `DailyBrief`（含建議追問）的 `/api/policy/briefs`、`/api/policy/refresh`；前端 policy `snapshot()` 改接 live 晨報（取代 mock 晨報、保留突發/政策範例）+ 晨報卡開放自由提問與建議 chips 走真 `/api/chat` + 收件匣「更新新聞」按鈕。過程中發現並修復 embedding 維度既有問題（bge-m3 1024 vs 欄位 768，已 reembed 遷移）。詳見「## 0. 本輪」。（Alert 頁改版已於 2026-07-08 完結 push，見後）
+
+---
+
+## 0-5. 本輪追加（2026-07-12）測試連線訊息分類（A）+ Embedding 可設定（B）
+
+> 使用者回報「bge-m3、gpt-oss-120b 明明有卻連不上」。診斷：NCHC `/models` 有這些模型，但（1）「測試連線」只打 `/chat/completions`，**測不了 embedding 模型**（bge-m3 是 embedding）；（2）NCHC litellm 有 **429 限流**；（3）錯誤訊息太籠統。且 embedding 模型在 UI **根本無法設定**（model-id 欄只建 chat、改 embedding 下拉不 push 後端）。**尚未 commit。**
+
+- **A：測試連線訊息分類**。後端 `generation/provider.py` 的 `probe()` 加 `_classify_http_error`（429 限流／404 模型不存在／400/422 非 chat 模型／401 金鑰），且成功路徑改 robust（reasoning 型空 content 也算連上，實測 gpt-oss-120b→✓）。前端 `settings/sections/policy.ts` 的 `testBtn` catch 改為**顯示後端分類訊息**（原本吞掉只顯示籠統句）。
+- **B：Embedding 可在 UI 設定/測試/reembed**。後端：`indexing/embedding.py` 加 `probe()`（打 `/embeddings` 測試，回 ok/message/dim）；`api/routes/settings.py` 加 `POST /api/settings/embed/test` 與 `POST /api/settings/reembed`（接回 `reembed_all`，補上先前「reembed 未接 UI」缺口）。前端：`settings/backend.ts` 加 `testEmbedding/pushEmbedConfig/reembedAll`；`settings/sections/policy.ts` 新增 **`embeddingGroup`**（後端 api/local 切換 + 模型 id + URL/KEY + 測試連線 + 儲存 + 重新索引全部），註冊於 `policySection.groups`（模型管理下方）。實測：embeddinggemma-300m→維度 768、bge-m3→429、gpt-oss-120b(embed)→「非 embedding 模型」。
+- **注意**：模型管理「系統預設模型」內原本的 embedding 下拉仍在（未 push 後端、屬 legacy），新的 `Embedding 模型` group 才是真正生效處；日後可移除舊下拉。換 embedding 模型後務必按「重新索引全部」（維度可能變）。tsc 0 + build ok。
+
+---
+
+## 0-4. 本輪追加（2026-07-12）報告匯出 + 每日排程
+
+> 政策報告缺口盤點後，使用者選「先報告匯出、再每日排程（要能設定每天抓取時間）」。**尚未 commit。**
+
+- **報告匯出（前端 `src/screens/policy/index.ts`，經核准）**：`renderReportCard` 加兩顆按鈕「下載 Markdown」「列印 / 存 PDF」（只在 live 產出的報告卡出現，mock 範例卡不受影響）。新增 `reportToMarkdown()`（章節 html→純文字：cite span→`[n]`、`<br>`→換行、去標籤、解 entity + 參考來源清單）、`downloadReport()`（Blob 下載 `.md`）、`printReport()`（開新視窗載入報告 html + 列印樣式 → 瀏覽器列印/另存 PDF，**零依賴**）。tsc 0 + build ok。
+- **每日排程（後端，零依賴）**：`src/rag_agent/scheduler.py`——**不引 APScheduler**，改 asyncio 迴圈每 30s 檢查，到 `data/schedule_config.json` 的 `HH:MM`（伺服器本地時間）且當日未執行時，跑 `run_news_ingest + build_daily_brief`（當日只跑一次；config 變更即時生效）。`api/routes/schedule.py`：`GET/POST /api/schedule`。`main.py` startup 啟動迴圈。實測：config get/set + 迴圈啟動 + 直接呼叫 `_run_job()` 成功抓新聞+重生成。**demo 環境目前 enabled=False（clean）。**
+- **每日排程（前端，經核准）**：`settings/backend.ts` 加 `getSchedule/setSchedule/runNewsRefresh`；`settings/sections/policy.ts` 於 `policySection.groups` 加 `scheduleGroup()`——「新聞自動更新」設定區：啟用/停用 segmented + **每日時間 `<input type="time">`** + 「立即更新一次」按鈕 + 狀態（上次/下次執行）。位置：系統設定 → 政策報告 → 模型管理下方。tsc 0 + build ok。
+- **注意**：排程用**伺服器本地時間**（機器在台灣即台北時間，未引 tz 依賴）；伺服器需常駐才會觸發（uvicorn 在跑）；錯過當日時間不補跑。
+
+---
+
+## 0-3. 本輪追加（2026-07-12）④ 報告情境測試 + 修復「報告很爛」
+
+> 使用者回報「報告產出有點爛」。**根因＝知識庫幾乎是空的**：這輪全新 DB 只 ingest 了新聞（`ae_news` 211 chunks），其他 7 個來源（商港法、RSS、替代能源 5 庫）全 0 chunks，報告只能靠新聞標題硬湊。**（後端工作，前端無改動。）**
+
+- **修復**：跑 `POST /api/ingest/run`（完整 ingestion）→ 8 文件、278 chunks 新增並 embed（向量欄位已是 1024，bge-m3 正常寫入）。KB 現況 ~489 chunks：ae_news 211、商港法 76、ae_taiwan 74、ae_intl 65、RSS 24、ae_fuel 23、ae_education 10、ae_overview 6。**報告覆蓋率 41.7% → 58~100%**，內容紮實有據（IMO NZF/GFI/Tier 收費/氣候法/陽明·萬海 LNG…）。
+- **④ 情境測試 harness**（`iMarine-rag-backend`）：`scripts/eval_report.py`（6 代表性情境：綠色甲醇/IMO NZF/商港法/岸電/新聞彙整/船員培訓；量測 citation 覆蓋率、空章節、期望來源類型、單一來源撐整段；印表 + 存 markdown；stdout 強制 UTF-8 避開 Windows cp950 崩潰）+ `docs/report-scenarios.md`（情境目錄 + 驗收標準）。基準：**6/6 通過硬性標準**（覆蓋率門檻 + 無空章節 + 期望來源類型；商港法情境確實命中 regulation）。
+- **剩餘品質信號（軟性）**：部分章節「單一來源撐整段」（國際案例/政策法源/建議事項）；seafarer_training 最弱（58%，教育庫僅 10 chunks）。改進方向：檢索/prompt 層強化各章節證據多樣性、豐富薄的來源。
+- **維運提醒**：**新環境務必先跑一次 `POST /api/ingest/run`**，否則報告會因空庫而爛。資料存於 pgvector 具名 volume `imarine_pg_data`，容器重啟不遺失。
+- **新增兩個報告模版（取自真實航港報告結構）**：`templates.py` 加 `maritime_policy_research`（航港政策研究報告六段，仿交通部運研所《國際海運減碳趨勢與貨櫃運輸因應探討》：前言／國際規範趨勢／國際港口案例／我國現況／課題與挑戰／結論建議）與 `maritime_intel_brief`（國際海事動態分析五段，仿航港局《國際海事公約及趨勢動態掌握與因應分析》）。前端下拉自動多兩個選項（`/api/report/templates`）。**六段模版會被 1024 token 截斷末段** → `api/routes/report.py` 的 `max_new_tokens` 預設 1024→**2048**。實測：政策研究報告六段全滿、覆蓋 100%。demo 首選此模版（見 `DEMO.md`）。過去報告亦可上傳進知識庫當檢索參考（設定頁知識庫管理）。
+
+---
+
+## 0-2. 本輪追加（2026-07-12）②③ 雲端 API 設定 + 報告頁嫁接
+
+> 使用者原始清單 ②③。盤點後：後端 settings 端點、前端 `backend.ts` client、設定頁 Setup modal（測試/儲存/`syncLlmToBackend`→`POST /api/settings/llm`）**都已在**；`/api/report` 早已用 `provider.current()`（.env 預設即 NCHC 雲端 gemma-4-31B-it）。**③ 基本已成立**，本輪補齊 ② 的兩個縫。**尚未 commit。**
+
+- **縫 1：Setup modal 無「模型 id」輸入** → 接任意雲端端點（如 NCHC）時，測試連線用 placeholder 假模型會失敗、能選的也是假 id。**已修**（`src/screens/settings/sections/policy.ts`）：`pmodalHtml` 加 `#pm-model` 欄；`openProv` 帶入/重置；`testBtn` 雲端改用該欄真實模型測試、有填則設為唯一 chat 模型；`saveBtn` 儲存後自動把該 chat 模型設為系統預設推理模型，確保 `syncLlmToBackend` push 的是它。
+- **縫 2：「地端/雲端」segmented 只顯示、不真切後端**（且預設 Ollama `connected:true` 但未必有跑）。**已修**：新增 `export applyLlmMode(mode)`——地端＝已連線免金鑰供應商（**push 前先 `listOllamaModels` 探測可達性**，不通則不動後端）、雲端＝已連線需金鑰供應商；push 其 chat 模型到後端並設為推理預設，回 `{ok,message}`。設定頁 `llmGroup` toggle（改 `custom(el,ctx)` 用 `ctx.toast`）與 **政策頁標題列 toggle**（`src/screens/policy/index.ts` import `applyLlmMode`）都改為：樂觀切視覺 → `applyLlmMode` → 成功寫 `policy.llmMode`+toast、失敗還原視覺+toast（後端維持原設定）。
+- **驗證**：tsc 0 + build ok。後端端到端實測：`POST /api/settings/llm`（provider=測試雲端-NCHC）→ `GET /api/settings` 反映 → **`POST /api/report` 回 provider=測試雲端-NCHC、model=gemma-4-31B-it、4 章節**，證明報告用設定頁配置的模型。測後已還原 config 並移除 stray `data/llm_config.json`。
+- **注意/待辦**：地端模式需真的有跑 Ollama 才切得過去（使用者用 NCHC 雲端、不跑地端，屬預期）；瀏覽器視覺確認未做（無 playwright）——demo 前在設定頁「政策報告 · 模型管理」用「自訂供應商」填 NCHC URL/KEY/模型 id 測試連線→儲存，再回政策頁產報告確認走該模型。
+
+---
+
+## 0. 本輪（2026-07-12）政策晨報 live 生成 + 新聞知識庫
+
+> 使用者需求：抓 iMarine 替代能源新聞當知識庫，並讓 policy 收件匣的情報卡「像範例那樣」從知識庫 live 生成（而非只是外部連結清單）。**方向經一次修正**：先做的「收件匣尾端可點外部連結新聞區」被使用者判定方向錯誤（那把新聞當終點清單，非當生成原料），**已整段撤除**；改為對齊 spec §4.7 的做法——新聞進 KB → AI 生成情報卡。本輪先做 **daily（每日晨報）** 一類 live。**跨前後端，尚未 commit。**
+
+- **新聞資料源（去風險）**：新聞頁 `#/alternativeenergy/news` 背後真實 API 為 `GET https://imarine.motcmpb.gov.tw/api/news`（JSON 陣列、每日更新、實測 205→206 筆）。**不需 Playwright**。連結型聚合，**無全文內文**（正文都在外站），故 KB chunk 僅索引「標題＋來源＋分類＋關鍵字」。
+- **後端（`iMarine-rag-backend`，已本地驗證）**：
+  - 新聞當 KB：`ingestion/news_imarine.py`（`AltEnergyNewsConnector`，source_id=`ae_news`，type=`alt_energy`）+ `governance/chunking.py` 的 `AltEnergyNewsChunker`（chunk_id=`AE-NEWS-{id}`）+ `base.py` registry + `pipeline.py` PIPELINE。
+  - 晨報生成：`generation/daily_brief.py`——抓最新 12 則 `ae_news` → LLM（NCHC 雲端 gemma-4-31B-it）綜合成 `DailyBrief`（4-6 條重點各附新聞來源引用 + watch），快取 `data/daily_brief.json`。sources 重新編號對齊 item.cite。
+  - 端點：`api/routes/policy.py` = `GET /api/policy/briefs`（讀快取）、`POST /api/policy/refresh`（重抓新聞→重生成；embed best-effort 容錯，失敗回 `chunks_embedded=-1` 不 500）。`pipeline.run_news_ingest()` 只抓新聞。
+  - **修復既有 embedding 維度問題**：`.env` 用 bge-m3（1024 維）但 `chunks.embedding` 欄位是 `Vector(768)`，且 `reembed_all()` 從沒被任何端點呼叫過 → API embedding 一直寫不進。**已跑 `reembed_all()` 遷移**：欄位改 `vector(1024)`、206 chunks 全 embed、HNSW 重建。實測「荷姆茲海峽」dense 檢索命中 `ae_news`。**注意：全新 DB 仍是 768，換 embedding 模型後需再跑一次 reembed_all（目前無 UI/端點觸發，是缺口）。**
+- **前端（本 repo，經使用者核准後改；tsc 0 + build ok）**：
+  - `src/data/types.ts`：`DataExchange.policy` 加 `refreshNews?()`。
+  - `src/data/exchange/policy.ts`：`snapshot()` 改為先 `GET /api/policy/briefs` 取 live 晨報，`mergeLiveBriefs()` 讓 **live 晨報置頂、取代 mock 的 daily 類、保留突發/政策 mock 範例**；後端不在 fallback 全 mock。新增 `refreshNews()` → `POST /api/policy/refresh`。
+  - `src/screens/policy/index.ts`：`refreshNews()` 函式（重抓→更新 briefs→若在晨報則切到新晨報）+ `mount()` 綁 `#newsBtn`。`policy.html` 收件匣 cap 加「更新新聞」按鈕（重用 `.simbtn`）。
+  - **晨報可提問**：`sendFree()` 與 chip 點擊在 live 晨報（`isLiveBrief`，id=`day-live`）時走真 `/api/chat`（原本只有綜合對話 live，其餘回罐頭訊息）；`askLive()` 一般化——記住提問當下的卡（回應期間被切走則放棄）、晨報模式把答案證據以 `renderLiveAnswerSources()` 渲染到右欄（cite 對齊 provider 的 1..k 編號），global 模式維持原 `globalUnion` 映射。晨報的 `qa` 建議問題由後端 `daily_brief.py` 生成（`a` 留空，chip 點擊走 live）。實測 `/api/chat` 對新聞問題 grounded 回答、citation 覆蓋 87.5%、evidence 含 `ae_news`。
+- **驗證**：後端晨報生成品質良好（荷姆茲/陽明運價/UAE 原油等 5 條、grounding 100%）、`/api/policy/briefs`+`/refresh` 實測通過、reembed 後 dense 檢索命中新聞；前端 tsc 0 + build ok。**瀏覽器視覺確認未做**（無 playwright）——demo 前在 `npm run dev`（:5173，後端 :8100）人工看：收件匣頂部 live 晨報卡（items+watch+右欄新聞來源引用）+「更新新聞」按鈕。
+- **下一階段待辦**：incident/policy 兩類也改 live 生成（目前仍 mock）；② 設定頁雲端 API 連線 + ③ 報告頁走真 `/api/report`；④ 輔助報告情境測試；把 `reembed_all` 接到設定頁/端點；新聞每日定時排程（目前手動按鈕）。
+
+**（以下為前一輪「協作流程優化」，已完結並 push origin main，敘述保留於下方）**
+
 最後更新：2026-07-12 **「協作流程優化」輪：SDD 7 tasks 全數完成，分支 `collab-workflow`（自 main `39efe40`），尚未合併回 main、尚未 push。落地方案 B 四件套，解四痛點（契約沒對齊、PR 品質參差、整合測試費工、資訊銜接斷層）——dispatch/epidemic/alert 三頁 + policy 續接，各自獨立後端 repo、不同協作者。(1) `scripts/verify/` 雙層驗收：`lib.mjs` 純函式（`checkFields`/`summarize`/`formatResults`）+ `contract.mjs` 契約 smoke runner + `live.mjs` Playwright live runner，每模組一對 `contracts/<模組>.mjs`/`live/<模組>.mjs`（policy 實作、dispatch/epidemic/alert 骨架回「契約待定」）；(2) `.github/workflows/ci.yml`（PR + push main 三綠燈 tsc/vitest/build 把關）+ `.github/pull_request_template.md`；(3) `docs/collab/` 整合卡六檔（`README.md` port/env 分配總表 8100/8200/8300/8400 + `_template.md` + `policy.md` 填實 + `dispatch`/`epidemic`/`alert.md` 三骨架）；(4) `CONTRIBUTING.md` 協作單一入口（八節，含 §3 改動範圍白名單）+ `README.md`/`CLAUDE.md`/`.env.example` 接線（三後端變數 `VITE_DISPATCH_API`/`VITE_EPIDEMIC_API`/`VITE_ALERT_API`）。`package.json` 加三 script：`check`/`verify:contract`/`verify:live`。**Task 7（本輪）全站驗收**：三綠燈 tsc 0 / vitest 29 檔 143 tests 全綠（新增 verify-lib 11 tests）/ build ok；verify 全矩陣逐一實跑——dispatch/epidemic/alert 三模組 `verify:contract` 皆「契約待定」exit=2（設計內狀態）；policy `verify:contract`（本機 rag-agent `:8100` 確認未啟動）友善連線失敗 0 PASS/2 FAIL exit=1；alert `verify:live` 契約待定 exit=2、不起 dev server；policy `verify:live` 停在 mock fallback（綜合對話總覽卡文案 FAIL、右欄來源計數 `srcCount=24` PASS、零 pageerror PASS）exit=1；跑畢 `:5320` 確認 port clean。**誠實分野**：policy live 成功路徑（rag-agent 起後全 PASS/exit=0）本機未驗，僅驗過失敗路徑，如實記錄。文件互鏈全檢（CONTRIBUTING/PR 模板 `verify:` 引用、`docs/collab/` 六檔、`scripts/verify/` 全檔）皆存在無缺。新協作者自查演練（以「dispatch 後端協作者第一天」視角只讀 CONTRIBUTING.md + `docs/collab/dispatch.md`）：clone→環境建置（§2）→改動範圍（§3）→契約寫哪（整合卡 §4 + `contracts/dispatch.mjs`）→PR 前跑什麼（§6）→會被怎麼驗（§8）六步全數有明確指示，**無斷點**。詳細逐項證據見 `.superpowers/sdd/task-7-report.md`（scratch，未進版控）。spec：`docs/superpowers/specs/2026-07-12-collab-workflow-design.md`；plan：`docs/superpowers/plans/2026-07-12-collab-workflow.md`。**待使用者**：(1) 決定 finishing 時機（merge/push 到 main）；(2) push 後看 GitHub Actions「CI」首跑綠；(3) GitHub 設 branch protection required status check（workflow 名 `CI`、job 名 `check`，UI 上通常顯示為 `CI / check`）；(4) 之後本機或 CI 環境可起 rag-agent 時，補驗 `verify:contract -- policy`/`verify:live -- policy` 的成功路徑（全 PASS/exit=0），本輪只驗過失敗路徑；(5) 通知協作者 CONTRIBUTING.md 上線，dispatch/epidemic/alert 可以開始接後端。**殘留（非缺陷）**：dispatch/epidemic/alert 三模組契約「待定」為方案設計內狀態——骨架先行，後端負責人第一個 live PR 才填實整合卡 §4 + `scripts/verify/contracts/<模組>.mjs`，不是本輪遺漏。
 
 **（以下為前一輪「集中式背景影片層」，已完結並 push origin main，敘述保留於下方）**
