@@ -7,6 +7,8 @@ export interface ScreenDef {
   color: string;
   mode: Mode;
   icon: string; // <svg> 內部 path 標記（自基準檔 rail 按鈕搬）
+  bg?: string; // seamless loop 影片 URL；缺 → 無背景影片，退回點雲 canvas
+  poster?: string; // reduced-motion 靜態幀 URL；由 asset-prep 腳本預先抽好、進版控
   load(): Promise<{ default: Screen }>;
 }
 
