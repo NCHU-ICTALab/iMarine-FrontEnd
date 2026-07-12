@@ -313,6 +313,24 @@ scripts/demo/
 設計文件見 `docs/superpowers/specs/2026-07-12-ppt-presentation-demo-design.md`；
 講稿／cue 表／逐段分鏡／重錄索引見 `docs/presentation/簡報腳本.md`。
 
+## 頁面背景影片（集中式背景層）
+
+全站背景影片由 `src/shell/backdrop.ts` 集中管理：依目前頁面的 `ScreenDef.bg` 切換單一共用 `<video>`，
+缺 `bg` 的頁自動退回 `#harbor` 點雲。scrim 強度純 CSS 依 `body[data-mode]`（cover 輕 / ov 略暗 / doc 較重）。
+
+**替某頁加背景影片（一頁一次）：**
+
+1. 準備 seamless loop 的 mp4（H.264、約 1620×1080、< 2MB），放到 `src/screens/<id>/<id>-bg.mp4`。
+2. 抽 reduced-motion poster：`node scripts/backdrop-poster.mjs <id>`（產出同目錄 `<id>-poster.jpg`）。
+3. 在 `src/shell/registry.ts` 該頁 import mp4/jpg 並在其 `ScreenDef` 填 `bg`/`poster`：
+   ```ts
+   import xxxBg from '../screens/<id>/<id>-bg.mp4';
+   import xxxPoster from '../screens/<id>/<id>-poster.jpg';
+   // …該頁 def 內：
+   bg: xxxBg, poster: xxxPoster,
+   ```
+4. 支援頁：carbon / policy / dispatch / epidemic / alert / agent。**twin 不加**（原生 WebGL 自填畫面）。
+
 ## 協作者指南
 
 左側 rail 底部的「系統設定」（`settings`）頁是 schema 驅動的設定框架：協作者要幫自己負責的
