@@ -2,7 +2,31 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-12 **報告匯出（Markdown 下載 + 列印/存 PDF）+ 每日排程（可設定每天抓取時間），詳見「## 0-4」。同日稍早：②③ 雲端 API 設定 + 報告頁嫁接（設定頁加「模型 id」欄可接任意雲端端點、地端/雲端切換真切後端；報告頁實測用設定頁配置的模型），詳見「## 0-2」。先前同日：政策收件匣「每日晨報」改由新聞知識庫 live 生成 + 晨報可自由提問/建議 chips + 更新新聞按鈕（跨前後端，尚未 commit）**——後端新增 `ae_news` 知識庫 + 從中 LLM 生成 `DailyBrief`（含建議追問）的 `/api/policy/briefs`、`/api/policy/refresh`；前端 policy `snapshot()` 改接 live 晨報（取代 mock 晨報、保留突發/政策範例）+ 晨報卡開放自由提問與建議 chips 走真 `/api/chat` + 收件匣「更新新聞」按鈕。過程中發現並修復 embedding 維度既有問題（bge-m3 1024 vs 欄位 768，已 reembed 遷移）。詳見「## 0. 本輪」。（Alert 頁改版已於 2026-07-08 完結 push，見後）
+最後更新：2026-07-13 **PR #2 merge 後全面驗收 + 4 findings 全數修復並 push 後端**——協作者 PR #2（policy 晨報 live + 排程 + embedding 設定 + 報告匯出）已 merge（`0ea4762`），owner 本機以 Gemini（OpenAI 相容端點）替代 NCHC 金鑰做完整測試，全功能通過；4 個 findings（①②③④）**已直接在後端 repo 修好、commit `acf5550` push 上 `NCHU-ICTALab/iMarine-rag-backend` main**（經 owner 授權直接 push），逐一實測通過。前端側只補契約文件（`docs/collab/policy.md` §4 魔術值 + §8 變更列），**留工作區未 commit，待 owner 自行 commit**。詳見「## -1. 驗收輪」。
+
+---
+
+## -1. 驗收輪（2026-07-13）PR #2 merge 後完整測試
+
+> 環境：後端 `../iMarine-rag-backend`（clone 自 GitHub）+ pgvector 容器 `imarine-pg`（:5544，具名 volume `imarine_pg_data`）+ `.env` 用 owner 的 Gemini key 走 OpenAI 相容端點（LLM=`gemini-2.5-flash-lite`、embed=`gemini-embedding-001` 3072 維；`.env`/`uv.lock` 皆 gitignore，勿提交）。**4 findings 已於後端 commit `acf5550` 全修並 push main**（原先 ①② 的本地補丁已正式化進該 commit，無殘留未 commit 補丁）。
+
+**通過項**：前端 `npm run check` 三綠燈；`verify:contract -- policy` **4/4 PASS**（成功路徑，PR 原本未驗）；`verify:live -- policy` **3/3 PASS**；ingest 8 來源 487 chunks；`reembed` 端點實測（487 段、3072 維、HNSW 超維自動略過）；晨報 live 生成（grounding 100%、6 重點附引用、id=`day-live`/type=`daily` 與前端魔術值一致）；「更新新聞」按鈕全流程（重生成→置頂→自動切卡→右欄同步）；晨報 chip 提問走真 `/api/chat`（live · 引用 8 筆、右欄換成答案來源）；設定頁排程區雙向同步（啟用→「下次 2026-07-14 06:30」、後端狀態一致，測畢已還原停用）；設定頁 embedding 區讀到 live 狀態＋測試連線分類訊息；產報告（四章節、coverage 100%）＋報告卡「下載 Markdown」內容正確（標題/模型註記/章節/參考來源）＋「列印/存 PDF」有觸發原生列印；後端掛掉/LLM 5xx 時前端 fallback 訊息皆正確、demo 不掛。
+
+**Findings（全數已修，後端 commit `acf5550`，依嚴重度）**：
+1. ✅ **後端 `_embed_api` 不分批**（`indexing/embedding.py`）——整份 chunks 一次 POST `/embeddings`，Gemini 上限 100 筆/請求直接 400（NCHC/bge-m3 碰巧吃得下所以協作者沒踩到）。**已修**：按 `BATCH_SIZE=64` 分批迴圈；ingest/reembed 全走此函式一併受惠。
+2. ✅ **後端 startup 建 HNSW 索引無保護**（`db/session.py`）——embedding >2000 維（如 gemini-embedding-001 3072）時 `CREATE INDEX` 炸掉、**後端完全起不來**；`reembed_all()` 自己有 try/except，startup 沒有。**已修**：try/except + warning，與 `reembed_all()` 一致；重啟實測 3072 維資料下正常啟動。
+3. ✅ **embedding「儲存」留空 key 會洗掉已存 key**——前端 placeholder 寫「留空＝沿用現有」，但送空字串、後端 `set_embed` 整包覆寫落檔。**已修（純後端）**：`set_embed`/`test_embed` 的 `api_key` 留空時沿用 `embedding.current().api_key`；前端零改動即符合 placeholder 語意。實測：空 key 存檔後 `api_key_tail` 仍為 `…DxOI`、測試連線用已存 key 成功。
+4. ✅ **設定頁「立即更新一次」後狀態永遠「尚未執行過」**——`last_run_at` 只有排程迴圈的 `_run_job()` 會寫，手動路徑不寫。**已修**：抽出 `scheduler.mark_run()`，`POST /api/policy/refresh` 成功後呼叫；實測 refresh 後 `GET /api/schedule` 的 `last_run_at`/`last_result` 有值。
+
+**附帶（`greenlet` 已一併處理）**：後端 `greenlet` 加入 `pyproject.toml`（macOS/py3.13 缺，`uv lock` 已含）；`uv.lock` 為 gitignore、靠 pyproject 宣告即可。**仍未處理（記錄用，不擋 demo）**：thinking 型模型（gemini-2.5-flash）會把 `daily_brief` 的 `max_tokens=1024` 吃光導致晨報生成失敗（gemma/flash-lite 正常，demo 用後者即可）；後端 5xx 回應無 CORS header（瀏覽器顯示為 CORS 錯，實為 500）；新聞來源標題偶帶 `**` markdown 星號直接顯示（上游資料即如此）；Gemini 免費層偶發 503，重試即過。
+
+**契約已補記**：`docs/collab/policy.md` §4 已明文 `briefs[].id === 'day-live'`、`type === 'daily'`（前端 `isLiveBrief`/`mergeLiveBriefs` 依賴這兩值）+ §8 變更列。**此為前端唯一未 commit 變更，待 owner commit。**
+
+**環境現況（測畢保留，可直接 demo）**：`imarine-pg` 容器運行中、rag-agent :8100 運行中（Gemini 設定）、dev server :5173 運行中；排程已還原 enabled=false。要關：`pkill -f uvicorn`、`docker stop imarine-pg`。
+
+（以下為協作者 PR #2 帶入的紀錄）
+
+原「最後更新」：2026-07-12 **報告匯出（Markdown 下載 + 列印/存 PDF）+ 每日排程（可設定每天抓取時間），詳見「## 0-4」。同日稍早：②③ 雲端 API 設定 + 報告頁嫁接（設定頁加「模型 id」欄可接任意雲端端點、地端/雲端切換真切後端；報告頁實測用設定頁配置的模型），詳見「## 0-2」。先前同日：政策收件匣「每日晨報」改由新聞知識庫 live 生成 + 晨報可自由提問/建議 chips + 更新新聞按鈕（跨前後端，尚未 commit）**——後端新增 `ae_news` 知識庫 + 從中 LLM 生成 `DailyBrief`（含建議追問）的 `/api/policy/briefs`、`/api/policy/refresh`；前端 policy `snapshot()` 改接 live 晨報（取代 mock 晨報、保留突發/政策範例）+ 晨報卡開放自由提問與建議 chips 走真 `/api/chat` + 收件匣「更新新聞」按鈕。過程中發現並修復 embedding 維度既有問題（bge-m3 1024 vs 欄位 768，已 reembed 遷移）。詳見「## 0. 本輪」。（Alert 頁改版已於 2026-07-08 完結 push，見後）
 
 ---
 

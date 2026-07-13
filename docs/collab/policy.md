@@ -86,6 +86,10 @@ response：`{ "briefs": PolicyBrief[] }`（`PolicyBrief` 形狀見 `src/data/typ
 - `snapshot()` 取 `briefs`，以 `mergeLiveBriefs()` 讓 **live 晨報置頂、取代 mock 的 daily 類、保留突發/政策 mock 範例**
 - 後端不在或 `briefs` 空 → 前端維持全 mock 收件匣（demo 不掛）
 
+> **前端依賴的兩個固定欄位值（後端契約，勿變）**：
+> - 每則 live 晨報 **`type` 必須是 `"daily"`**——`mergeLiveBriefs()` 靠它取代 mock 的 daily 類、保留突發/政策；若後端改別的值，晨報會與 mock 範例並存而重複堆疊。
+> - 每日晨報那則的 **`id` 必須是 `"day-live"`**——前端 `isLiveBrief()`（`src/screens/policy/index.ts`）靠它判定「這張卡的自由提問與建議 chip 走真 `/api/chat`」；若 id 改了，晨報卡會靜默退化成不能提問的預錄卡。
+
 ### POST /api/policy/refresh → 200
 
 無 request body。response：`{ "briefs": PolicyBrief[] }`（重抓新聞→重生成後的最新晨報）。前端 `refreshNews()` 取 `briefs`；settings「立即更新一次」只取狀態不消費 briefs。
@@ -126,3 +130,4 @@ response：`{ "briefs": PolicyBrief[] }`（`PolicyBrief` 形狀見 `src/data/typ
 |---|---|
 | 2026-07-12 | 初版：自 `src/data/exchange/policy.ts` 現行呼叫整理 §4；§2 待後端負責人填 |
 | 2026-07-12 | 加 `/api/policy/briefs`（snapshot live 晨報）、`/api/policy/refresh`（更新新聞）、`/api/schedule`（每日排程）、`/api/settings/embed*`（embedding 設定）；§5 snapshot 改記 live 晨報；`refreshNews()` 契約 |
+| 2026-07-13 | §4 briefs 補記前端依賴的固定欄位值：live 晨報 `type="daily"`、每日晨報 `id="day-live"`（後端 acf5550 一併驗證）；embedding `api_key` 留空＝沿用已存金鑰、`/refresh` 也寫 schedule `last_run_at`（後端 acf5550） |
