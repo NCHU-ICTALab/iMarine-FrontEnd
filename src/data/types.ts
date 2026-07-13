@@ -184,6 +184,7 @@ export interface DataExchange {
     knowledgeBases?(): Promise<PolicySource[]>;   // 綜合對話右欄的真實知識庫清單
     reportTemplates?(): Promise<PolicyReportTemplate[]>;
     report?(prompt: string, sourceIds: string[], templateId: string): Promise<PolicyReportResult>;
+    refreshNews?(): Promise<PolicyBrief[]>;         // 重抓新聞並重新生成晨報（「更新新聞」按鈕）
   };
   dispatch: Provider<DispatchSnapshot>;
   epidemic: Provider<EpidemicSnapshot>;
