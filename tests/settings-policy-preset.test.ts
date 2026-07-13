@@ -2,14 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { PROVIDER_PRESET, KB_PRESET, DEFAULTS_PRESET, getProviders, getKbs, getDefaults } from '../src/screens/settings/sections/policy';
 
 describe('policy 預置資料契約', () => {
-  it('供應商：3 家預置、Ollama 已連線含三種 kind、雲端家帶 catalog', () => {
-    expect(PROVIDER_PRESET).toHaveLength(3);
+  it('供應商：4 家預置、Ollama 已連線含三種 kind、雲端家帶 catalog、Gemini 預填 url', () => {
+    expect(PROVIDER_PRESET).toHaveLength(4);
     const ollama = PROVIDER_PRESET.find((p) => p.id === 'ollama')!;
     expect(ollama.connected).toBe(true);
     expect(new Set(ollama.models.map((m) => m.kind))).toEqual(new Set(['chat', 'embedding', 'rerank']));
     PROVIDER_PRESET.filter((p) => !p.connected).forEach((p) => {
       expect(p.catalog && p.catalog.length).toBeTruthy();
     });
+    // Gemini（OpenAI 相容）：url 固定不好記，故預填讓使用者只需貼 key
+    const gemini = PROVIDER_PRESET.find((p) => p.id === 'gemini')!;
+    expect(gemini.url).toBe('https://generativelanguage.googleapis.com/v1beta/openai');
+    expect(gemini.catalog!.some((m) => m.kind === 'chat')).toBe(true);
   });
   it('知識庫：五庫、文件數 12/9/7/8/6、每庫 chunk 與 retrieval 欄位齊全', () => {
     expect(KB_PRESET.map((k) => k.docs.length)).toEqual([12, 9, 7, 8, 6]);

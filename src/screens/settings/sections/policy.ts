@@ -62,6 +62,15 @@ export const PROVIDER_PRESET: ProviderCfg[] = [
     url: '', key: '', connected: false, models: [],
     catalog: [{ id: 'claude-sonnet-5', kind: 'chat' }, { id: 'claude-haiku-4-5', kind: 'chat' }],
   },
+  {
+    // Gemini（OpenAI 相容端點）：url 固定且不好記，故預填；點開卡片貼 key 即可測試連線。
+    id: 'gemini', name: 'Gemini', urlPh: 'https://generativelanguage.googleapis.com/v1beta/openai', keyOptional: false,
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai', key: '', connected: false, models: [],
+    catalog: [
+      { id: 'gemini-2.5-flash', kind: 'chat' }, { id: 'gemini-2.5-flash-lite', kind: 'chat' },
+      { id: 'gemini-embedding-001', kind: 'embedding' },
+    ],
+  },
 ];
 
 /* ---------- 知識庫（Kb） ---------- */
