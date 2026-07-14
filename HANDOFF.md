@@ -2,7 +2,11 @@
 
 > 活文件：目前進度、決策紀錄、下一步。接手先讀這份，再讀 `CLAUDE.md`。
 
-最後更新：2026-07-13 **PR #2 merge 後全面驗收 + 4 findings 全數修復並 push 後端**——協作者 PR #2（policy 晨報 live + 排程 + embedding 設定 + 報告匯出）已 merge（`0ea4762`），owner 本機以 Gemini（OpenAI 相容端點）替代 NCHC 金鑰做完整測試，全功能通過；4 個 findings（①②③④）**已直接在後端 repo 修好、commit `acf5550` push 上 `NCHU-ICTALab/iMarine-rag-backend` main**（經 owner 授權直接 push），逐一實測通過。前端側只補契約文件（`docs/collab/policy.md` §4 魔術值 + §8 變更列），**留工作區未 commit，待 owner 自行 commit**。詳見「## -1. 驗收輪」。
+最後更新：2026-07-14 **Twin 停船朝向穩定化（修原地打轉）+ 船隻跟隨模式（Cities: Skylines 式）**——SDD 5 tasks 全數完成、逐 task review 全綠（零 Critical/Important），分支 `twin-heading-follow`（自 main `e95fbe0`）。**尚未合併回 main、尚未 push——待使用者 finishing 決策 + 主觀視覺目視。** 落地：①`src/screens/twin/time/heading.ts` 純函式載入時逐點預算「穩定朝向 + 靠泊鎖定」（停船不再逐點抖轉，貼碼頭鎖切線且不掉頭、錨地保持進來航向；任一時刻朝向是 tMs 的確定性純函式）；②`scene-init.ts` `updateShips` 朝向改查預算、`pickShipAt` 加 mmsi + 逐時刻靠泊狀態；③`scene-init.ts` `follow(mmsi,onEnd)`/`unfollow()`——tween 進場 + 每幀把 `controls.target` 與相機等量平移鎖定船位（環繞/縮放不被覆蓋），船被篩掉/scrub 出範圍自動退出；④`index.ts` 點船→chip「再點一次跟隨」→同船再點進入跟隨，Esc/點空白/換船/切未來推演分頁/視角預設鈕退出 + `twin.css` chip 跟隨態。**驗收（誠實分野）**：`npm run check` 三綠燈（tsc 0 / vitest 30 檔 151 tests / build ok，新增 twin-heading 8 tests）；headless SwiftShader 實測——朝向恆定斷言（mmsi=416014513 靠泊段 5 取樣 spread=**0.00e+0 rad**、零 pageerror）+ 跟隨鎖定 smoke（target 鎖船心 dx=dz=**0.000**、unfollow 乾淨、零 pageerror）皆 PASS。**待使用者主觀目視**（自動化無法判定）：tween 順暢度、跟隨中拖曳環繞/滾輪縮放手感、chip 跟隨態外觀（`.follow` `bottom:112px` 位置可微調）、Esc/切分頁/視角鈕退出的即時感。spec：`docs/superpowers/specs/2026-07-14-twin-heading-follow-design.md`；plan：`docs/superpowers/plans/2026-07-14-twin-heading-follow.md`。
+
+**（以下為前一輪「PR #2 merge 後全面驗收」，已 commit 並 push origin main，敘述保留於下方）**
+
+原「最後更新」：2026-07-13 **PR #2 merge 後全面驗收 + 4 findings 全數修復並 push 後端**——協作者 PR #2（policy 晨報 live + 排程 + embedding 設定 + 報告匯出）已 merge（`0ea4762`），owner 本機以 Gemini（OpenAI 相容端點）替代 NCHC 金鑰做完整測試，全功能通過；4 個 findings（①②③④）**已直接在後端 repo 修好、commit `acf5550` push 上 `NCHU-ICTALab/iMarine-rag-backend` main**（經 owner 授權直接 push），逐一實測通過。前端側只補契約文件（`docs/collab/policy.md` §4 魔術值 + §8 變更列），**留工作區未 commit，待 owner 自行 commit**。詳見「## -1. 驗收輪」。
 
 ---
 
