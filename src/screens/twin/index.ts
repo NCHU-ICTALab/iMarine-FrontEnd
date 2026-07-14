@@ -47,28 +47,49 @@ const s: Screen = {
     // 點船資訊 chip（學 OPTICS click-to-inspect；輕量、點空白或 scrub 即收）。
     // 骨架用固定 innerHTML，動態文字（含 AIS 船名）一律 textContent 塞入。
     const chip = el.querySelector<HTMLElement>('#shipchip')!;
-    chip.innerHTML = '<b></b><span class="row"><i></i><span class="c-cat"></span><span>·</span><span class="c-st"></span><span>·</span><span class="c-kn"></span></span>';
+    chip.innerHTML = '<b></b><span class="row"><i></i><span class="c-cat"></span><span>·</span><span class="c-st"></span><span>·</span><span class="c-kn"></span></span><span class="hint"></span>';
     const chipName = chip.querySelector('b')!;
     const chipDot = chip.querySelector<HTMLElement>('.row i')!;
     const chipCat = chip.querySelector('.c-cat')!;
     const chipSt = chip.querySelector('.c-st')!;
     const chipKn = chip.querySelector('.c-kn')!;
+    const chipHint = chip.querySelector<HTMLElement>('.hint')!;
+    let selectedMmsi: string | null = null;
+    let following = false;
     const hideChip = () => { chip.hidden = true; };
+    // 跟隨結束（Esc/點空白/換船/自動退出）時同步 UI;交給 scene.follow 的 onEnd 統一觸發。
+    const endFollowUi = () => { following = false; selectedMmsi = null; chip.classList.remove('follow'); hideChip(); };
     canvas.addEventListener('click', (e) => {
       const info = scene!.pickShipAt(e.clientX, e.clientY);
-      if (!info) { hideChip(); return; }
+      if (!info) { scene!.unfollow(); endFollowUi(); return; }        // 點空白 → 退出+收 chip
+      if (info.mmsi === selectedMmsi && !following) {
+        following = true;                                              // 同船再點 → 進入跟隨
+        chip.classList.add('follow');
+        chipHint.textContent = 'Esc 退出跟隨';
+        scene!.follow(info.mmsi, endFollowUi);
+        return;
+      }
+      scene!.unfollow();                                               // 換船 → 先退出既有跟隨
+      following = false; selectedMmsi = info.mmsi;
       const c = SHIP_CATEGORY_COLORS[info.catIndex];
       chipName.textContent = info.name;
       chipDot.style.background = `rgb(${c.join(',')})`;
       chipCat.textContent = info.category;
       chipSt.textContent = info.state;
       chipKn.textContent = `${info.speedKn.toFixed(1)} kn`;
+      chipHint.textContent = '再點一次跟隨';
+      chip.classList.remove('follow');
       chip.style.left = `${e.clientX}px`; chip.style.top = `${e.clientY}px`;
       chip.hidden = false;
     });
-    timeline.onScrub(hideChip);
-    modeApi.onChange(hideChip);
-    el.querySelectorAll('.vbtn').forEach((b) => b.addEventListener('click', hideChip));
+    timeline.onScrub(() => { if (!following) hideChip(); });          // 跟隨中 scrub 不收指示
+    modeApi.onChange(() => { scene!.unfollow(); endFollowUi(); });    // 切未來推演 → 退出
+    el.querySelectorAll('.vbtn').forEach((b) => b.addEventListener('click', () => {
+      endFollowUi();                                                   // flyTo 內部已 unfollow(Task 3)
+    }));
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && el.classList.contains('active')) scene!.unfollow();
+    });
 
     // 視角預設
     el.querySelectorAll<HTMLButtonElement>('.vbtn').forEach((btn) => {
