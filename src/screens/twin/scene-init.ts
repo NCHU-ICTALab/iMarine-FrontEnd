@@ -52,6 +52,8 @@ export interface TwinScene {
   setDensity(on: boolean): void;
   flyTo(preset: ViewPreset): void;
   pickShipAt(clientX: number, clientY: number): ShipPickInfo | null;
+  follow(mmsi: string, onEnd?: () => void): void;
+  unfollow(): void;
 }
 
 interface Snapshot { capturedAtMs: number; berthing: VesselRecord[]; forecast: VesselRecord[]; }
@@ -411,6 +413,7 @@ export function initTwinScene(canvas: HTMLCanvasElement): TwinScene {
     get shipCenters() { return shipCenters; },
     setBasemapTint: (hex: number) => { (mapPlane.material as THREE.MeshBasicMaterial).color.setHex(hex); },
     markCranes, clearMarks, labelCranes,
+    follow, unfollow,
     trace: {
       start() { trace.on = true; console.log('[trace] ON — click along the coast; then __twin.trace.dump(). .undo() / .clear() / .stop()'); },
       stop() { trace.on = false; console.log(`[trace] OFF (${trace.pts.length} pts)`); },
@@ -434,6 +437,7 @@ export function initTwinScene(canvas: HTMLCanvasElement): TwinScene {
   };
   let flyRaf = 0;
   function flyTo(preset: ViewPreset): void {
+    unfollow();
     const to = PRESETS[preset];
     const cam = engine.camera3D;
     const fp = cam.position.clone();
@@ -452,6 +456,81 @@ export function initTwinScene(canvas: HTMLCanvasElement): TwinScene {
     };
     flyRaf = requestAnimationFrame(step);
   }
+
+  // ── 船隻跟隨（Cities: Skylines 式;spec 2026-07-14 §2）──
+  // 進場:重用 flyTo 的 650ms ease tween,終點每幀追船的當下位置。之後每幀把
+  // controls.target 與相機「等量平移」到船位——使用者的環繞角度/縮放距離不被覆蓋。
+  let followMmsi: string | null = null;
+  let followEnd: (() => void) | null = null;
+  let followTween = 0; // rAF id;>0 表示進場 tween 中
+
+  function shipWorldAt(mmsi: string, tMs: number): { x: number; z: number } | null {
+    const t = trackByMmsi.get(mmsi);
+    if (!t) return null;
+    const rp = positionAt(t, tMs);
+    return rp ? proj.toWorld(rp.lat, rp.lon) : null;
+  }
+
+  function unfollow(): void {
+    if (followTween) { cancelAnimationFrame(followTween); followTween = 0; }
+    if (!followMmsi) return;
+    followMmsi = null;
+    const cb = followEnd; followEnd = null;
+    cb?.();
+  }
+
+  function follow(mmsi: string, onEnd?: () => void): void {
+    const w0 = shipWorldAt(mmsi, currentMs);
+    if (!ctrl || !w0) { onEnd?.(); return; }   // 無法跟隨 → 立即結束,讓 UI 同步
+    unfollow();
+    followMmsi = mmsi; followEnd = onEnd ?? null;
+    // 取景距離:船長×4,下限 ~400m(與 cameraMinDistance 註解的貼近尺度一致)
+    const track = trackByMmsi.get(mmsi)!;
+    const meta = trackMeta.get(mmsi)!;
+    const loaU = (track.loaM ?? TYPE_DIMS_M[meta.category].loa) * WORLD_SCALE;
+    const viewDist = Math.max(loaU * 4, 4 * S);
+    const cam = engine.camera3D;
+    // 保留現在的環繞方位,拉到 viewDist、仰角至少 ~30°
+    const dir = cam.position.clone().sub(ctrl.target);
+    if (dir.lengthSq() < 1e-6) dir.set(0, 1, 1);
+    dir.normalize();
+    if (dir.y < 0.5) { dir.y = 0.5; dir.normalize(); }
+    const offset = dir.multiplyScalar(viewDist);
+    if (prefersReduced()) {
+      ctrl.target.set(w0.x, 0, w0.z);
+      cam.position.set(w0.x + offset.x, offset.y, w0.z + offset.z);
+      return;
+    }
+    const fp = cam.position.clone(), ft = ctrl.target.clone();
+    const t0 = performance.now(), DUR = 650;
+    const step = (now: number) => {
+      if (!followMmsi) { followTween = 0; return; }        // tween 中被 unfollow
+      const wNow = shipWorldAt(followMmsi, currentMs);
+      if (!wNow) { followTween = 0; unfollow(); return; }  // tween 中船失去資料
+      const k = Math.min(1, (now - t0) / DUR);
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      ctrl!.target.set(ft.x + (wNow.x - ft.x) * e, ft.y + (0 - ft.y) * e, ft.z + (wNow.z - ft.z) * e);
+      cam.position.set(
+        fp.x + (wNow.x + offset.x - fp.x) * e,
+        fp.y + (offset.y - fp.y) * e,
+        fp.z + (wNow.z + offset.z - fp.z) * e,
+      );
+      followTween = k < 1 ? requestAnimationFrame(step) : 0;
+    };
+    followTween = requestAnimationFrame(step);
+  }
+
+  // 每幀鎖定(tween 結束後生效)。scrub/播放/倍速皆持續追;船失去資料或被篩掉 → 自動退出。
+  engine.addUpdate(() => {
+    if (!followMmsi || followTween || !ctrl) return;
+    if (!filter.has(trackMeta.get(followMmsi)!.category)) { unfollow(); return; }
+    const w = shipWorldAt(followMmsi, currentMs);
+    if (!w) { unfollow(); return; }
+    const dx = w.x - ctrl.target.x, dz = w.z - ctrl.target.z;
+    if (dx === 0 && dz === 0) return;
+    ctrl.target.x += dx; ctrl.target.z += dz;
+    engine.camera3D.position.x += dx; engine.camera3D.position.z += dz;
+  });
 
   // ── 航跡密度圖層（學 MPA 密度熱圖;443 條航跡全點疊加,懶初始化）──
   let densityPC: PointCloud | null = null;
@@ -511,5 +590,5 @@ export function initTwinScene(canvas: HTMLCanvasElement): TwinScene {
     };
   }
 
-  return { engine, refresh, setFilter, setDensity, flyTo, pickShipAt };
+  return { engine, refresh, setFilter, setDensity, flyTo, pickShipAt, follow, unfollow };
 }
