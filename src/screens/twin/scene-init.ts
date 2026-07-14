@@ -23,6 +23,7 @@ import { buildPierSegs, nearestPierTangent } from './scene/orient';
 import { shortBerthLabel, type BerthMarker } from './data/berthGeometry';
 import berthsData from './data/berths-khh.json';
 import labelFontUrl from './data/fonts/zones-subset.woff?url';
+import { stabilizeTrackHeadings, headingAt, berthLockedAt, type HeadingAux } from './time/heading';
 
 // ── 時鐘格式化（自 ./ui/overlay 內聯搬入，逐字複製）──
 const TAIPEI_MS = 8 * 3600_000;
@@ -36,6 +37,7 @@ export function fmtClock(ms: number): string {
 
 // ── 場景握把型別（Task 4-8 依賴，簽名固定）──
 export interface ShipPickInfo {
+  mmsi: string;
   name: string;
   category: ShipCategory;
   catIndex: number;
@@ -88,21 +90,25 @@ const INCOMING_WINDOW = 6 * 3600_000; // 預報前瞻 6 小時
 // 預建碼頭線段(世界座標),供靠泊船朝向對齊用(L2:此 feed 無 heading,靜止船朝向不可靠)。
 const pierSegs = buildPierSegs(osm.piers, proj);
 
-// Per-track 預算快取(類別 / TWPort join / 是否靠泊 / 碼頭朝向)—— 這些都是靜態的,
-// 不該每幀重算(M1)。靠泊判定:整段軌跡淨位移 < 100m(1 世界單位)。
-interface TrackMeta { category: ShipCategory; vessel: VesselRecord | null; pierAligned: boolean; pierH: number; }
+// Per-track 預算快取(類別 / TWPort join)—— 靜態資料不該每幀重算(M1)。
+// 朝向改由 headingAux 逐點預算（見下），不再整段一刀切。
+interface TrackMeta { category: ShipCategory; vessel: VesselRecord | null; }
 const trackMeta = new Map<string, TrackMeta>();
-const STATIONARY_U = 100 * WORLD_SCALE;  // 淨位移 < 100m 視為靠泊(隨尺度調整)
 const PIER_SNAP_MAX = 300 * WORLD_SCALE; // 靠泊船離最近碼頭 < 300m 才對齊朝向;更遠(錨地)維持航向、不亂指
 for (const t of tracks) {
-  const category = categoryForTrack(t, allVessels);
-  const vessel = joinTwport(t, allVessels);
-  const p0 = t.path[0], pl = t.path[t.path.length - 1];
-  const a = proj.toWorld(p0[0], p0[1]), b = proj.toWorld(pl[0], pl[1]);
-  const stationary = Math.hypot(b.x - a.x, b.z - a.z) < STATIONARY_U;
-  const np = nearestPierTangent(a.x, a.z, pierSegs);
-  const pierAligned = stationary && np.distU < PIER_SNAP_MAX; // 靠泊且貼近碼頭才對齊;否則(錨地/移動)用航向
-  trackMeta.set(t.mmsi, { category, vessel, pierAligned, pierH: np.headingRad });
+  trackMeta.set(t.mmsi, { category: categoryForTrack(t, allVessels), vessel: joinTwport(t, allVessels) });
+}
+const trackByMmsi = new Map(tracks.map((t) => [t.mmsi, t] as const));
+
+// 逐點穩定朝向 + 靠泊鎖定預算（修停船原地打轉；spec 2026-07-14）。
+const headingAux = new Map<string, HeadingAux>();
+for (const t of tracks) {
+  headingAux.set(t.mmsi, stabilizeTrackHeadings(t.path, {
+    toWorld: (lat, lon) => proj.toWorld(lat, lon),
+    nearestPier: (x, z) => nearestPierTangent(x, z, pierSegs),
+    pierSnapMaxU: PIER_SNAP_MAX,
+    worldScale: WORLD_SCALE,
+  }));
 }
 
 // ── 模組層純資料 API（import 即可用，不需 WebGL）──
@@ -180,11 +186,9 @@ export function initTwinScene(canvas: HTMLCanvasElement): TwinScene {
       const dim = TYPE_DIMS_M[meta.category];
       const loaU = (t.loaM ?? dim.loa) * WORLD_SCALE * SHIP_FOOTPRINT;
       const beamU = (t.beamM ?? dim.beam) * WORLD_SCALE * SHIP_FOOTPRINT;
-      // 朝向:靠泊船對齊最近碼頭線(L2);移動船用 AIS heading/COG 近似(此 feed 無 heading →
-      // positionAt 回傳點間方位角)。heading(0=N,順時針)→ footprint headingRad,長軸對齊 (sinθ,-cosθ)。
-      let h: number;
-      if (meta.pierAligned) h = meta.pierH;
-      else { const theta = rp.headingDeg * Math.PI / 180; h = Math.atan2(-Math.cos(theta), Math.sin(theta)); }
+      // 朝向:載入時預算的逐點穩定朝向(停船不再抖動;靠泊段已鎖碼頭切線)。rp 非 null
+      // 保證 tMs 在軌跡範圍內,headingAt 不會回 null;?? 0 僅為型別安全。
+      const h = headingAt(t.path, headingAux.get(t.mmsi)!, tMs) ?? 0;
       const v01 = mode === 'type' ? valueFor(catIdx, SHIP_CATEGORY_COLORS.length) : statusVal;
       const spacing = loaU > 1.5 * S ? 0.15 * S : 0.3 * S; // 小船降取樣(隨尺度等比)
       const tpl = loadShipModel(meta.category);
@@ -397,6 +401,11 @@ export function initTwinScene(canvas: HTMLCanvasElement): TwinScene {
   (window as any).__twin = {
     engine, shipPC, mapPlane, updateShips, refresh,
     fromMs, toMs, nowMs, peakInPort, tracks, trackMeta,
+    headingAux,
+    headingAtOf: (mmsi: string, tMs: number) => {
+      const t = trackByMmsi.get(mmsi); const a = headingAux.get(mmsi);
+      return t && a ? headingAt(t.path, a, tMs) : null;
+    },
     layers: Object.fromEntries(layerHandles.map((h) => [h.key, h])),
     labels,
     get shipCenters() { return shipCenters; },
@@ -490,10 +499,12 @@ export function initTwinScene(canvas: HTMLCanvasElement): TwinScene {
       const wa = proj.toWorld(a.lat, a.lon), wb = proj.toWorld(b.lat, b.lon);
       speedKn = (Math.hypot(wb.x - wa.x, wb.z - wa.z) / WORLD_SCALE) / 60 * 1.9438;
     }
-    const state = meta.pierAligned
+    const locked = berthLockedAt(track.path, headingAux.get(track.mmsi)!, currentMs);
+    const state = locked
       ? `靠泊 · ${vessel?.berthNo != null ? vessel.berthNo + ' 泊位' : '碼頭'}`
       : speedKn < 0.5 ? '錨泊 · 待泊' : '航行中';
     return {
+      mmsi: track.mmsi,
       name: vessel?.nameZh || track.name || '未識別船舶',
       category: meta.category, catIndex: SHIP_CATEGORIES.indexOf(meta.category),
       state, speedKn,
