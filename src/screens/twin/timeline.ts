@@ -4,7 +4,7 @@
    播放/倍速沿用上游 playback.advancePerFrame——純比例公式 rangeMs*step/4800，
    單位無關，回放（ms）與推演（分鐘）兩種軸都適用。
    mode 狀態由 index.ts 以 modeApi 參數注入（不 import './index'，避免循環相依）。 */
-import { advancePerFrame } from './time/playback';
+import { advancePlayhead } from './time/playback';
 import { fromMs, toMs, nowMs, fmtClock, type TwinScene } from './scene-init';
 import type { PanelsApi } from './panels';
 
@@ -31,6 +31,9 @@ export function initTimeline(el: HTMLElement, scene: TwinScene, panels: PanelsAp
 
   let replayMs = nowMs, futureMin = 0, frozen = nowMs;
   let speed = 5, playing = false, raf = 0;
+  // 播放頭：float 累加器。不可用 slider.value 當累加器——range input 會把值 snap 到 step，
+  // ×1 每幀 sub-step 增量被捨去→凍結（見 time/playback.advancePlayhead）。播放時 seed 自當前 thumb。
+  let playHead = nowMs;
   const scrubListeners: Array<(m: TabMode) => void> = [];
 
   // Kit 的 slider 填色只在 input 事件重繪；播放時程式改值需手動補（沿用上游 paintFill 手法）。
@@ -77,11 +80,11 @@ export function initTimeline(el: HTMLElement, scene: TwinScene, panels: PanelsAp
   playBtn.addEventListener('click', () => {
     if (raf) cancelAnimationFrame(raf);
     playing = !playing; playBtn.textContent = playing ? '⏸' : '▶';
+    if (playing) playHead = +slider.value; // seed float 播放頭自當前 thumb（snapped 起點 ok）
     const step = () => {
       if (!playing) return;
-      let v = +slider.value + advancePerFrame(+slider.max - +slider.min, speed);
-      if (v > +slider.max) v = +slider.min;
-      slider.value = String(v); sync();
+      playHead = advancePlayhead(playHead, +slider.max - +slider.min, speed, +slider.min, +slider.max);
+      slider.value = String(playHead); sync(); // thumb（瀏覽器 snap 到 step，純外觀）；累加走 float 故不凍結
       raf = requestAnimationFrame(step);
     };
     if (playing) raf = requestAnimationFrame(step);
