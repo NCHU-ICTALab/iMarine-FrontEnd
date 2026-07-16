@@ -9,7 +9,7 @@
    pipeline 盡量套真實計數；inflowPool 沿用 mock（「模擬偵測」是展示裝置，非真實資料）。 */
 import type {
   EpidemicSnapshot, EpidemicVessel, EpidemicFactors, EpidemicPort,
-  EpidemicEvent, EpidemicIntel, EpidemicPipelineStage, Provider, Source,
+  EpidemicEvent, EpidemicIntel, EpidemicInflow, EpidemicPipelineStage, Provider, Source,
 } from '../types';
 import epidemicMock from '../mock/epidemic.json';
 
@@ -86,30 +86,37 @@ function toVessel(a: any): EpidemicVessel {
   const factors = factorsFor(target);
   const tier = TIER(target);
   const prev = String(a.prev_port ?? '');
+  // 只認「有中文名 → worldmap PORT_COORDS 有座標」的前一港；未知代碼不放上地圖，
+  // 避免 PORT_COORDS[name] 為 undefined 傳給 mapbox setLngLat 拋錯。
+  const prevKnown = !!prev && prev in PORT_ZH;
   const gap = clamp(GAP_DAYS[prev] ?? 2, 1, WINDOW_DAYS - 1);
   const foreignDay = clamp(WINDOW_DAYS - gap, 1, WINDOW_DAYS - 1);
-  const originName = prev ? zh(prev) : '—';
+  const originName = prevKnown ? zh(prev) : '—';
 
   const ports: EpidemicPort[] = [];
-  if (prev) ports.push({ name: originName, dayIn: foreignDay, dayOut: foreignDay });
+  if (prevKnown) ports.push({ name: originName, dayIn: foreignDay, dayOut: foreignDay });
   ports.push({ name: '高雄', dayIn: WINDOW_DAYS, dayOut: WINDOW_DAYS, berthed: true });
 
   const matches: any[] = Array.isArray(a.matched_outbreaks) ? a.matched_outbreaks : [];
-  const events: EpidemicEvent[] = matches.map((m, i) => ({
-    id: `${a.ship_code}_e${i}`,
-    port: zh(String(m.port ?? prev)),
-    day: foreignDay,                 // 落在前一港停靠日 → rose 命中
-    source: asSource(String(m.source ?? 'news')),
-    label: String(m.disease ?? '疫情通報'),
-  }));
+  // 事件一律掛在「前一外國港」（matched_outbreaks 即該港命中的疫情）→ port 必等於 ports[0].name，
+  // 保證 computeHits 的 p.name === e.port 命中（rose）；前一港未知則不掛事件（不影響其餘）。
+  const events: EpidemicEvent[] = prevKnown
+    ? matches.map((m, i) => ({
+        id: `${a.ship_code}_e${i}`,
+        port: originName,
+        day: foreignDay,
+        source: asSource(String(m.source ?? 'news')),
+        label: String(m.disease ?? '疫情通報'),
+      }))
+    : [];
 
   const intel: EpidemicIntel[] = matches.length
     ? matches.map((m) => ({
         source: asSource(String(m.source ?? 'news')),
         text: `${zh(String(m.port ?? prev))} · ${m.disease ?? ''} ${m.report_date ?? ''}`.trim(),
-        hit: true,
+        hit: prevKnown,   // 能實際在地圖/泳道命中時才標 hit
       }))
-    : [{ source: 'who', text: `${originName}沿途無通報`, hit: false }];
+    : [{ source: 'who', text: `${prevKnown ? originName : '航程'}沿途無通報`, hit: false }];
 
   return {
     id: String(a.ship_code),
@@ -121,6 +128,32 @@ function toVessel(a: any): EpidemicVessel {
     advice: ADVICE[tier.zh] ?? ADVICE['綠'],
     sms: `${a.ship_name ?? a.ship_code} 抵高雄${target} · ${tier.zh}級 · ${tier.action}`,
   };
+}
+
+const compositeScore = (f: EpidemicFactors): number =>
+  Math.round(0.25 * f.dwellDays + 0.5 * f.sourceStrength + 0.25 * f.distanceFactor);
+
+/* live 模式「模擬偵測」池：由真實船隊重建，不沿用 mock。
+   mock 的 inflowPool 針對 mock 船 id（如 "n88"）與寫死假船（CORAL EXPRESS），live 船隊以
+   MMSI 為 id → escalate 的 targetId 找不到會 crash（且 9s 後自動觸發）。此處改挑非紅級、
+   有真實前一外國港的船，模擬「新偵測到該港通報 → 升級」。無合適對象則回空池（screen 安全略過）。 */
+function buildLiveInflow(fleet: EpidemicVessel[]): EpidemicInflow[] {
+  const cand = fleet
+    .filter((v) => v.ports.length >= 2 && compositeScore(v.factors) < 80)
+    .sort((a, b) => compositeScore(a.factors) - compositeScore(b.factors))
+    .slice(0, 2);
+  return cand.map((v): EpidemicInflow => {
+    const origin = v.ports[0];
+    const up = Math.min(88, compositeScore(v.factors) + 30);
+    return {
+      kind: 'escalate',
+      targetId: v.id,
+      event: { id: `${v.id}_esc`, port: origin.name, day: origin.dayIn, source: 'who', label: '呼吸道群聚' },
+      factors: factorsFor(up),
+      intel: { source: 'who', text: `${origin.name} · 呼吸道群聚（新偵測）`, hit: true },
+      toast: `偵測到新通報 · ${origin.name}，${v.name} 升級${TIER(up).zh}級`,
+    };
+  });
 }
 
 /* pipeline：沿用 mock 五階段版面，套上可得的真實計數。 */
@@ -158,7 +191,7 @@ export function createEpidemicProvider(
           timeRange: { startDate: mmdd(start), endDate: mmdd(gen), startDay: 0, now: WINDOW_DAYS },
           pipeline: pipelineFrom(mock.pipeline, fleet),
           fleet,
-          inflowPool: mock.inflowPool, // 模擬偵測為展示裝置，沿用 mock
+          inflowPool: buildLiveInflow(fleet), // 由真實船隊重建，避免 mock id 不一致 crash
         };
       } catch {
         live = false;                 // 後端不在/無資料 → 整份 mock，chip 維持 mock，demo 不掛

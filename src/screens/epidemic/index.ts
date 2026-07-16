@@ -306,7 +306,8 @@ function simulate(): void {
   }
   const f = inflowPool[inflowIdx++];
   if (f.kind === 'escalate') {
-    const v = fleet.find((x) => x.id === f.targetId)!;
+    const v = fleet.find((x) => x.id === f.targetId);
+    if (!v) return; // 目標不在船隊（例如 live 池與船隊不一致）→ 安全略過，勿讓 demo 崩
     v.factors = f.factors;
     v.events = [...v.events, f.event];
     v.intel = [f.intel, ...v.intel.filter((i) => i.hit)];
