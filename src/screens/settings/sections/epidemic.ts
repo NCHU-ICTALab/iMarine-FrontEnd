@@ -1,24 +1,22 @@
 import type { SettingsSection } from '../schema';
 
-/* 佔位分區：欄位逐字對齊 docs/preview/preview-settings.html 的 PENDING.epidemic 定義。
-   額外附加一則 note 導引 Mapbox token 至前端設定分區統一管理。 */
+/* 疫情自動追溯 · 後端整合分區。
+   已備 live provider（src/data/exchange/epidemic.ts）；後端位址供 demo 現場覆寫，
+   維護者在 main.ts 接線時可讀 getSetting('epidemic.apiBase') || VITE_EPIDEMIC_API。 */
 export const epidemicSection: SettingsSection = {
   id: 'epidemic',
   label: '疫情追溯',
   color: '#F0648C',
-  status: () => '後端待接入',
+  status: () => '已備 provider · 待接線',
   groups: [
     {
       title: '疫情自動追溯 · 後端整合',
-      badge: '後端待接入',
+      badge: '後端位址',
       badgeTone: 'wait',
       saveMode: 'explicit',
-      pending: true,
       fields: [
-        { kind: 'text', key: 'epidemic.crawlerSource', label: '情資爬蟲來源', placeholder: 'WHO DON / 疾管署 / 新聞 RSS', disabled: true },
-        { kind: 'text', key: 'epidemic.whoApiEndpoint', label: 'WHO / 疾管署 API 端點', placeholder: 'https://api.example/who', disabled: true },
-        { kind: 'select', key: 'epidemic.compareSchedule', label: '比對排程', options: () => [{ value: '1h', label: '每小時' }], disabled: true },
-        { kind: 'note', text: '此區為預留骨架 — 後端整合後由協作者依實際需求增修欄位（見 README 協作者指南：新增一筆 schema 物件即可）。' },
+        { kind: 'text', key: 'epidemic.apiBase', label: '後端位址', placeholder: 'http://127.0.0.1:8300' },
+        { kind: 'note', text: '疫情追溯後端（iMarine-disease-tracking，FastAPI，port 8300）。留空則用 .env 的 VITE_EPIDEMIC_API；後端不在時頁面自動退 mock。' },
         { kind: 'note', text: 'Mapbox token 於「前端設定」分區統一管理。' },
       ],
     },

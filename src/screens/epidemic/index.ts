@@ -306,7 +306,8 @@ function simulate(): void {
   }
   const f = inflowPool[inflowIdx++];
   if (f.kind === 'escalate') {
-    const v = fleet.find((x) => x.id === f.targetId)!;
+    const v = fleet.find((x) => x.id === f.targetId);
+    if (!v) return; // 目標不在船隊（例如 live 池與船隊不一致）→ 安全略過，勿讓 demo 崩
     v.factors = f.factors;
     v.events = [...v.events, f.event];
     v.intel = [f.intel, ...v.intel.filter((i) => i.hit)];
@@ -343,7 +344,7 @@ const s: Screen = {
         color: '#F0648C',
         title: '疫情自動追溯',
         badges: ['AIS × WHO IHR · 規則式評分'],
-        source: 'mock',
+        source: ctx.data.epidemic.source,   // mock 或 live（接上後端後自動轉 LIVE）
         actionsHtml: '<button class="simbtn" id="epiSim">模擬偵測</button>',
       }) +
       template +
