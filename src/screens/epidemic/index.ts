@@ -343,7 +343,7 @@ const s: Screen = {
         color: '#F0648C',
         title: '疫情自動追溯',
         badges: ['AIS × WHO IHR · 規則式評分'],
-        source: 'mock',
+        source: ctx.data.epidemic.source,   // mock 或 live（接上後端後自動轉 LIVE）
         actionsHtml: '<button class="simbtn" id="epiSim">模擬偵測</button>',
       }) +
       template +
