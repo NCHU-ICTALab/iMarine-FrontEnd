@@ -4,7 +4,7 @@
       "id": "stable",
       "label": "現況穩定",
       "nowcast": { "rainLevel": "無", "beaufort": 4, "windAvg": 6.5, "windGust": 8.1 },
-      "conclusion": "未來 90 分鐘港區天候穩定 — 全作業線正常運轉",
+      "conclusion": "未來 120 分鐘港區天候穩定 — 全作業線正常運轉",
       "cwa": [
         { "window": "+3h", "rainLevel": "無", "beaufort": 4 },
         { "window": "+6h", "rainLevel": "小雨", "beaufort": 4 }

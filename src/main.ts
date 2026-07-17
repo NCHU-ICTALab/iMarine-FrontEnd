@@ -12,6 +12,7 @@ import { createCarbonProvider } from './data/exchange/carbon';
 import { createTwinProvider } from './data/exchange/twin';
 import { getSetting, subscribe } from './screens/settings/storage';
 import { createPolicyProvider } from './data/exchange/policy';
+import { createDispatchProvider } from './data/exchange/dispatch';
 // lg.d.ts 為 ambient 宣告（tsconfig include 已涵蓋），不需 import
 
 document.documentElement.setAttribute('data-lg-theme', 'dark');
@@ -30,9 +31,12 @@ subscribe('frontend.entrance', applyMotionAttrs);
 
 export const bg = initBackground(document.getElementById('harbor') as HTMLCanvasElement);
 
-// overview/dispatch/epidemic/alert 為 mock provider；carbon（Task 4）、twin（Task 8）與
-// policy（綜合對話 live）皆為 live provider（source 回報 'live'）。
+// overview/epidemic/alert 為 mock provider；carbon（Task 4）、twin（Task 8）、
+// policy（綜合對話 live）與 dispatch（微氣候派工，2026-07 接上）皆為 live provider
+// （source 回報 'live'）。
 // policy 的收件匣情報仍走 mock snapshot，只有綜合對話的自由提問打 rag-agent /api/chat。
+// dispatch 的 live 資料只覆蓋 stable 情境的 nowcast/cwa/ops 燈號，rain/typhoon 兩情境
+// 維持純 demo 模擬用途；後端不在時整份回 mock，不影響 demo（見 ./data/exchange/dispatch.ts）。
 const env = (import.meta as any).env ?? {};
 const ctx: ScreenCtx = {
   data: {
@@ -40,6 +44,7 @@ const ctx: ScreenCtx = {
     policy: createPolicyProvider(env.VITE_POLICY_API),
     carbon: createCarbonProvider(getSetting('carbon.apiBase', '') || env.VITE_CARBON_API),
     twin: createTwinProvider(),
+    dispatch: createDispatchProvider(env.VITE_DISPATCH_API),
   },
   ui: {
     toast: (o) => window.LiquidGlass.toast(o),

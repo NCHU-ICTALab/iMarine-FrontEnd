@@ -90,7 +90,7 @@ export interface PolicyReportResult {
   grounding: number; provider: string; model: string;
 }
 
-// ── dispatch（2026-07-05 spec 改版：ConvLSTM 90 分鐘單一預測 + 三情境劇本）──
+// ── dispatch（2026-07-05 spec 改版；2026-07-14 模型更名：RandomForest 120 分鐘單一預測 + 三情境劇本）──
 export type RainLevel = '無' | '小雨' | '大雨' | '豪雨' | '大豪雨' | '超大豪雨';
 export type OpStatus = 'ok' | 'warn' | 'stop';
 export type RuleTag = 'official' | 'industry';
@@ -98,7 +98,7 @@ export interface CwaWindow { window: '+3h' | '+6h'; rainLevel: RainLevel; beaufo
 export interface OpRow {
   id: 'crane' | 'grain' | 'coal' | 'tanker' | 'pilot' | 'mooring' | 'yard';
   name: string;
-  now: { status: OpStatus; action: string };   // ConvLSTM 段：燈色 + 格內動作字
+  now: { status: OpStatus; action: string };   // RandomForest 段：燈色 + 格內動作字
   cwa3: OpStatus; cwa6: OpStatus;              // CWA 段：只有燈色
   rules: { text: string; basis: string; tag: RuleTag }[];
 }
@@ -106,6 +106,21 @@ export interface DispatchCard {
   opId: string; title: string; body: string; level: OpStatus;
   badge?: { text: string; urgent: boolean };
 }
+// live provider 專用：後端單一 H 錨點的原始資料，供時間軸拖曳即時切換 hero 顯示用。
+// suggestion/riskLevel 只有 live 資料才有（來自 forecast_anchors[].dispatch_suggestion /
+// dispatch_risk_level，riskLevel 已由 provider 把後端 5 級 normal/watch/warning/high_risk/stop
+// 收斂成前端 3 態 ok/warn/stop，UI 端不需要認識後端的 5 級枚舉）。
+export interface LiveAnchor {
+  offsetMinutes: number;
+  rainLevel: RainLevel;
+  beaufort: number;
+  windAvg: number;
+  windGust: number;
+  suggestion?: string;
+  riskLevel?: OpStatus;
+}
+export interface HorizonMetrics { csi: number | null; pod: number | null; far: number | null }
+
 export interface DispatchScenario {
   id: 'stable' | 'rain' | 'typhoon';
   label: string;
@@ -115,6 +130,14 @@ export interface DispatchScenario {
   ops: OpRow[];                                // 固定 7 筆
   cards: DispatchCard[];                       // 2-5 張
   metrics: { csi: number; pod: number; far: number };
+  // live provider 專用：後端 H1~H4（30/60/90/120 分鐘）原始錨點資料。
+  // 2026-07-14：時間軸拖曳（RandomForest 0-120min 區段）已接上，會依拖曳到的分鐘數
+  // 取最近的一筆即時切換 hero 數值；mock provider 不填這個欄位，拖曳時 hero 維持靜態 nowcast。
+  liveAnchors?: LiveAnchor[];
+  // live provider 專用：後端 metrics.by_horizon（第49項），H1~H4 逐錨點 CSI/POD/FAR。
+  // 2026-07-15：拖曳到 RandomForest 區段時，hero 的 CSI/POD/FAR 會依錨點切換；
+  // CWA（+3h/+6h）區段沒有對應後端指標，固定顯示「—」。mock provider 不填這個欄位。
+  metricsByHorizon?: Record<'H1' | 'H2' | 'H3' | 'H4', HorizonMetrics>;
 }
 export interface DispatchSnapshot { scenarios: DispatchScenario[] }  // 固定 3 筆
 
