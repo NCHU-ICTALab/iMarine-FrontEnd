@@ -2,7 +2,7 @@
    互動基準：docs/preview/preview-dispatch-redesign.html。
    本檔為膠合層：一切內容從當前情境（cur）重渲染；結論標記解析走 ./conclusion。 */
 import type { Screen, ScreenCtx } from '../types';
-import type { DispatchScenario, DispatchCard, OpRow, OpStatus, RainLevel } from '../../data/types';
+import type { DispatchScenario, DispatchCard, HorizonMetrics, LiveAnchor, OpRow, OpStatus, RainLevel } from '../../data/types';
 import { screenHeader } from '../../ui/components';
 import { parseConclusion } from './conclusion';
 import { prefersReduced } from '../settings/storage';
@@ -42,32 +42,64 @@ function paintRing(): void {
   $('#ring').style.setProperty('--pp', `${(remain / TOTAL) * 100}%`);
   $('#cntT').textContent = inferring ? '推論中' : fmt(remain);
 }
+let inferenceId = 0;   // 情境切換/重觸發時讓晚到的重抓結果作廢，不要無預警覆蓋畫面
+
 stopInference = () => {            // 覆寫 Task 4 掛點：情境切換時中止推論動畫
+  inferenceId++;
   inferring = false;
   $('#cnt').classList.remove('running');
   paintRing();
 };
+
+/* 2026-07-14：倒數歸零時真的重打一次後端（ctx.data.dispatch.snapshot()），
+   不再是純視覺抖動——stable 情境會拿到新的 nowcast/cwa/liveAnchors，rain/typhoon
+   仍是純 mock，重抓對它們是無害的 no-op。
+   已實測後端 /api/v1/dispatch/risk 回應時間不穩定（冷啟動 ~8s，實測瀏覽器情境下偶爾 20 秒以上未回應，
+   已寫入後端規格書請查根因），前端不能無限期等待，故加 10 秒逾時：逾時或連線失敗都維持現有資料、
+   用 toast 誠實告知這次沒抓到，不假裝成功；逾時後若原本的請求晚到才回來，直接丟棄，不再套用。 */
+const REFRESH_TIMEOUT_MS = 10000;
+
 function runInference(): void {
   if (inferring) return;           // 不可重入
   inferring = true;
   $('#cnt').classList.add('running');
   remain = TOTAL;
   paintRing();
+  const id = ++inferenceId;
   later(() => {
-    inferring = false;
-    $('#cnt').classList.remove('running');
-    /* 微調：windAvg/windGust ±0.2-0.4 視覺抖動（不改燈號、不進資料，spec §7-4） */
-    const n = scn().nowcast;
-    const dir = Math.random() > 0.5 ? 1 : -1;
-    const j = (v: number) => Math.max(0, v + (Math.random() * 0.2 + 0.2) * dir);
-    $('#wxavg').textContent = j(n.windAvg).toFixed(1);
-    $('#wxgust').textContent = j(n.windGust).toFixed(1);
     const now = new Date();
-    sCtx.ui.toast({
-      title: 'ConvLSTM 已更新',
-      message: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} 推論完成`,
-    });
-    paintRing();
+    const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    let settled = false;
+    const finish = (ok: boolean, timedOut: boolean): void => {
+      if (settled || id !== inferenceId) return;
+      settled = true;
+      inferring = false;
+      $('#cnt').classList.remove('running');
+      renderAll();
+      bubbleRefresh?.();
+      sCtx.ui.toast(
+        ok
+          ? { title: 'RandomForest 已更新', message: `${timeLabel} 重新取得後端最新預測` }
+          : {
+              title: '本次更新失敗',
+              message: `${timeLabel} ${timedOut ? '後端回應逾時（10秒）' : '後端連線失敗'}，畫面維持原有資料`,
+            },
+      );
+      paintRing();
+    };
+    const timeoutId = setTimeout(() => finish(false, true), REFRESH_TIMEOUT_MS);
+    sCtx.data.dispatch
+      .snapshot()
+      .then((snap) => {
+        clearTimeout(timeoutId);
+        if (settled || id !== inferenceId) return;   // 已逾時放棄，晚到的結果不再套用
+        scenarios = snap.scenarios;
+        finish(true, false);
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        finish(false, false);
+      });
   }, RM() ? 0 : 2000);
 }
 /* DEV-only 測試鉤：倒數 10 分鐘，驗收腳本等不到自然歸零，需一個觸發入口
@@ -81,17 +113,59 @@ const WXCLS: Record<RainLevel, 'ok' | 'warn' | 'stop'> =
   { 無: 'ok', 小雨: 'ok', 大雨: 'warn', 豪雨: 'stop', 大豪雨: 'stop', 超大豪雨: 'stop' };
 const SYM: Record<OpStatus, string> = { stop: '✕ ', warn: '! ', ok: '' };
 
-function renderHero(sc: DispatchScenario): void {
-  const n = sc.nowcast;
+interface HeroValues {
+  rainLevel: RainLevel;
+  beaufort: number;
+  windAvg: number | null;
+  windGust: number | null;
+  riskLevel?: OpStatus;   // 2026-07-15：後端 dispatch_risk_level 收斂後的值，有值時取代 WXCLS 查表
+}
+
+/* hero 大字塊的燈色/數字：拖曳時間軸時會用不同時間點的資料重繪這一段，
+   CWA 沒有精確 m/s（官方預報只給蒲福風級區間），windAvg/windGust 傳 null 時顯示「—」，
+   不假裝有精確數字。riskLevel 有值（live資料的H1~H4錨點）時優先用它決定底色，
+   否則退回 WXCLS[rainLevel] 查表（mock情境、CWA zone一律走這條路，CWA沒有dispatch_risk_level）。 */
+function renderHeroValues(n: HeroValues): void {
   const wx = $('#wx');
   wx.classList.remove('ok', 'warn', 'stop');
-  wx.classList.add(WXCLS[n.rainLevel]);
+  wx.classList.add(n.riskLevel ?? WXCLS[n.rainLevel]);
   $('#wxlvl').textContent = n.rainLevel === '無' ? '無降雨' : n.rainLevel;
   $('#wxbf').textContent = `${n.beaufort} 級`;
-  $('#wxavg').textContent = n.windAvg.toFixed(1);
-  $('#wxgust').textContent = n.windGust.toFixed(1);
-  $('#wxmet').textContent =
-    `CSI ${sc.metrics.csi.toFixed(2)} · POD ${sc.metrics.pod.toFixed(2)} · FAR ${sc.metrics.far.toFixed(2)}`;
+  $('#wxavg').textContent = n.windAvg == null ? '—' : n.windAvg.toFixed(1);
+  $('#wxgust').textContent = n.windGust == null ? '—' : n.windGust.toFixed(1);
+}
+
+function formatMetrics(m: { csi: number | null; pod: number | null; far: number | null }): string {
+  const fmt = (v: number | null) => (v == null ? '—' : v.toFixed(2));
+  return `CSI ${fmt(m.csi)} · POD ${fmt(m.pod)} · FAR ${fmt(m.far)}`;
+}
+
+const HORIZON_KEYS = ['H1', 'H2', 'H3', 'H4'] as const;
+type HorizonKey = (typeof HORIZON_KEYS)[number];
+
+/* liveAnchors（H1~H4）裡離目標分鐘數最近的一筆；平手取較早的一筆，同時回傳對應的H1~H4 key
+   （依陣列位置而非offsetMinutes數值判斷，避免依賴30/60/90/120這種寫死的分鐘數）供查
+   metricsByHorizon用。rain/typhoon情境與live取不到資料時liveAnchors是undefined，回傳null
+   交由呼叫端退回靜態nowcast。 */
+function pickAnchor(sc: DispatchScenario, minutes: number): { anchor: LiveAnchor; horizonKey: HorizonKey } | null {
+  const anchors = sc.liveAnchors;
+  if (!anchors || !anchors.length) return null;
+  let bestIdx = 0;
+  let bestDiff = Math.abs(anchors[0].offsetMinutes - minutes);
+  for (let i = 1; i < anchors.length; i++) {
+    const diff = Math.abs(anchors[i].offsetMinutes - minutes);
+    if (diff < bestDiff) { bestIdx = i; bestDiff = diff; }
+  }
+  return { anchor: anchors[bestIdx], horizonKey: HORIZON_KEYS[Math.min(bestIdx, HORIZON_KEYS.length - 1)] };
+}
+
+function metricsFor(sc: DispatchScenario, horizonKey: HorizonKey): HorizonMetrics | null {
+  return sc.metricsByHorizon?.[horizonKey] ?? null;
+}
+
+function renderHero(sc: DispatchScenario): void {
+  renderHeroValues(sc.nowcast);
+  $('#wxmet').textContent = formatMetrics(sc.metrics);
   $('#concl').innerHTML = parseConclusion(sc.conclusion);
 }
 
@@ -181,8 +255,8 @@ const s: Screen = {
         eyebrow: '港邊人員視角 · MODULE 04',
         color: '#F5A54A',
         title: '短時微氣候 · 即時派工建議',
-        badges: ['ConvLSTM 0-90 min'],
-        source: 'mock',
+        badges: ['RandomForest 0-120 min'],
+        source: 'live',
         actionsHtml: segctlHtml(),
       }) +
       template +
@@ -195,13 +269,28 @@ const s: Screen = {
       const tl = $('#tl'), knob = $('#tlknob'), bub = $('#tlbub');
       let txt: string, zone: 'N' | '3' | '6';
       if (pct <= N_END) {
-        const min = Math.round((pct / N_END) * 90 / 5) * 5;
-        txt = `${min === 0 ? 'NOW' : `+${min} min`} · ConvLSTM · ${sc.nowcast.rainLevel}`;
+        const min = Math.round((pct / N_END) * 120 / 5) * 5;
+        const picked = pickAnchor(sc, min);
+        const anchor = picked?.anchor;
+        txt = `${min === 0 ? 'NOW' : `+${min} min`} · RandomForest · ${(anchor ?? sc.nowcast).rainLevel}`;
         zone = 'N';
+        if (anchor) {
+          renderHeroValues(anchor);
+          if (anchor.suggestion) $('#concl').textContent = anchor.suggestion;   // 沒有時維持前一次的渲染結果
+          const hm = picked ? metricsFor(sc, picked.horizonKey) : null;
+          if (hm) $('#wxmet').textContent = formatMetrics(hm);
+        }
+        $('#wxwin').textContent = `${min === 0 ? '現在' : `未來 ${min} 分鐘`} · 港區`;
       } else if (pct <= C3_END) {
         txt = `+3h · CWA · ${sc.cwa[0].rainLevel}`; zone = '3';
+        renderHeroValues({ rainLevel: sc.cwa[0].rainLevel, beaufort: sc.cwa[0].beaufort, windAvg: null, windGust: null });
+        $('#wxmet').textContent = 'CSI — · POD — · FAR —';   // CWA無對應評估指標，不假裝有
+        $('#wxwin').textContent = 'CWA官方預報 +3h · 港區';
       } else {
         txt = `+6h · CWA · ${sc.cwa[1].rainLevel}`; zone = '6';
+        renderHeroValues({ rainLevel: sc.cwa[1].rainLevel, beaufort: sc.cwa[1].beaufort, windAvg: null, windGust: null });
+        $('#wxmet').textContent = 'CSI — · POD — · FAR —';
+        $('#wxwin').textContent = 'CWA官方預報 +6h · 港區';
       }
       knob.style.left = `${pct}%`;
       bub.style.left = `${Math.min(Math.max(pct, 12), 88)}%`;   // 泡泡不出界
